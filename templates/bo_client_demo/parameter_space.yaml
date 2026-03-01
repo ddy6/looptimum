@@ -1,0 +1,16 @@
+{
+  "parameters": [
+    {
+      "name": "x1",
+      "type": "float",
+      "bounds": [0.0, 1.0],
+      "description": "First controllable factor"
+    },
+    {
+      "name": "x2",
+      "type": "float",
+      "bounds": [0.0, 1.0],
+      "description": "Second controllable factor"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "created_at": 1772049465.5840378,
+    "seed": 17
+  },
+  "observations": [
+    {
+      "trial_id": 1,
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      },
+      "objectives": {
+        "loss": 0.2111145292728927
+      },
+      "status": "ok",
+      "completed_at": 1772049465.675209
+    }
+  ],
+  "pending": [],
+  "next_trial_id": 2,
+  "best": {
+    "trial_id": 1,
+    "objective_name": "loss",
+    "objective_value": 0.2111145292728927,
+    "updated_at": 1772049465.6752121
+  }
+}

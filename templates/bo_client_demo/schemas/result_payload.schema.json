@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExperimentResult",
+  "type": "object",
+  "required": ["trial_id", "params", "objectives"],
+  "properties": {
+    "trial_id": {"type": "integer", "minimum": 1},
+    "params": {"type": "object"},
+    "objectives": {"type": "object"},
+    "status": {"type": "string", "enum": ["ok", "failed"]}
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "seed": 17,
+  "max_trials": 40,
+  "initial_random_trials": 6,
+  "candidate_pool_size": 600,
+  "surrogate": {
+    "type": "rbf_proxy",
+    "length_scale": 0.22,
+    "botorch_default": {
+      "model": "SingleTaskGP",
+      "training": "fit_gpytorch_mll",
+      "dtype": "torch.double"
+    }
+  },
+  "acquisition": {
+    "type": "ucb",
+    "kappa": 1.8,
+    "xi": 0.01
+  },
+  "feature_flags": {
+    "enable_botorch_gp": false,
+    "fallback_to_proxy_if_unavailable": true
+  },
+  "batch_size": 1,
+  "stopping": {
+    "min_improvement": 0.0001,
+    "patience_trials": 10
+  },
+  "paths": {
+    "state_file": "state/bo_state.json",
+    "observations_csv": "state/observations.csv",
+    "acquisition_log_file": "state/acquisition_log.jsonl",
+    "result_schema_file": "schemas/result_payload.schema.json"
+  }
+}

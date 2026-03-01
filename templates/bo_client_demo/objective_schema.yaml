@@ -1,0 +1,9 @@
+{
+  "primary_objective": {
+    "name": "loss",
+    "direction": "minimize",
+    "tolerance": 0.0,
+    "failure_handling": "record_and_continue"
+  },
+  "secondary_objectives": []
+}

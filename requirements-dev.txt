@@ -1,0 +1,2 @@
+# Core dev/test dependencies for this workspace.
+pytest>=9,<10

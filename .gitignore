@@ -1,0 +1,43 @@
+# macOS
+.DS_Store
+
+# Python caches / bytecode
+__pycache__/
+*.py[cod]
+
+# Test/tool caches
+.pytest_cache/
+.coverage
+.coverage.*
+.mypy_cache/
+
+# Local optimization run state (legacy and public template layouts)
+bo_client*/bo_client_template/state/bo_state.json
+bo_client*/bo_client_template/state/observations.csv
+bo_client*/bo_client_template/state/acquisition_log.jsonl
+bo_client*/bo_client_template/examples/_demo_result.json
+
+templates/*/state/bo_state.json
+templates/*/state/observations.csv
+templates/*/state/acquisition_log.jsonl
+templates/*/examples/_demo_result.json
+
+# Documentation-generated sample artifacts can be committed intentionally;
+# keep this pattern commented unless local scratch snapshots are used.
+# docs/examples/state_snapshots/_scratch*
+
+# Local virtual environment used during development
+bo_service/
+.venv/
+venv/
+env/
+
+# Local meshing example outputs
+meshopt_output/
+meshing_example/meshopt_output/
+
+# Internal planning docs (not for public repo)
+plan_to_publishable.md
+devPlan.md
+next_steps.md
+init_instructions.json
