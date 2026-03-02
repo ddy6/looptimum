@@ -123,6 +123,8 @@ Sentinel guidance:
 - For `maximize`: use a very small value (example: `-1e12`)
 
 `run_one_eval.py` default behavior (`--on-exception failed`) writes a failed payload automatically if `objective.py` raises.
+Default sentinel is direction-aware: `+1e12` for `minimize`, `-1e12` for `maximize`.
+Set direction explicitly with `--objective-direction` or provide `--objective-schema` to auto-read direction/name from `primary_objective`.
 
 ## Resume / Idempotency Notes
 
@@ -141,6 +143,7 @@ From repo root, using a docs snapshot suggestion as an example:
 python3 client_harness_template/run_one_eval.py \
   docs/examples/state_snapshots/suggestion_1.json \
   /tmp/result.json \
+  --objective-direction minimize \
   --objective-name loss \
   --print-result
 ```
@@ -153,14 +156,14 @@ Example with `templates/bo_client_demo`:
 
 ```bash
 python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo --json-only > /tmp/suggest_stdout.txt
-python3 client_harness_template/run_one_eval.py /tmp/suggest_stdout.txt /tmp/result.json --objective-name loss
+python3 client_harness_template/run_one_eval.py /tmp/suggest_stdout.txt /tmp/result.json --objective-schema templates/bo_client_demo/objective_schema.yaml
 python3 templates/bo_client_demo/run_bo.py ingest --project-root templates/bo_client_demo --results-file /tmp/result.json
 python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_client_demo
 ```
 
 ## Customization Checklist
 
-- Set `--objective-name` to match your harness primary objective name.
+- Set `--objective-name` (or use `--objective-schema`) to match your harness primary objective name.
 - Implement `objective.py:evaluate(params)`.
 - Pick a failure sentinel consistent with minimize/maximize direction.
 - Add any client-specific logging, retries, and timeout handling inside `objective.py`.

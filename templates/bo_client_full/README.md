@@ -1,4 +1,4 @@
-# bo_client_template (Full)
+# bo_client_full
 
 Single-stage optimization harness with an optional BoTorch GP backend behind a feature flag.
 

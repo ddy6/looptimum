@@ -1,4 +1,4 @@
-# bo_client_template
+# bo_client
 
 Minimal single-stage optimization harness with explicit config, a swappable surrogate backend, and restartable JSON state.
 

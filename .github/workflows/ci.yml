@@ -37,8 +37,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Run template test suite
-        run: python -m pytest -q templates
+      - name: Run test suite
+        run: python -m pytest -q templates client_harness_template/tests
 
       - name: Syntax check critical scripts
         run: |

@@ -1,165 +1,134 @@
-# Sample Workup (Pilot-Style Report)
+# Sample Workup (Pilot-Style)
 
-This is a sample reporting format for an optimization pilot run; think of it as a template, not a claim.
+This is a reusable report structure based on a real local demo run. It is not a client performance claim.
 
-It uses a local toy objective (`templates/bo_client_demo` `demo` mode) to demonstrate report structure, analysis style, and decision-making output. The numbers below are from a reproducible sample run on a temporary copy of the demo template.
+## 1. Run Provenance
 
-## 1. Problem Statement
+- Template variant: `templates/bo_client_demo`
+- Snapshot data source: `docs/examples/state_snapshots/`
+- Source commit (when this sample was captured): `b6b6bf1`
+- Snapshot timestamp (UTC): `2026-02-25T19:57:45Z`
+- Command pattern used for this run:
+  - `python3 templates/bo_client_demo/run_bo.py demo --project-root templates/bo_client_demo --steps 20`
+- Seed from config: `17`
+- Environment: local development machine (demo synthetic objective)
+
+## 2. Problem Statement
 
 Objective:
 
-- Minimize a scalar `loss` over a 2-parameter bounded search space (`x1`, `x2`)
+- Minimize scalar `loss` over a 2-parameter bounded space (`x1`, `x2`)
 
-Purpose of this sample report:
+Purpose of this sample:
 
-- show what a pilot readout can look like
-- demonstrate convergence interpretation and next-step recommendations
-- provide a template for real client-facing workups
+- show a practical readout structure
+- tie claims to explicit run evidence
+- define concrete next-step decision gates
 
-## 2. Optimization Setup Summary
+## 3. Optimization Setup Summary
 
-### Optimization Template Variant
+- Loop contract: file-backed `suggest -> evaluate -> ingest`
+- State artifacts:
+  - `bo_state.json`
+  - `observations.csv`
+  - `acquisition_log.jsonl`
+- Parameter space:
+  - `x1`: float in `[0.0, 1.0]`
+  - `x2`: float in `[0.0, 1.0]`
+- Objective: `loss` (`minimize`)
+- Config values used:
+  - `max_trials = 40`
+  - `initial_random_trials = 6`
+  - acquisition: proxy UCB
+- Executed evaluations in this sample: `20`
 
-- `templates/bo_client_demo`
+## 4. Evaluation Results (Rounded)
 
-### Loop Contract
-
-- file-backed `suggest -> evaluate -> ingest`
-- resumable local state (`bo_state.json`)
-- append-only acquisition decision log (`acquisition_log.jsonl`)
-
-### Parameter Space (Toy Example)
-
-- `x1`: float in `[0.0, 1.0]`
-- `x2`: float in `[0.0, 1.0]`
-
-### Objective
-
-- primary objective: `loss`
-- direction: `minimize`
-
-### Run Configuration (Demo Template Defaults)
-
-- max trial budget: `40`
-- initial random trials: `6`
-- acquisition: proxy UCB
-- sample run executed here: `20` evaluations (demo-mode synthetic evaluator)
-
-## 3. Evaluation Run Summary
-
-### Run Size and Status
-
-- Total completed evaluations: `20`
+- Completed evaluations: `20`
 - Successful evaluations: `20`
 - Failed evaluations: `0`
+- Best trial: `19`
+- Best observed `loss`: `-0.02431`
+- Trial 1 `loss` (baseline reference): `0.21111`
+- Absolute improvement vs trial 1: `0.23542`
+- Relative improvement vs trial 1: `111.5%`
 
-### Best Result
+Note: The toy objective can produce negative values. Relative improvement is shown only as a directional summary.
 
-- Best trial ID: `19`
-- Best observed objective (`loss`): `-0.024306480195727467`
+## 5. Convergence Evidence
 
-### Reference Baseline (First Evaluation)
-
-- Trial 1 objective (`loss`): `0.2111145292728927`
-
-### Improvement (Best vs First Observed)
-
-- Absolute improvement: `0.23542100946862016`
-- Relative improvement vs first observed value: `111.5%`
-
-Note:
-
-- The toy objective can produce negative values, so percentage improvement is relative to the first observed value and is reported for illustration only.
-
-## 4. Convergence Behavior (Sample Interpretation)
-
-Best-so-far objective by selected evaluation counts:
+Best-so-far loss at selected checkpoints:
 
 | eval count | best-so-far loss |
 |---|---:|
-| 1 | 0.2111145292728927 |
-| 3 | 0.03128341826910849 |
-| 5 | 0.03128341826910849 |
-| 10 | -0.007994595854536726 |
-| 15 | -0.007994595854536726 |
-| 20 | -0.024306480195727467 |
+| 1 | 0.21111 |
+| 3 | 0.03128 |
+| 5 | 0.03128 |
+| 10 | -0.00799 |
+| 15 | -0.00799 |
+| 20 | -0.02431 |
 
-Observations:
+Observed step changes from this run:
 
-- Rapid early improvement occurred within the first few evaluations.
-- Best-so-far improved again by evaluation `10`.
-- A smaller later improvement occurred near evaluation `19`.
-- This pattern is typical for many expensive black-box problems:
-  - fast early gains
-  - plateau periods
-  - occasional later improvements
+- Eval `1 -> 3`: improvement of `0.17983`
+- Eval `5 -> 10`: improvement of `0.03928`
+- Eval `15 -> 20`: improvement of `0.01631`
 
-## 5. Best-Found Configuration (Sample)
+Interpretation tied to data:
+
+- Largest gain happened early (1 to 3).
+- Mid-run plateau appears (3 to 5 and 10 to 15).
+- Later improvement still occurred by eval 20.
+
+## 6. Best-Found Configuration
 
 Best observed trial (`trial_id=19`):
 
-- `x1 = 0.4936969718011921`
-- `x2 = 0.9967474805735372`
-- `loss = -0.024306480195727467`
+- `x1 = 0.49370`
+- `x2 = 0.99675`
+- `loss = -0.02431`
 
-Interpretation (toy-example specific):
+## 7. Reliability / Traceability Checks
 
-- The optimizer concentrated near a high-`x2` region with selective exploration in `x1`.
-- Later-stage suggestions continued to sample near previously promising areas while maintaining some exploration pressure via acquisition scoring.
+Artifacts expected from this run pattern are present in snapshots:
 
-## 6. Objective Behavior / Trade-Off Notes (Sample)
+- pending/observation transitions are represented in state files
+- acquisition decisions are present in JSONL
+- flattened observation export is present in CSV
 
-Even in this toy run, several practical pilot-style observations are visible:
+These checks support replayability of the run narrative and post-run inspection.
 
-- Some trials produced significantly worse objective values despite nearby promising trials.
-- Best results were not found during the initial random phase.
-- Continued evaluations after early gains still produced useful improvements.
+## 8. Uncertainty and Limits
 
-What this usually suggests in real applications:
+This sample is useful for format and workflow validation, but has strict limits:
 
-- A pilot budget should usually allow room beyond pure initialization.
-- Failure/invalid-run handling must be part of the integration design even if the toy objective never fails.
-- Resume capability matters because meaningful improvements can happen late in a campaign.
+- objective is synthetic (not a production evaluator)
+- no runtime failures occurred in this run
+- 2D search space is simpler than most client problems
+- no measurement noise model was exercised
 
-## 7. Reliability and Traceability Notes
+Because of these limits, the result should be treated as a process example, not performance evidence.
 
-This sample run exercised the standard local traceability artifacts:
+## 9. Decision Gates For A Real Pilot
 
-- resumable state tracking
-- flattened observations CSV
-- append-only acquisition decision logging
+Use explicit gates before moving from pilot to broader rollout:
 
-These artifacts help with:
+1. Integration reliability gate:
+   - `suggest -> ingest` loop completes without manual state repair
+   - restart/resume works after interruption
+2. Optimization signal gate:
+   - best-so-far improves beyond initialization and does not regress after objective-definition review
+3. Operational gate:
+   - failure policy is documented (`status`, sentinel behavior, retry/timeout policy)
+   - run logs are sufficient for root-cause review
 
-- interruption recovery
-- post-run analysis
-- auditability of suggestion decisions
+If any gate is not met, pause scaling and fix integration or objective framing first.
 
-## 8. Recommended Next Steps (Pilot-to-Production Pattern)
+## 10. Reuse Checklist
 
-For a real client pilot, recommended next actions after an initial run like this:
+When adapting this report for real client work, replace:
 
-1. Review parameter bounds for over-broad or clearly low-value regions.
-2. Validate objective scalarization with domain stakeholders (especially if multiple metrics are involved).
-3. Document failure/invalid-run policy explicitly (sentinel values, retry vs fail-fast behavior).
-4. Run a second pilot with refined bounds and a larger budget if the first run shows signal.
-5. Compare proxy-only vs GP-backed mode only after integration stability is confirmed.
-
-## 9. Template Reuse Notes
-
-This report format can be reused for real client work by replacing:
-
-- toy objective description with client problem statement
-- toy parameter names with client parameters
-- sample convergence table with actual campaign results
-- sample recommendations with domain-specific next steps
-
-## 10. Appendix: Sample Metrics (This Report)
-
-Source summary used in this sample:
-
-- evaluations run: `20`
-- best trial: `19`
-- best loss: `-0.024306480195727467`
-- first loss: `0.2111145292728927`
-- best-so-far milestones shown at evals: `1, 3, 5, 10, 15, 20`
+- toy objective text with client objective definition
+- toy parameter names with client parameter names
+- checkpoint table with actual campaign checkpoints
+- decision gates with client-specific thresholds and SLAs

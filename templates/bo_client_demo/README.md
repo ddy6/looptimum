@@ -1,4 +1,4 @@
-# bo_client_template (Demo)
+# bo_client_demo
 
 Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration and restartable state.
 

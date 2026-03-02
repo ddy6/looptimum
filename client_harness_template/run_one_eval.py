@@ -15,6 +15,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+DEFAULT_FAILURE_SENTINEL_MINIMIZE = 1e12
+DEFAULT_FAILURE_SENTINEL_MAXIMIZE = -1e12
+
 
 def _load_json_or_suggest_stdout(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
@@ -84,6 +87,30 @@ def _normalize_eval_output(value: Any) -> tuple[float, str]:
     raise ValueError("evaluate(params) must return a number or dict")
 
 
+def _load_objective_contract(path: Path) -> tuple[str, str]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"objective schema at {path} must be a JSON object")
+
+    primary = data.get("primary_objective")
+    if not isinstance(primary, dict):
+        raise ValueError(f"objective schema at {path} missing primary_objective object")
+
+    name = primary.get("name")
+    direction = primary.get("direction")
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError(f"objective schema at {path} has invalid primary_objective.name")
+    if direction not in {"minimize", "maximize"}:
+        raise ValueError(f"objective schema at {path} has invalid primary_objective.direction")
+    return name, str(direction)
+
+
+def _default_failure_sentinel(direction: str) -> float:
+    if direction == "maximize":
+        return DEFAULT_FAILURE_SENTINEL_MAXIMIZE
+    return DEFAULT_FAILURE_SENTINEL_MINIMIZE
+
+
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -114,7 +141,18 @@ def parse_args() -> argparse.Namespace:
         default=str(here / "objective.py"),
         help="Path to module defining evaluate(params)",
     )
-    p.add_argument("--objective-name", default="loss", help="Primary objective name expected by optimization harness")
+    p.add_argument("--objective-name", default=None, help="Primary objective name expected by optimization harness")
+    p.add_argument(
+        "--objective-direction",
+        choices=["minimize", "maximize"],
+        default=None,
+        help="Objective direction used to choose the default failed-run sentinel",
+    )
+    p.add_argument(
+        "--objective-schema",
+        default=None,
+        help="Path to objective_schema.yaml/json; if provided, objective name/direction default from primary_objective",
+    )
     p.add_argument(
         "--on-exception",
         choices=["failed", "raise"],
@@ -124,8 +162,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--failure-sentinel",
         type=float,
-        default=1e12,
-        help="Finite objective value to write when on-exception=failed (pick directionally bad for your objective)",
+        default=None,
+        help=(
+            "Finite objective value for on-exception=failed; defaults to +1e12 for minimize "
+            "or -1e12 for maximize"
+        ),
     )
     p.add_argument("--print-result", action="store_true", help="Print written payload to stdout")
     return p.parse_args()
@@ -137,6 +178,23 @@ def main() -> None:
     result_path = Path(args.result_file)
     objective_module_path = Path(args.objective_module)
 
+    objective_name = str(args.objective_name) if args.objective_name else None
+    objective_direction = str(args.objective_direction) if args.objective_direction else None
+    if args.objective_schema:
+        schema_name, schema_direction = _load_objective_contract(Path(args.objective_schema))
+        if objective_name is None:
+            objective_name = schema_name
+        if objective_direction is None:
+            objective_direction = schema_direction
+    if objective_name is None:
+        objective_name = "loss"
+    if objective_direction is None:
+        objective_direction = "minimize"
+
+    failure_sentinel = float(args.failure_sentinel) if args.failure_sentinel is not None else _default_failure_sentinel(objective_direction)
+    if not math.isfinite(failure_sentinel):
+        raise ValueError("failure sentinel must be finite")
+
     suggestion = _load_json_or_suggest_stdout(suggestion_path)
     _require_suggestion_shape(suggestion)
 
@@ -147,7 +205,7 @@ def main() -> None:
         result = {
             "trial_id": int(suggestion["trial_id"]),
             "params": suggestion["params"],
-            "objectives": {args.objective_name: objective_value},
+            "objectives": {objective_name: objective_value},
             "status": status,
         }
     except Exception as exc:
@@ -157,7 +215,7 @@ def main() -> None:
             f"[run_one_eval] objective evaluation failed; writing status=failed payload: {exc}",
             file=sys.stderr,
         )
-        result = build_failed_payload(suggestion, args.objective_name, float(args.failure_sentinel))
+        result = build_failed_payload(suggestion, objective_name, failure_sentinel)
 
     _write_json(result_path, result)
     if args.print_result:
