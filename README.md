@@ -41,6 +41,10 @@ what to test next.
 - Infra/performance tuning: concurrency, cache TTLs, connection pools,
   thread counts.
 - Search/recommendation knobs: threshold and weighting calibration.
+- Pricing/growth experiments: eligibility thresholds, ramp controls,
+  and guardrail tradeoffs.
+- Build and compile tuning: optimization flags, link-time settings,
+  and benchmark-driven runtime tradeoffs.
 - ML training loops: learning rate, batch size, regularization, early-stop
   settings.
 - Simulation and engineering workflows: solver tolerances, mesh controls,
@@ -62,7 +66,24 @@ python3 templates/bo_client_demo/run_bo.py status \
   --project-root templates/bo_client_demo
 ```
 
-`status` returns a compact summary with:
+Real captured `status` output (from `templates/bo_client_demo` on
+March 3, 2026):
+
+```json
+{
+  "observations": 3,
+  "pending": 0,
+  "next_trial_id": 4,
+  "best": {
+    "trial_id": 2,
+    "objective_name": "loss",
+    "objective_value": 0.03128341826910849,
+    "updated_at": 1772392830.7282188
+  }
+}
+```
+
+Key fields:
 
 - `observations`
 - `pending`
@@ -87,7 +108,9 @@ For full command sets and resume behavior, see `quickstart/README.md`.
 - Search space is extremely high-dimensional without useful structure.
 - You cannot define a scalar objective or acceptable scalarization rule.
 
-## Integration Contract (Minimal)
+## Contract (v0.2 Target)
+
+This section describes the frozen contract target for `v0.2`.
 
 ### Inputs
 
@@ -108,8 +131,19 @@ Each suggestion includes:
 
 - `trial_id` (must match a pending trial)
 - `params` (must match suggested params exactly)
-- `objectives` (primary objective numeric and finite)
-- `status` (`ok` or `failed` in current public templates)
+- `objectives`:
+  primary objective must be numeric and finite for `status: ok`;
+  primary objective must be `null` for non-`ok` statuses
+- `status`:
+  `ok`, `failed`, `killed`, `timeout`
+
+### `ingest` Optional Fields (v0.2 Target)
+
+- `metrics` (object)
+- `runtime_seconds` (number)
+- `stderr_excerpt` (string)
+- `artifact_links` (list/object)
+- `penalty_objective` (number, only for non-`ok` statuses)
 
 ### `status` Headline Fields
 
@@ -123,6 +157,14 @@ Each suggestion includes:
 - `state/bo_state.json`: source of truth for observations/pending/best.
 - `state/observations.csv`: flattened observation export.
 - `state/acquisition_log.jsonl`: append-only decision trace.
+
+### Current Behavior (v0.1)
+
+- Current public templates accept `status: ok|failed`.
+- `success` alias normalization and `killed|timeout` statuses are part of the
+  `v0.2` target contract.
+- Optional `v0.2` ingest fields above are forward-looking documentation and may
+  not yet be consumed by all current template implementations.
 
 ## Templates (Choose Your Starting Level)
 
@@ -191,7 +233,7 @@ RUN_GP_TESTS=1 python3 -m pytest -q \
   templates/bo_client/tests/test_suggest.py::test_suggest_works_with_gp_backend
 ```
 
-## Automation Note
+## Automation Note (Machine-Readable Suggest)
 
 For machine parsing of `suggest` output, use:
 
