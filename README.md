@@ -199,6 +199,8 @@ The `examples/` folder shows integration patterns, not benchmark leaderboards.
 - Self-serve: use templates directly in your environment.
 - Assisted integration: wire your evaluator with the starter harness.
 - Managed execution support: run a pilot loop with clear deliverables.
+- Optional on-prem/offline support: operate entirely in client-controlled
+  infrastructure.
 
 If you have an expensive tuning problem, start with `intake.md` and open an
 issue describing your use case.
