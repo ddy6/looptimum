@@ -36,16 +36,3 @@ env/
 # Local meshing example outputs
 meshopt_output/
 meshing_example/meshopt_output/
-
-# Internal planning docs (not for public repo)
-plan_to_publishable.md
-devPlan.md
-next_steps.md
-init_instructions.json
-first_impression_updates.md
-first_impressions_updates.md
-scope_updates.md
-comprehensive_update_plan.md
-reports/phase0_decisions.md
-reports/update_program_tracking_issue.md
-reports/update_prograpm_tracking_issues.md
