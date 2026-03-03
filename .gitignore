@@ -7,6 +7,7 @@ __pycache__/
 
 # Test/tool caches
 .pytest_cache/
+.pre-commit-cache/
 .coverage
 .coverage.*
 .mypy_cache/
