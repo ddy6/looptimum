@@ -122,7 +122,9 @@ def norm_dist(a: dict, b: dict, params: list[dict]) -> float:
     return math.sqrt(s)
 
 
-def predict_rbf_proxy(x: dict, obs: list[dict], params: list[dict], obj: str, l: float) -> tuple[float, float]:
+def predict_rbf_proxy(
+    x: dict, obs: list[dict], params: list[dict], obj: str, l: float
+) -> tuple[float, float]:
     if not obs:
         return 0.0, 1.0
     ys, ws = [], []
@@ -155,7 +157,9 @@ def acq_score(mean: float, std: float, best: float | None, direction: str, acq: 
     raise ValueError(f"Unsupported acquisition type: {t}")
 
 
-def propose(rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_cfg: dict) -> tuple[dict, dict]:
+def propose(
+    rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_cfg: dict
+) -> tuple[dict, dict]:
     obs = state["observations"]
     objective = obj_cfg["primary_objective"]
     obj_name, direction = objective["name"], objective["direction"]
@@ -167,7 +171,9 @@ def propose(rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_
     scored = []
     for _ in range(int(cfg["candidate_pool_size"])):
         cand = random_point(rng, params)
-        mean, std = predict_rbf_proxy(cand, obs, params, obj_name, float(surrogate.get("length_scale", 0.2)))
+        mean, std = predict_rbf_proxy(
+            cand, obs, params, obj_name, float(surrogate.get("length_scale", 0.2))
+        )
         scored.append((acq_score(mean, std, best, direction, acq), cand, mean, std))
     scored.sort(key=lambda x: x[0], reverse=True)
     score, cand, mean, std = scored[0]
@@ -221,7 +227,9 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
     log_path = root / cfg["paths"]["acquisition_log_file"]
     with log_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps({"trial_id": tid, "decision": decision, "timestamp": time.time()}) + "\n")
+        f.write(
+            json.dumps({"trial_id": tid, "decision": decision, "timestamp": time.time()}) + "\n"
+        )
 
     save_state(state_path, state)
     print(json.dumps(suggestion, indent=2))
@@ -248,13 +256,15 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         raise ValueError("ingest payload params do not match the pending suggestion")
 
     state["pending"] = [p for p in state["pending"] if int(p["trial_id"]) != tid]
-    state["observations"].append({
-        "trial_id": tid,
-        "params": payload["params"],
-        "objectives": payload["objectives"],
-        "status": payload.get("status", "ok"),
-        "completed_at": time.time(),
-    })
+    state["observations"].append(
+        {
+            "trial_id": tid,
+            "params": payload["params"],
+            "objectives": payload["objectives"],
+            "status": payload.get("status", "ok"),
+            "completed_at": time.time(),
+        }
+    )
     update_best(state, objective)
     save_state(state_path, state)
 
@@ -272,12 +282,17 @@ def cmd_status(args: argparse.Namespace) -> None:
     root = Path(args.project_root)
     cfg = load_cfg(root / "bo_config.yaml")
     s = load_state(root / cfg["paths"]["state_file"])
-    print(json.dumps({
-        "observations": len(s["observations"]),
-        "pending": len(s["pending"]),
-        "next_trial_id": s["next_trial_id"],
-        "best": s["best"],
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "observations": len(s["observations"]),
+                "pending": len(s["pending"]),
+                "next_trial_id": s["next_trial_id"],
+                "best": s["best"],
+            },
+            indent=2,
+        )
+    )
 
 
 def cmd_demo(args: argparse.Namespace) -> None:
@@ -325,7 +340,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     a = parse_args()
-    {"suggest": cmd_suggest, "ingest": cmd_ingest, "status": cmd_status, "demo": cmd_demo}[a.command](a)
+    {"suggest": cmd_suggest, "ingest": cmd_ingest, "status": cmd_status, "demo": cmd_demo}[
+        a.command
+    ](a)
 
 
 if __name__ == "__main__":

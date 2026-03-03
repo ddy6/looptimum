@@ -7,7 +7,6 @@ import json
 import math
 import sys
 
-
 if len(sys.argv) != 3:
     raise SystemExit("Usage: synthetic_experiment.py <suggestion_json> <result_json>")
 

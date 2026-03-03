@@ -116,7 +116,9 @@ def random_point(rng: random.Random, params: list[dict]) -> dict:
     return out
 
 
-def propose(rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_cfg: dict, seed: int) -> tuple[dict, dict]:
+def propose(
+    rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_cfg: dict, seed: int
+) -> tuple[dict, dict]:
     obs = state["observations"]
     objective = obj_cfg["primary_objective"]
     if len(obs) < int(cfg["initial_random_trials"]):
@@ -168,7 +170,9 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         return
 
     rng = random.Random(int(state["meta"]["seed"]) + int(state["next_trial_id"]))
-    cand, decision = propose(rng, state, cfg, params, obj_cfg, int(state["meta"]["seed"]) + int(state["next_trial_id"]))
+    cand, decision = propose(
+        rng, state, cfg, params, obj_cfg, int(state["meta"]["seed"]) + int(state["next_trial_id"])
+    )
     tid = int(state["next_trial_id"])
     suggestion = {"trial_id": tid, "params": cand, "suggested_at": time.time()}
     state["pending"].append(suggestion)
@@ -176,7 +180,9 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
     log_path = root / cfg["paths"]["acquisition_log_file"]
     with log_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps({"trial_id": tid, "decision": decision, "timestamp": time.time()}) + "\n")
+        f.write(
+            json.dumps({"trial_id": tid, "decision": decision, "timestamp": time.time()}) + "\n"
+        )
 
     save_state(state_path, state)
     print(json.dumps(suggestion, indent=2))
@@ -203,13 +209,15 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         raise ValueError("ingest payload params do not match the pending suggestion")
 
     state["pending"] = [p for p in state["pending"] if int(p["trial_id"]) != tid]
-    state["observations"].append({
-        "trial_id": tid,
-        "params": payload["params"],
-        "objectives": payload["objectives"],
-        "status": payload.get("status", "ok"),
-        "completed_at": time.time(),
-    })
+    state["observations"].append(
+        {
+            "trial_id": tid,
+            "params": payload["params"],
+            "objectives": payload["objectives"],
+            "status": payload.get("status", "ok"),
+            "completed_at": time.time(),
+        }
+    )
     update_best(state, objective)
     save_state(state_path, state)
 
@@ -227,12 +235,17 @@ def cmd_status(args: argparse.Namespace) -> None:
     root = Path(args.project_root)
     cfg = load_cfg(root / "bo_config.yaml")
     s = load_state(root / cfg["paths"]["state_file"])
-    print(json.dumps({
-        "observations": len(s["observations"]),
-        "pending": len(s["pending"]),
-        "next_trial_id": s["next_trial_id"],
-        "best": s["best"],
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "observations": len(s["observations"]),
+                "pending": len(s["pending"]),
+                "next_trial_id": s["next_trial_id"],
+                "best": s["best"],
+            },
+            indent=2,
+        )
+    )
 
 
 def cmd_demo(args: argparse.Namespace) -> None:
@@ -280,7 +293,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     a = parse_args()
-    {"suggest": cmd_suggest, "ingest": cmd_ingest, "status": cmd_status, "demo": cmd_demo}[a.command](a)
+    {"suggest": cmd_suggest, "ingest": cmd_ingest, "status": cmd_status, "demo": cmd_demo}[
+        a.command
+    ](a)
 
 
 if __name__ == "__main__":

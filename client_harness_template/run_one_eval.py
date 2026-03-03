@@ -133,7 +133,9 @@ def build_failed_payload(
 
 def parse_args() -> argparse.Namespace:
     here = Path(__file__).resolve().parent
-    p = argparse.ArgumentParser(description="Run one client evaluation and emit ingest payload JSON")
+    p = argparse.ArgumentParser(
+        description="Run one client evaluation and emit ingest payload JSON"
+    )
     p.add_argument("suggestion_file", help="Path to suggestion JSON (or raw suggest stdout text)")
     p.add_argument("result_file", help="Path to write ingest payload JSON")
     p.add_argument(
@@ -141,7 +143,11 @@ def parse_args() -> argparse.Namespace:
         default=str(here / "objective.py"),
         help="Path to module defining evaluate(params)",
     )
-    p.add_argument("--objective-name", default=None, help="Primary objective name expected by optimization harness")
+    p.add_argument(
+        "--objective-name",
+        default=None,
+        help="Primary objective name expected by optimization harness",
+    )
     p.add_argument(
         "--objective-direction",
         choices=["minimize", "maximize"],
@@ -191,7 +197,11 @@ def main() -> None:
     if objective_direction is None:
         objective_direction = "minimize"
 
-    failure_sentinel = float(args.failure_sentinel) if args.failure_sentinel is not None else _default_failure_sentinel(objective_direction)
+    failure_sentinel = (
+        float(args.failure_sentinel)
+        if args.failure_sentinel is not None
+        else _default_failure_sentinel(objective_direction)
+    )
     if not math.isfinite(failure_sentinel):
         raise ValueError("failure sentinel must be finite")
 

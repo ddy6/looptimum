@@ -28,4 +28,3 @@ def evaluate(params: dict[str, Any]) -> float | dict[str, Any]:
         "Implement client_harness_template/objective.py:evaluate(params) to "
         "map params -> your run -> scalar objective."
     )
-

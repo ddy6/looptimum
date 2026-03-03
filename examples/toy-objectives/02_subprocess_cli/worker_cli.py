@@ -35,12 +35,16 @@ def main(argv: list[str]) -> int:
 
     # Synthetic invalid region to demonstrate explicit failure handling.
     if (x1 + x2) > 1.55:
-        print(json.dumps({
-            "status": "invalid_region",
-            "reason": "x1 + x2 exceeds synthetic feasibility threshold",
-            "x1": x1,
-            "x2": x2,
-        }))
+        print(
+            json.dumps(
+                {
+                    "status": "invalid_region",
+                    "reason": "x1 + x2 exceeds synthetic feasibility threshold",
+                    "x1": x1,
+                    "x2": x2,
+                }
+            )
+        )
         return 2
 
     quality = 1.0 - ((x1 - 0.28) ** 2 + (x2 - 0.73) ** 2)
@@ -59,4 +63,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
-

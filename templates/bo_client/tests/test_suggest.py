@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from conftest import parse_suggestion, run_cmd
 
 

@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN_ONE_EVAL = REPO_ROOT / "client_harness_template" / "run_one_eval.py"
 
@@ -17,7 +16,9 @@ def _run_cmd(*args: str, expect_ok: bool = True) -> subprocess.CompletedProcess[
         text=True,
     )
     if expect_ok and out.returncode != 0:
-        raise AssertionError(f"Command failed: {' '.join(args)}\nSTDOUT:\n{out.stdout}\nSTDERR:\n{out.stderr}")
+        raise AssertionError(
+            f"Command failed: {' '.join(args)}\nSTDOUT:\n{out.stdout}\nSTDERR:\n{out.stderr}"
+        )
     return out
 
 
@@ -32,16 +33,14 @@ def _write_suggestion(path: Path) -> None:
 
 def _write_raising_objective(path: Path) -> None:
     path.write_text(
-        "def evaluate(params):\n"
-        "    raise RuntimeError('synthetic failure')\n",
+        "def evaluate(params):\n    raise RuntimeError('synthetic failure')\n",
         encoding="utf-8",
     )
 
 
 def _write_ok_objective(path: Path) -> None:
     path.write_text(
-        "def evaluate(params):\n"
-        "    return 0.123\n",
+        "def evaluate(params):\n    return 0.123\n",
         encoding="utf-8",
     )
 

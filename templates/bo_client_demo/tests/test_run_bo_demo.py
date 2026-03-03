@@ -8,11 +8,15 @@ from pathlib import Path
 import pytest
 
 
-def run_cmd(project_root: Path, *args: str, expect_ok: bool = True) -> subprocess.CompletedProcess[str]:
+def run_cmd(
+    project_root: Path, *args: str, expect_ok: bool = True
+) -> subprocess.CompletedProcess[str]:
     cmd = [sys.executable, "run_bo.py", *args]
     out = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True)
     if expect_ok and out.returncode != 0:
-        raise AssertionError(f"Command failed: {' '.join(cmd)}\nSTDOUT:\n{out.stdout}\nSTDERR:\n{out.stderr}")
+        raise AssertionError(
+            f"Command failed: {' '.join(cmd)}\nSTDOUT:\n{out.stdout}\nSTDERR:\n{out.stderr}"
+        )
     return out
 
 

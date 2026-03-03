@@ -16,6 +16,22 @@ Contributions should keep the public integration contract clear and stable:
 python3 -m pip install -r requirements-dev.txt
 ```
 
+## Linting and Formatting
+
+Run formatting first, then lint checks:
+
+```bash
+python3 -m ruff format .
+python3 -m ruff check .
+```
+
+Install and run pre-commit hooks:
+
+```bash
+python3 -m pre_commit install
+python3 -m pre_commit run --all-files
+```
+
 ## Testing
 
 Run canonical tests from repo root:

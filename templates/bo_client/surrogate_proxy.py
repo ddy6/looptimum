@@ -14,7 +14,9 @@ def _norm_dist(a: dict, b: dict, params: list[dict]) -> float:
     return math.sqrt(s)
 
 
-def _predict_rbf_proxy(x: dict, obs: list[dict], params: list[dict], obj_name: str, length_scale: float) -> tuple[float, float]:
+def _predict_rbf_proxy(
+    x: dict, obs: list[dict], params: list[dict], obj_name: str, length_scale: float
+) -> tuple[float, float]:
     if not obs:
         return 0.0, 1.0
     ys, ws = [], []

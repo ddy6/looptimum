@@ -26,10 +26,9 @@ import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 from urllib import parse as urlparse
 from urllib import request as urlrequest
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_INSTRUCTIONS_PATH = SCRIPT_DIR / "instructions.json"
@@ -67,7 +66,7 @@ SCORE_TERMS_KEYS = [
     "cells_term",
     "checkmesh_exit_penalty",
     "skewness_term",  # reserved, currently zero
-    "concave_term",   # reserved, currently zero
+    "concave_term",  # reserved, currently zero
     "failure_penalty_term",
 ]
 
@@ -425,7 +424,9 @@ class CampaignContext:
         self.best_trial_number: Optional[int] = None
         self.successful_meshes: int = 0
         self.completed_trials: int = 0
-        self.template_guard: Dict[str, Any] = snapshot_template_guard(Path(startup.template_case_dir))
+        self.template_guard: Dict[str, Any] = snapshot_template_guard(
+            Path(startup.template_case_dir)
+        )
 
     def save_state(self) -> None:
         self.state["updated_at"] = now_iso()
@@ -450,7 +451,9 @@ class CampaignContext:
     def append_runs_index(self, record: Dict[str, Any]) -> None:
         append_jsonl(self.paths.runs_jsonl, record)
 
-    def write_inflight(self, trial_number: int, trial_dir: Path, stage: str, extra: Optional[Dict[str, Any]] = None) -> None:
+    def write_inflight(
+        self, trial_number: int, trial_dir: Path, stage: str, extra: Optional[Dict[str, Any]] = None
+    ) -> None:
         payload = {
             "RUN_TS": self.startup.run_ts,
             "trial_number": int(trial_number),
@@ -541,22 +544,46 @@ def verify_template_guard(snapshot: Dict[str, Any]) -> Tuple[bool, List[str]]:
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Optuna meshing optimizer for mediumMesh snappyHexMeshDict tuning")
+    parser = argparse.ArgumentParser(
+        description="Optuna meshing optimizer for mediumMesh snappyHexMeshDict tuning"
+    )
     parser.add_argument("--instructions-json", type=str, default=str(DEFAULT_INSTRUCTIONS_PATH))
     parser.add_argument("--template-case-dir", type=str, default=str(DEFAULT_TEMPLATE_CASE_DIR))
     parser.add_argument("--out-root", type=str, default=str(DEFAULT_OUTPUT_ROOT))
     parser.add_argument("--n-trials", type=int, default=40)
-    parser.add_argument("--n-jobs", type=int, default=1, help="Initial supported mode is 1 (no concurrent meshing).")
+    parser.add_argument(
+        "--n-jobs", type=int, default=1, help="Initial supported mode is 1 (no concurrent meshing)."
+    )
     parser.add_argument("--study-name", type=str, default=DEFAULT_STUDY_NAME)
     parser.add_argument("--storage", type=str, default="")
     parser.add_argument("--db-path", type=str, default="")
     parser.add_argument("--resume", action="store_true", help="Resume/load existing Optuna study.")
-    parser.add_argument("--recover", action="store_true", help="Resolve inflight marker deterministically before continuing.")
-    parser.add_argument("--force-resume", action="store_true", help="Override study fingerprint mismatch protection.")
-    parser.add_argument("--require-empty-root", action="store_true", help="Fail if output root exists and is non-empty.")
+    parser.add_argument(
+        "--recover",
+        action="store_true",
+        help="Resolve inflight marker deterministically before continuing.",
+    )
+    parser.add_argument(
+        "--force-resume",
+        action="store_true",
+        help="Override study fingerprint mismatch protection.",
+    )
+    parser.add_argument(
+        "--require-empty-root",
+        action="store_true",
+        help="Fail if output root exists and is non-empty.",
+    )
     parser.add_argument("--copy-mode", choices=["copytree", "rsync"], default="copytree")
-    parser.add_argument("--dry-run", action="store_true", help="Copy/edit/write metadata but do not run meshing commands.")
-    parser.add_argument("--single", action="store_true", help="Run a single fixed-parameter trial (via Optuna enqueue).")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Copy/edit/write metadata but do not run meshing commands.",
+    )
+    parser.add_argument(
+        "--single",
+        action="store_true",
+        help="Run a single fixed-parameter trial (via Optuna enqueue).",
+    )
     parser.add_argument("--checkmesh-exit-penalty", type=float, default=0.0)
 
     parser.add_argument("--no-notify", action="store_true", help="Disable Pushover notifications.")
@@ -570,7 +597,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def load_instructions(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
-    for key in ["search_space", "score_spec", "log_parsing_regex", "editing_snappyHexMeshDict", "optimizer"]:
+    for key in [
+        "search_space",
+        "score_spec",
+        "log_parsing_regex",
+        "editing_snappyHexMeshDict",
+        "optimizer",
+    ]:
         require(key in data, f"Missing required key in instructions.json: {key}")
     return data
 
@@ -614,7 +647,9 @@ def prepare_output_root(args: argparse.Namespace, out_root: Path, notifier: Noti
         if args.require_empty_root:
             try:
                 if any(out_root.iterdir()):
-                    raise RuntimeError(f"--require-empty-root set, but output root is non-empty: {out_root}")
+                    raise RuntimeError(
+                        f"--require-empty-root set, but output root is non-empty: {out_root}"
+                    )
             except StopIteration:
                 pass
         if not os.access(out_root, os.W_OK):
@@ -637,9 +672,7 @@ def prepare_output_root(args: argparse.Namespace, out_root: Path, notifier: Noti
 
     inflight = logs_dir / "meshing_inflight.json"
     if inflight.exists() and not args.recover:
-        warnings.append(
-            f"inflight marker present but --recover not set: {inflight}"
-        )
+        warnings.append(f"inflight marker present but --recover not set: {inflight}")
     return warnings
 
 
@@ -647,20 +680,34 @@ def validate_template_and_paths(template_dir: Path, out_root: Path) -> None:
     require(template_dir.exists(), f"Template case dir not found: {template_dir}")
     require(template_dir.is_dir(), f"Template case path is not a directory: {template_dir}")
     require(os.access(template_dir, os.R_OK), f"Template case dir is not readable: {template_dir}")
-    require(not path_is_within(template_dir, out_root), f"Template case dir must not be nested inside output root: {template_dir}")
-    require(not path_is_within(out_root, template_dir), f"Output root must not be nested inside template case dir: {out_root}")
+    require(
+        not path_is_within(template_dir, out_root),
+        f"Template case dir must not be nested inside output root: {template_dir}",
+    )
+    require(
+        not path_is_within(out_root, template_dir),
+        f"Output root must not be nested inside template case dir: {out_root}",
+    )
 
 
 def validate_runtime_requirements(args: argparse.Namespace) -> None:
-    require(args.n_jobs == 1, "Only --n-jobs=1 is supported in this implementation (single-process meshing loop).")
+    require(
+        args.n_jobs == 1,
+        "Only --n-jobs=1 is supported in this implementation (single-process meshing loop).",
+    )
     if args.copy_mode == "rsync":
-        require(shutil.which("rsync") is not None, "--copy-mode=rsync requested but `rsync` was not found in PATH.")
+        require(
+            shutil.which("rsync") is not None,
+            "--copy-mode=rsync requested but `rsync` was not found in PATH.",
+        )
     if not args.dry_run:
         for cmd in ("blockMesh", "snappyHexMesh", "checkMesh"):
             require(shutil.which(cmd) is not None, f"Required command not found in PATH: {cmd}")
 
 
-def compute_instruction_identifiers(instructions_path: Path, instructions: Dict[str, Any]) -> Tuple[str, str]:
+def compute_instruction_identifiers(
+    instructions_path: Path, instructions: Dict[str, Any]
+) -> Tuple[str, str]:
     instructions_hash = sha256_file(instructions_path)
     scoring_cfg_obj = {
         "score_spec": instructions.get("score_spec"),
@@ -981,18 +1028,26 @@ def edit_snappy_hex_mesh_dict(
 
         matches = list(re.finditer(regex, text))
         if len(matches) != 1:
-            raise RuntimeError(f"failed_edit: expected exactly one match for {block}.{key}, found {len(matches)}")
+            raise RuntimeError(
+                f"failed_edit: expected exactly one match for {block}.{key}, found {len(matches)}"
+            )
         m = matches[0]
         block_spans[block] = find_block_span(text, block)
         block_start, block_end = block_spans[block]
         value_start = m.start(2) if m.lastindex and m.lastindex >= 2 else m.start()
         value_end = m.end(2) if m.lastindex and m.lastindex >= 2 else m.end()
-        if not (block_start <= value_start <= block_end and block_start <= value_end <= block_end + 1):
-            raise RuntimeError(f"failed_edit: match for {block}.{key} is outside intended block boundaries")
+        if not (
+            block_start <= value_start <= block_end and block_start <= value_end <= block_end + 1
+        ):
+            raise RuntimeError(
+                f"failed_edit: match for {block}.{key} is outside intended block boundaries"
+            )
 
         new_text, count = re.subn(regex, repl, text, count=1)
         if count != 1:
-            raise RuntimeError(f"failed_edit: replacement count for {block}.{key} was {count}, expected 1")
+            raise RuntimeError(
+                f"failed_edit: replacement count for {block}.{key} was {count}, expected 1"
+            )
         text = new_text
         diagnostics["replacements"].append(
             {"block": block, "key": key, "expected": expected_lit, "replacement_count": count}
@@ -1008,7 +1063,9 @@ def edit_snappy_hex_mesh_dict(
         expected_lit = literal_by_key[key]
         matches = list(re.finditer(regex, text))
         if len(matches) != 1:
-            raise RuntimeError(f"failed_edit: round-trip expected one match for {key}, found {len(matches)}")
+            raise RuntimeError(
+                f"failed_edit: round-trip expected one match for {key}, found {len(matches)}"
+            )
         actual_raw = matches[0].group(2).strip()
         spec = search_space.get(next(k for k in search_space if k.endswith(f".{key}") or k == key))
         ptype = str(spec.get("type"))
@@ -1019,17 +1076,23 @@ def edit_snappy_hex_mesh_dict(
             try:
                 actual_norm = normalize_value_for_compare(float(actual_raw), ptype)
             except Exception as exc:
-                raise RuntimeError(f"failed_edit: could not parse float round-trip for {key}: {exc}") from exc
+                raise RuntimeError(
+                    f"failed_edit: could not parse float round-trip for {key}: {exc}"
+                ) from exc
         elif ptype == "int":
             try:
                 actual_norm = normalize_value_for_compare(int(float(actual_raw)), ptype)
             except Exception as exc:
-                raise RuntimeError(f"failed_edit: could not parse int round-trip for {key}: {exc}") from exc
+                raise RuntimeError(
+                    f"failed_edit: could not parse int round-trip for {key}: {exc}"
+                ) from exc
         if actual_norm != expected_norm:
             raise RuntimeError(
                 f"failed_edit: round-trip mismatch for {key}: expected {expected_norm}, got {actual_norm}"
             )
-        diagnostics["roundtrip"].append({"key": key, "expected": expected_norm, "actual": actual_norm})
+        diagnostics["roundtrip"].append(
+            {"key": key, "expected": expected_norm, "actual": actual_norm}
+        )
 
     diagnostics["brace_balanced"] = True
     if text != original_text:
@@ -1042,9 +1105,13 @@ def enforce_single_process_command(cmd: Sequence[str]) -> None:
     low = [t.lower() for t in tokens]
     for tok in low:
         if tok in FORBIDDEN_PARALLEL_TOKENS:
-            raise RuntimeError(f"Parallel meshing invocation forbidden: token `{tok}` in command {tokens}")
+            raise RuntimeError(
+                f"Parallel meshing invocation forbidden: token `{tok}` in command {tokens}"
+            )
         if tok in FORBIDDEN_PARALLEL_FLAGS:
-            raise RuntimeError(f"Parallel meshing invocation forbidden: flag `{tok}` in command {tokens}")
+            raise RuntimeError(
+                f"Parallel meshing invocation forbidden: flag `{tok}` in command {tokens}"
+            )
 
 
 def run_command_logged(cmd: Sequence[str], cwd: Path, log_path: Path) -> Tuple[int, float]:
@@ -1091,7 +1158,9 @@ def parse_required_int(pattern: str, text: str) -> Optional[int]:
             return None
 
 
-def parse_checkmesh_metrics(text: str, regex_cfg: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+def parse_checkmesh_metrics(
+    text: str, regex_cfg: Dict[str, Any]
+) -> Tuple[Dict[str, Any], List[str]]:
     metrics: Dict[str, Any] = {}
     errors: List[str] = []
 
@@ -1104,7 +1173,9 @@ def parse_checkmesh_metrics(text: str, regex_cfg: Dict[str, Any]) -> Tuple[Dict[
         errors.append("total_cells")
     metrics["total_cells"] = total_cells
 
-    metrics["N_faces_nonOrtho_gt_70"] = parse_required_int(str(regex_cfg["N_faces_nonOrtho_gt_70"]), text)
+    metrics["N_faces_nonOrtho_gt_70"] = parse_required_int(
+        str(regex_cfg["N_faces_nonOrtho_gt_70"]), text
+    )
     if metrics["N_faces_nonOrtho_gt_70"] is None:
         # Some versions omit the explicit severe count line when zero.
         if "severely non-orthogonal" in text:
@@ -1119,7 +1190,9 @@ def parse_checkmesh_metrics(text: str, regex_cfg: Dict[str, Any]) -> Tuple[Dict[
         else:
             metrics["N_warpedFaces"] = 0
 
-    metrics["N_underdeterminedCells"] = parse_required_int(str(regex_cfg["N_underdeterminedCells"]), text)
+    metrics["N_underdeterminedCells"] = parse_required_int(
+        str(regex_cfg["N_underdeterminedCells"]), text
+    )
     if metrics["N_underdeterminedCells"] is None:
         if re.search(r"small determinant\s*\(<\s*0\.001\)", text):
             errors.append("N_underdeterminedCells")
@@ -1134,14 +1207,22 @@ def parse_checkmesh_metrics(text: str, regex_cfg: Dict[str, Any]) -> Tuple[Dict[
             metrics["N_lowWeightFaces"] = 0
 
     # Optional debug metrics (best-effort).
-    metrics["maxNonOrtho"] = parse_optional_float(r"Mesh non-orthogonality Max:\s*([0-9eE\.\+\-]+)", text)
+    metrics["maxNonOrtho"] = parse_optional_float(
+        r"Mesh non-orthogonality Max:\s*([0-9eE\.\+\-]+)", text
+    )
     metrics["maxSkewness"] = parse_optional_float(r"Max skewness =\s*([0-9eE\.\+\-]+)", text)
     metrics["minVol"] = parse_optional_float(r"Min volume =\s*([0-9eE\.\+\-]+)", text)
     metrics["minTetQuality"] = parse_optional_float(r"Min tet quality =\s*([0-9eE\.\+\-]+)", text)
     metrics["minFaceWeight"] = parse_optional_float(r"Min face weight =\s*([0-9eE\.\+\-]+)", text)
 
     # Final required checks.
-    for k in ["total_cells", "N_faces_nonOrtho_gt_70", "N_warpedFaces", "N_underdeterminedCells", "N_lowWeightFaces"]:
+    for k in [
+        "total_cells",
+        "N_faces_nonOrtho_gt_70",
+        "N_warpedFaces",
+        "N_underdeterminedCells",
+        "N_lowWeightFaces",
+    ]:
         if metrics.get(k) is None and k not in errors:
             errors.append(k)
 
@@ -1162,12 +1243,27 @@ def zero_score_terms() -> Dict[str, float]:
     return {k: 0.0 for k in SCORE_TERMS_KEYS}
 
 
-def compute_score(metrics: Dict[str, Any], checkmesh_exit_penalty: float = 0.0) -> Tuple[float, Dict[str, float], Dict[str, bool]]:
-    m = {k: int(metrics[k]) for k in ["total_cells", "N_faces_nonOrtho_gt_70", "N_warpedFaces", "N_underdeterminedCells", "N_lowWeightFaces"]}
+def compute_score(
+    metrics: Dict[str, Any], checkmesh_exit_penalty: float = 0.0
+) -> Tuple[float, Dict[str, float], Dict[str, bool]]:
+    m = {
+        k: int(metrics[k])
+        for k in [
+            "total_cells",
+            "N_faces_nonOrtho_gt_70",
+            "N_warpedFaces",
+            "N_underdeterminedCells",
+            "N_lowWeightFaces",
+        ]
+    }
     terms = zero_score_terms()
-    terms["underdetermined_term"] = 1000.0 * max(0, m["N_underdeterminedCells"] - 9) + 50.0 * m["N_underdeterminedCells"]
+    terms["underdetermined_term"] = (
+        1000.0 * max(0, m["N_underdeterminedCells"] - 9) + 50.0 * m["N_underdeterminedCells"]
+    )
     terms["low_weight_term"] = 10000.0 * max(0, m["N_lowWeightFaces"])
-    terms["non_ortho_term"] = 50.0 * max(0, m["N_faces_nonOrtho_gt_70"] - 99) + 0.5 * m["N_faces_nonOrtho_gt_70"]
+    terms["non_ortho_term"] = (
+        50.0 * max(0, m["N_faces_nonOrtho_gt_70"] - 99) + 0.5 * m["N_faces_nonOrtho_gt_70"]
+    )
     terms["warped_faces_term"] = 200.0 * max(0, m["N_warpedFaces"] - 4) + 2.0 * m["N_warpedFaces"]
     if m["total_cells"] > 250000:
         terms["cells_term"] = 0.1 * (m["total_cells"] - 250000) + 20000.0
@@ -1320,9 +1416,9 @@ def notify_trial_result(ctx: CampaignContext, result: TrialResult) -> None:
             f"RUN_TS={run_ts}\n"
             f"trial={result.trial_number} status={result.status}\n"
             f"score={result.score:.3f}\n"
-            f"cells={result.raw_metrics.get('total_cells','?')} under={result.raw_metrics.get('N_underdeterminedCells','?')} "
-            f"lowW={result.raw_metrics.get('N_lowWeightFaces','?')}\n"
-            f"nO70={result.raw_metrics.get('N_faces_nonOrtho_gt_70','?')} warp={result.raw_metrics.get('N_warpedFaces','?')}\n"
+            f"cells={result.raw_metrics.get('total_cells', '?')} under={result.raw_metrics.get('N_underdeterminedCells', '?')} "
+            f"lowW={result.raw_metrics.get('N_lowWeightFaces', '?')}\n"
+            f"nO70={result.raw_metrics.get('N_faces_nonOrtho_gt_70', '?')} warp={result.raw_metrics.get('N_warpedFaces', '?')}\n"
             f"flags={acceptance_flags_summary(result.acceptance_flags)}\n"
             f"terms={top_terms}\n"
             f"best={ctx.best_score_so_far if ctx.best_score_so_far is not None else float(result.score):.3f}\n"
@@ -1371,7 +1467,9 @@ def execute_trial(
         ctx.write_inflight(trial_number, trial_dir, "copy")
 
         if trial_dir.exists():
-            raise RuntimeError(f"failed_copy: trial directory already exists unexpectedly: {trial_dir}")
+            raise RuntimeError(
+                f"failed_copy: trial directory already exists unexpectedly: {trial_dir}"
+            )
 
         try:
             copy_template_case(Path(ctx.startup.template_case_dir), trial_dir, ctx.args.copy_mode)
@@ -1706,6 +1804,7 @@ def objective_factory(ctx: CampaignContext):
         except Exception:
             pass
         return float(result.score)
+
     return _objective
 
 
@@ -1742,7 +1841,9 @@ def notify_campaign_start(ctx: CampaignContext) -> None:
     ctx.notifier.start("MeshOpt Start", msg)
 
 
-def notify_campaign_termination(ctx: CampaignContext, reason: str, exc: Optional[BaseException] = None) -> None:
+def notify_campaign_termination(
+    ctx: CampaignContext, reason: str, exc: Optional[BaseException] = None
+) -> None:
     best_score = ctx.best_score_so_far
     best_trial = ctx.best_trial_number
     msg_lines = [
@@ -1781,7 +1882,9 @@ def import_optuna():
     return optuna
 
 
-def build_campaign_paths(args: argparse.Namespace, run_ts: str, storage_uri: str, db_path: Optional[Path]) -> CampaignPaths:
+def build_campaign_paths(
+    args: argparse.Namespace, run_ts: str, storage_uri: str, db_path: Optional[Path]
+) -> CampaignPaths:
     out_root = Path(args.out_root).expanduser().resolve()
     logs_dir = out_root / "BO_logs"
     return CampaignPaths(
@@ -1813,7 +1916,9 @@ def preflight(
     storage_uri, db_path = resolve_storage(args, logs_dir)
     paths = build_campaign_paths(args, run_ts, storage_uri, db_path)
 
-    instructions_hash, scoring_hash = compute_instruction_identifiers(instructions_path, instructions)
+    instructions_hash, scoring_hash = compute_instruction_identifiers(
+        instructions_path, instructions
+    )
     edit_scope = derive_edit_scope(instructions)
     study_fingerprint = compute_study_fingerprint(
         template_case_dir=Path(args.template_case_dir).expanduser().resolve(),
@@ -1867,7 +1972,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         instructions, paths, startup, previous_state = preflight(args, notifier)
-        ctx = CampaignContext(args=args, instructions=instructions, paths=paths, startup=startup, notifier=notifier)
+        ctx = CampaignContext(
+            args=args, instructions=instructions, paths=paths, startup=startup, notifier=notifier
+        )
         check_resume_fingerprint(args, previous_state, startup)
         recovery_summary = reconcile_inflight(ctx)
         startup_record(ctx, recovery_summary)

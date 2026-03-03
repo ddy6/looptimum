@@ -10,7 +10,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
 WORKER = Path(__file__).resolve().with_name("worker_cli.py")
 FAILED_SENTINEL = 1.0e9  # Directionally bad for minimize("loss")
 
@@ -50,4 +49,3 @@ def evaluate(params: dict[str, Any]) -> dict[str, Any]:
             "objective": float(loss),
             "status": "ok",
         }
-

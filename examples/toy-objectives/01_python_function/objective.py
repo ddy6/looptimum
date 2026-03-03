@@ -24,4 +24,3 @@ def evaluate(params: dict[str, Any]) -> float:
     # Smooth bowl + mild nonlinearity for visible structure.
     loss = (x1 - 0.22) ** 2 + (x2 - 0.78) ** 2 + 0.12 * math.sin(7.0 * x1)
     return float(loss)
-
