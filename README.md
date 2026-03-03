@@ -1,109 +1,174 @@
 # Looptimum
 
-Looping refinement toward an optimum parameter set.
+Fewer expensive experiments. Faster convergence.
 
-Looptimum provides a file-backed, restart-friendly workflow that can be integrated
-into local, offline, or client-controlled environments with minimal surface area.
+Looptimum is a file-backed optimization loop for tuning parameters when each
+trial is costly (time, compute, money, or operational risk).
+You provide a parameter space and one scalar objective; Looptimum suggests the
+next trial, records decisions, and resumes cleanly after interruptions.
 
-## What It Is
+## If You've Ever Said...
 
-- Resumable optimization loop templates with a stable CLI contract: `suggest`, `ingest`, `status`, `demo`
-- Client integration starter harness (`client_harness_template/`)
-- Quickstart notes and integration docs
-- Example integration patterns
-  (direct Python function and subprocess/CLI wrapper)
-- Intake and security/data-handling docs for pilot setup
+- "We're wasting time on parameter sweeps and manual tuning."
+- "Each run is expensive, so we need fewer total experiments."
+- "We can run evaluations, but we do not want to build optimization infra."
+- "Runs sometimes fail; we need resumable state and traceability."
+- "We have lots of knobs and no reliable way to tune them."
 
-## 3-Step Workflow
+## What Looptimum Does
 
-1. `suggest` a parameter set
-2. run one evaluation in your environment
-3. `ingest` a result payload (`params` + scalar objective + status)
+Looptimum replaces ad hoc sweep loops with a small, explicit workflow:
 
-The loop persists state locally and can be resumed after interruptions.
+1. Define parameter bounds and objective direction.
+2. `suggest` one trial.
+3. Run that trial in your environment.
+4. `ingest` the result and repeat.
 
-## Quickstart (Single Command)
+Instead of broad grid/random sweeps, Looptimum uses prior observations to choose
+what to test next.
 
-From the repo root, run a local demo:
+### What Runs Where
+
+| Component | Typical Location | Responsibility |
+|---|---|---|
+| Looptimum controller | Local machine, CI runner, or client host | `suggest`, `ingest`, `status`, local state |
+| Evaluator | Your runtime (script, cluster job, lab workflow, API) | Execute one trial from suggested params |
+| State and logs | Local files under template `state/` | Resume, audit trail, best-so-far tracking |
+
+## Common Use Cases
+
+- Data/ETL pipelines: batch size, parallelism, retry/backoff, memory limits.
+- Infra/performance tuning: concurrency, cache TTLs, connection pools,
+  thread counts.
+- Search/recommendation knobs: threshold and weighting calibration.
+- ML training loops: learning rate, batch size, regularization, early-stop
+  settings.
+- Simulation and engineering workflows: solver tolerances, mesh controls,
+  calibration settings.
+- Operations/process tuning: throughput vs. quality/cost tradeoffs.
+
+For many small-to-moderate parameter spaces, teams can find competitive
+configurations in fewer runs than naive sweeps (problem dependent).
+
+## Quickstart (2 Minutes)
+
+From repo root:
 
 ```bash
-python3 templates/bo_client_demo/run_bo.py demo --project-root templates/bo_client_demo --steps 5
+python3 templates/bo_client_demo/run_bo.py demo \
+  --project-root templates/bo_client_demo \
+  --steps 5
+python3 templates/bo_client_demo/run_bo.py status \
+  --project-root templates/bo_client_demo
 ```
 
-For full repo-root commands and resume/state examples, see:
+`status` returns a compact summary with:
 
-- `quickstart/README.md`
+- `observations`
+- `pending`
+- `next_trial_id`
+- `best`
 
-## Why This Exists
+For full command sets and resume behavior, see `quickstart/README.md`.
 
-Many optimization problems are:
+## When To Use Looptimum
 
-- expensive to evaluate
-- black-box (no gradients)
-- noisy or failure-prone
-- run in restricted environments
+- Each evaluation is expensive enough that sample efficiency matters.
+- You can define one scalar objective (`minimize` or `maximize`).
+- You have a bounded parameter set (commonly small-to-moderate dimensional).
+- You want resumable, file-backed operation in local/offline/restricted
+  environments.
+- You prefer a small integration contract over building custom BO orchestration.
 
-The integration surface is intentionally small and only needs:
+## When Not To Use Looptimum
 
-- parameter values
-- one scalar objective value
-- trial status (`ok` / `failed`)
+- Objective evaluation is cheap and simple random/grid search is sufficient.
+- Reliable gradients are available and gradient-based methods are a better fit.
+- Search space is extremely high-dimensional without useful structure.
+- You cannot define a scalar objective or acceptable scalarization rule.
 
-Current public templates support `float` and `int` parameter types.
+## Integration Contract (Minimal)
 
-## Templates
+### Inputs
 
-### `templates/bo_client_demo`
+- Parameter space definition (`float` and `int` currently supported in public
+  templates).
+- Objective schema (name + direction).
+- Trial budget and seed/config settings.
 
-- Surrogate backend: `rbf_proxy` only
-- Dependencies: Python standard library
-- Best for: onboarding, contract validation, dependency-light demos
+### `suggest` Output
 
-### `templates/bo_client`
+Each suggestion includes:
 
-- Surrogate backends: `rbf_proxy` (default) or config-selected `gp`
-- Dependencies:
-  Python standard library; optional PyTorch/BoTorch/GPyTorch for GP mode
-- Best for: baseline client integrations (recommended default)
+- `trial_id`
+- `params`
+- `suggested_at`
 
-### `templates/bo_client_full`
+### `ingest` Required Fields
 
-- Surrogate backends: `rbf_proxy` + optional `botorch_gp`
-- Dependencies: optional PyTorch/BoTorch/GPyTorch for GP mode
-- Best for:
-  same client contract with feature-flag GP behavior in the public template
+- `trial_id` (must match a pending trial)
+- `params` (must match suggested params exactly)
+- `objectives` (primary objective numeric and finite)
+- `status` (`ok` or `failed` in current public templates)
 
-## Shared Behavior Across Templates
+### `status` Headline Fields
 
-- CLI commands: `suggest`, `ingest`, `status`, `demo`
-- Ingest payload validation via JSON schema
-- Resumable local state (`state/bo_state.json`)
-- Observation export (`state/observations.csv`)
-- Append-only acquisition decision trace (`state/acquisition_log.jsonl`)
+- `observations`
+- `pending`
+- `next_trial_id`
+- `best`
 
-## Integrating Your Evaluator
+### Local State Files
 
-Start here:
+- `state/bo_state.json`: source of truth for observations/pending/best.
+- `state/observations.csv`: flattened observation export.
+- `state/acquisition_log.jsonl`: append-only decision trace.
+
+## Templates (Choose Your Starting Level)
+
+### Demo (dependency-light)
+
+- Directory: `templates/bo_client_demo`
+- Backend: proxy (`rbf_proxy`)
+- Best for: quick validation of contract and workflow
+
+### Default (recommended baseline)
+
+- Directory: `templates/bo_client`
+- Backends: proxy by default, optional GP backend by config
+- Best for: most client integrations
+
+### Full (feature-flag GP path)
+
+- Directory: `templates/bo_client_full`
+- Backends: proxy + optional BoTorch GP via flag
+- Best for: same public contract with optional advanced backend behavior
+
+## Examples and Case Studies
+
+The `examples/` folder shows integration patterns, not benchmark leaderboards.
+
+- `examples/toy-objectives/01_python_function/`: in-process evaluator pattern
+- `examples/toy-objectives/02_subprocess_cli/`: subprocess/CLI wrapper pattern
+- `meshing_example/`: advanced, environment-specific OpenFOAM-style case study
+
+## Pilot and Service Options
+
+- Self-serve: use templates directly in your environment.
+- Assisted integration: wire your evaluator with the starter harness.
+- Managed execution support: run a pilot loop with clear deliverables.
+
+If you have an expensive tuning problem, start with `intake.md` and open an
+issue describing your use case.
+
+## Deeper Docs
 
 - `docs/integration-guide.md`
-- `client_harness_template/README_INTEGRATION.md`
-
-Helpful related docs:
-
-- `intake.md` (problem scoping checklist)
-- `SECURITY.MD` and `docs/security-data-handling.md`
 - `docs/faq.md`
-
-## Examples (Integration Patterns)
-
-The `examples/` folder shows integration patterns, not benchmark tasks.
-
-- `examples/toy-objectives/01_python_function/`: direct in-process Python function
-- `examples/toy-objectives/02_subprocess_cli/`:
-  subprocess/CLI wrapper with scalarization + failure mapping
-
-Domain-specific examples (for example, meshing/OpenFOAM) are best treated as
-advanced case studies; they can require specialized environments.
+- `docs/security-data-handling.md`
+- `docs/use-cases.md`
+- `client_harness_template/README_INTEGRATION.md`
+- `quickstart/README.md`
 
 ## Testing
 
