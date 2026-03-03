@@ -1,6 +1,7 @@
 # Security and Data Handling (Detailed)
 
-This document expands on `SECURITY.MD` and describes the intended operating model for using the optimization templates in client-controlled environments.
+This document expands on `SECURITY.MD` and describes the intended operating
+model for using the optimization templates in client-controlled environments.
 
 It focuses on practical data-handling boundaries and integration constraints, not legal certification.
 
@@ -55,11 +56,14 @@ Avoid sharing by default:
 
 ### Keep sensitive context local
 
-If your evaluator generates rich outputs (meshes, traces, datasets, model artifacts), keep them in the client environment unless there is a clear need to export them.
+If your evaluator generates rich outputs (meshes, traces, datasets, model
+artifacts), keep them in the client environment unless there is a clear need to
+export them.
 
 ### Use neutral naming when appropriate
 
-If needed, parameter names and objective labels can be anonymized in shared artifacts while preserving bounds and semantics.
+If needed, parameter names and objective labels can be anonymized in shared
+artifacts while preserving bounds and semantics.
 
 ## Offline / Air-Gapped Operation
 
@@ -112,7 +116,8 @@ Failed trials should still be represented in the optimization loop using a minim
 - finite sentinel objective
 - `status: "failed"`
 
-Keep detailed stack traces, command outputs, or internal diagnostics in local client logs rather than the optimization payload unless intentionally needed.
+Keep detailed stack traces, command outputs, or internal diagnostics in local
+client logs rather than the optimization payload unless intentionally needed.
 
 ## Sharing Models and Results Externally (If Applicable)
 
@@ -123,7 +128,8 @@ Before sharing any artifacts externally, define:
 - retention duration
 - how data should be anonymized/redacted
 
-This should be agreed before pilot work begins, especially for regulated or proprietary environments.
+This should be agreed before pilot work begins, especially for regulated or
+proprietary environments.
 
 ## NDA / Confidentiality Workflow
 
@@ -136,7 +142,8 @@ Recommended sequence:
 3. technical intake (`intake.md`)
 4. integration planning and pilot setup
 
-This repo is intentionally structured so technical scoping can happen with limited information when possible.
+This repo is intentionally structured so technical scoping can happen with
+limited information when possible.
 
 ## Client Responsibilities (Environment/Compliance)
 

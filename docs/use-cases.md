@@ -1,6 +1,7 @@
 # Use Cases and Fit
 
-This document describes where the Looptimum templates are a strong fit, how to frame the optimization problem, and where the approach is a weaker fit.
+This document describes where the Looptimum templates are a strong fit, how to
+frame the optimization problem, and where the approach is a weaker fit.
 
 ## What the System Optimizes
 
@@ -146,7 +147,8 @@ Use `intake.md` to capture this before pilot work.
 - Runtime varies significantly
 - The system is noisy/stochastic
 
-These are common and usually manageable with a clear integration contract and failure policy.
+These are common and usually manageable with a clear integration contract and
+failure policy.
 
 ## Weaker-Fit / Not-Ideal Cases
 

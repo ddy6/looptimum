@@ -9,7 +9,9 @@ Use this site as the quick launch point for setup, integration, and pilot planni
 Run a local demo from repo root:
 
 ```bash
-python3 templates/bo_client_demo/run_bo.py demo --project-root templates/bo_client_demo --steps 5
+python3 templates/bo_client_demo/run_bo.py demo \
+  --project-root templates/bo_client_demo \
+  --steps 5
 ```
 
 For full command sequences and resume behavior:

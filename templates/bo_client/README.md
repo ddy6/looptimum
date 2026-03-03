@@ -1,6 +1,7 @@
 # bo_client
 
-Minimal single-stage optimization harness with explicit config, a swappable surrogate backend, and restartable JSON state.
+Minimal single-stage optimization harness with explicit config, a swappable
+surrogate backend, and restartable JSON state.
 
 ## Files
 
@@ -18,9 +19,12 @@ Minimal single-stage optimization harness with explicit config, a swappable surr
 
 ## Notes
 
-- `.yaml` files intentionally use JSON syntax (valid YAML subset) so no extra parser dependency is required.
-- State persists in `state/bo_state.json` and can be resumed between runs (no hidden service state).
-- `ingest` validates payload structure via `paths.result_schema_file` and validates the primary objective value.
+- `.yaml` files intentionally use JSON syntax (valid YAML subset) so no extra
+  parser dependency is required.
+- State persists in `state/bo_state.json` and can be resumed between runs
+  (no hidden service state).
+- `ingest` validates payload structure via `paths.result_schema_file` and
+  validates the primary objective value.
 
 ## Surrogate Selection
 

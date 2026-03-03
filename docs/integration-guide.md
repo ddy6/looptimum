@@ -1,10 +1,13 @@
 # Integration Guide
 
-This guide explains how to connect your evaluation system to the optimization templates in this repository using the file-backed `suggest -> evaluate -> ingest` contract.
+This guide explains how to connect your evaluation system to the optimization
+templates in this repository using the file-backed
+`suggest -> evaluate -> ingest` contract.
 
 The Looptimum CLI exposes a stable `suggest` / `ingest` / `status` / `demo` workflow across template variants.
 
-It is designed for expensive black-box objectives such as simulations, calibrations, pipeline tuning, and process optimization.
+It is designed for expensive black-box objectives such as simulations,
+calibrations, pipeline tuning, and process optimization.
 
 ## What You Are Integrating
 
@@ -23,7 +26,8 @@ The loop does not need raw data or internal model internals. It just needs:
 
 ## Repository Paths You Will Use
 
-- `templates/`: runnable optimization harness variants (`bo_client_demo`, `bo_client`, `bo_client_full`)
+- `templates/`: runnable optimization harness variants
+  (`bo_client_demo`, `bo_client`, `bo_client_full`)
 - `client_harness_template/`: starter adapter for one-evaluation integration
 - `examples/toy-objectives/`: reference integration patterns
 - `quickstart/README.md`: repo-root commands and state/resume examples
@@ -50,7 +54,8 @@ Use as the default baseline for most client integrations.
 
 ### `templates/bo_client_full`
 
-Use when you want the same contract with optional feature-flag GP behavior in the public template.
+Use when you want the same contract with optional feature-flag GP behavior in
+the public template.
 
 - proxy fallback path
 - optional `--enable-botorch-gp` flag
@@ -84,7 +89,8 @@ Current public templates support:
 - `float`
 - `int`
 
-Categorical parameters can be modeled with custom extensions, but are not native in the default `run_bo.py` implementations yet.
+Categorical parameters can be modeled with custom extensions, but are not
+native in the default `run_bo.py` implementations yet.
 
 ### 2. Run One Evaluation
 
@@ -195,13 +201,15 @@ Examples:
 - `loss` + `minimize`
 - `score` + `maximize`
 
-Your evaluator should return the raw scalar in the same direction convention expected by the harness.
+Your evaluator should return the raw scalar in the same direction convention
+expected by the harness.
 
 - Do not silently negate values unless you intentionally changed the harness objective definition.
 
 ## Failure Modes and Recommended Handling
 
-A failed evaluation should usually still produce an ingest payload so the loop can continue and the failure is recorded.
+A failed evaluation should usually still produce an ingest payload so the loop
+can continue and the failure is recorded.
 
 ### Recommended Failure Payload Strategy
 
@@ -220,7 +228,8 @@ Sentinel guidance:
 - solver or training crash
 - timeout / runtime limit exceeded
 - output parse failure
-- infrastructure interruption (node failure, scheduler cancellation, transient service error)
+- infrastructure interruption
+  (node failure, scheduler cancellation, transient service error)
 
 ### What Happens if `ingest` Fails?
 
@@ -236,7 +245,8 @@ If `ingest` fails:
 
 1. Fix the payload (or regenerate it from the original suggestion)
 2. Re-run `ingest`
-3. Do not issue a new `suggest` for that same trial unless you intentionally abandon the pending one in your own process
+3. Do not issue a new `suggest` for that same trial unless you intentionally
+   abandon the pending one in your own process
 
 ## Resume Semantics (Important)
 
@@ -286,11 +296,13 @@ To scale in a cluster environment:
 5. `ingest`
 6. repeat
 
-Once stable, you can build a client-side scheduler wrapper that manages multiple pending suggestions carefully.
+Once stable, you can build a client-side scheduler wrapper that manages
+multiple pending suggestions carefully.
 
 ## When Not To Use This (Trust-Building Scope Boundaries)
 
-This repo is a strong fit for expensive black-box evaluations, but it is not the right tool for every optimization problem.
+This repo is a strong fit for expensive black-box evaluations, but it is not
+the right tool for every optimization problem.
 
 Poor fits:
 

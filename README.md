@@ -2,14 +2,16 @@
 
 Looping refinement toward an optimum parameter set.
 
-Looptimum provides a file-backed, restart-friendly workflow that can be integrated into local, offline, or client-controlled environments with minimal surface area.
+Looptimum provides a file-backed, restart-friendly workflow that can be integrated
+into local, offline, or client-controlled environments with minimal surface area.
 
 ## What It Is
 
 - Resumable optimization loop templates with a stable CLI contract: `suggest`, `ingest`, `status`, `demo`
 - Client integration starter harness (`client_harness_template/`)
 - Quickstart notes and integration docs
-- Example integration patterns (direct Python function and subprocess/CLI wrapper)
+- Example integration patterns
+  (direct Python function and subprocess/CLI wrapper)
 - Intake and security/data-handling docs for pilot setup
 
 ## 3-Step Workflow
@@ -60,14 +62,16 @@ Current public templates support `float` and `int` parameter types.
 ### `templates/bo_client`
 
 - Surrogate backends: `rbf_proxy` (default) or config-selected `gp`
-- Dependencies: Python standard library; optional PyTorch/BoTorch/GPyTorch for GP mode
+- Dependencies:
+  Python standard library; optional PyTorch/BoTorch/GPyTorch for GP mode
 - Best for: baseline client integrations (recommended default)
 
 ### `templates/bo_client_full`
 
 - Surrogate backends: `rbf_proxy` + optional `botorch_gp`
 - Dependencies: optional PyTorch/BoTorch/GPyTorch for GP mode
-- Best for: same client contract with feature-flag GP behavior in the public template
+- Best for:
+  same client contract with feature-flag GP behavior in the public template
 
 ## Shared Behavior Across Templates
 
@@ -95,9 +99,11 @@ Helpful related docs:
 The `examples/` folder shows integration patterns, not benchmark tasks.
 
 - `examples/toy-objectives/01_python_function/`: direct in-process Python function
-- `examples/toy-objectives/02_subprocess_cli/`: subprocess/CLI wrapper with scalarization + failure mapping
+- `examples/toy-objectives/02_subprocess_cli/`:
+  subprocess/CLI wrapper with scalarization + failure mapping
 
-Domain-specific examples (for example, meshing/OpenFOAM) are best treated as advanced case studies; they can require specialized environments.
+Domain-specific examples (for example, meshing/OpenFOAM) are best treated as
+advanced case studies; they can require specialized environments.
 
 ## Testing
 
@@ -116,7 +122,8 @@ python3 -m pytest -q templates
 Optional GP backend validation for `bo_client`:
 
 ```bash
-RUN_GP_TESTS=1 python3 -m pytest -q templates/bo_client/tests/test_suggest.py::test_suggest_works_with_gp_backend
+RUN_GP_TESTS=1 python3 -m pytest -q \
+  templates/bo_client/tests/test_suggest.py::test_suggest_works_with_gp_backend
 ```
 
 ## Automation Note
@@ -124,5 +131,7 @@ RUN_GP_TESTS=1 python3 -m pytest -q templates/bo_client/tests/test_suggest.py::t
 For machine parsing of `suggest` output, use:
 
 ```bash
-python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo --json-only
+python3 templates/bo_client_demo/run_bo.py suggest \
+  --project-root templates/bo_client_demo \
+  --json-only
 ```

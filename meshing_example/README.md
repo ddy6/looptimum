@@ -7,7 +7,9 @@ the default optimization template quickstart path.
 
 Contents:
 - `run_optuna_meshing.py`: meshing-only Optuna runner
-- `instructions.json`: runtime config consumed by the runner (search space, edit regexes, checkMesh parse regexes, optimizer seed/direction)
+- `instructions.json`: runtime config consumed by the runner
+  (search space, edit regexes, checkMesh parse regexes, optimizer
+  seed/direction)
 
 Use case:
 - Tune a small set of `snappyHexMeshDict` parameters

@@ -1,11 +1,14 @@
 # Toy Objectives
 
-This folder provides small, runnable examples that plug into `client_harness_template/run_one_eval.py`.
+This folder provides small, runnable examples that plug into
+`client_harness_template/run_one_eval.py`.
 
-They are intentionally simple and dependency-lightweight, but they are positioned as integration-pattern references:
+They are intentionally simple and dependency-lightweight, but they are
+positioned as integration-pattern references:
 
 1. `01_python_function/`: direct in-process Python function (`evaluate(params) -> float`)
-2. `02_subprocess_cli/`: wrapper calls a subprocess/CLI worker, parses raw metrics, computes scalar objective
+2. `02_subprocess_cli/`: wrapper calls a subprocess/CLI worker, parses raw
+   metrics, computes scalar objective
 
 These examples mainly answer:
 
@@ -24,14 +27,28 @@ All examples can be run using the checked-in suggestion snapshot:
 Use the shared adapter:
 
 ```bash
-python3 client_harness_template/run_one_eval.py <suggestion.json> <result.json> --objective-module <path/to/objective.py> --objective-name loss
+python3 client_harness_template/run_one_eval.py \
+  <suggestion.json> \
+  <result.json> \
+  --objective-module <path/to/objective.py> \
+  --objective-name loss
 ```
 
 ## Quick Try (Both Examples)
 
 ```bash
-python3 client_harness_template/run_one_eval.py docs/examples/state_snapshots/suggestion_1.json /tmp/toy_py_result.json --objective-module examples/toy-objectives/01_python_function/objective.py --objective-name loss --print-result
-python3 client_harness_template/run_one_eval.py docs/examples/state_snapshots/suggestion_1.json /tmp/toy_cli_result.json --objective-module examples/toy-objectives/02_subprocess_cli/objective.py --objective-name loss --print-result
+python3 client_harness_template/run_one_eval.py \
+  docs/examples/state_snapshots/suggestion_1.json \
+  /tmp/toy_py_result.json \
+  --objective-module examples/toy-objectives/01_python_function/objective.py \
+  --objective-name loss \
+  --print-result
+python3 client_harness_template/run_one_eval.py \
+  docs/examples/state_snapshots/suggestion_1.json \
+  /tmp/toy_cli_result.json \
+  --objective-module examples/toy-objectives/02_subprocess_cli/objective.py \
+  --objective-name loss \
+  --print-result
 ```
 
 ## Why These Examples

@@ -4,7 +4,8 @@ Run all commands from the repository root.
 
 This is the quickest path to running Looptimum templates locally.
 
-This quickstart uses explicit `--project-root` paths so each command is a single runnable line (easy copy/paste).
+This quickstart uses explicit `--project-root` paths so each command is a
+single runnable line (easy copy/paste).
 
 ## Interpreter
 
@@ -27,7 +28,9 @@ Parameter types currently supported by the public templates: `float`, `int`.
 ```bash
 python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_client_demo
 python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo
-python3 templates/bo_client_demo/run_bo.py ingest --project-root templates/bo_client_demo --results-file templates/bo_client_demo/examples/example_results.json
+python3 templates/bo_client_demo/run_bo.py ingest \
+  --project-root templates/bo_client_demo \
+  --results-file templates/bo_client_demo/examples/example_results.json
 python3 templates/bo_client_demo/run_bo.py demo --project-root templates/bo_client_demo --steps 5
 ```
 
@@ -36,11 +39,14 @@ python3 templates/bo_client_demo/run_bo.py demo --project-root templates/bo_clie
 ```bash
 python3 templates/bo_client/run_bo.py status --project-root templates/bo_client
 python3 templates/bo_client/run_bo.py suggest --project-root templates/bo_client
-python3 templates/bo_client/run_bo.py ingest --project-root templates/bo_client --results-file templates/bo_client/examples/example_results.json
+python3 templates/bo_client/run_bo.py ingest \
+  --project-root templates/bo_client \
+  --results-file templates/bo_client/examples/example_results.json
 python3 templates/bo_client/run_bo.py demo --project-root templates/bo_client --steps 5
 ```
 
-Optional GP backend (after dependencies are installed and `surrogate.type` is set to `gp` in `templates/bo_client/bo_config.yaml`):
+Optional GP backend (after dependencies are installed and `surrogate.type` is
+set to `gp` in `templates/bo_client/bo_config.yaml`):
 
 ```bash
 python3 templates/bo_client/run_bo.py suggest --project-root templates/bo_client
@@ -52,23 +58,32 @@ python3 templates/bo_client/run_bo.py suggest --project-root templates/bo_client
 python3 templates/bo_client_full/run_bo.py status --project-root templates/bo_client_full
 python3 templates/bo_client_full/run_bo.py suggest --project-root templates/bo_client_full
 python3 templates/bo_client_full/run_bo.py suggest --project-root templates/bo_client_full --enable-botorch-gp
-python3 templates/bo_client_full/run_bo.py ingest --project-root templates/bo_client_full --results-file templates/bo_client_full/examples/example_results.json
+python3 templates/bo_client_full/run_bo.py ingest \
+  --project-root templates/bo_client_full \
+  --results-file templates/bo_client_full/examples/example_results.json
 python3 templates/bo_client_full/run_bo.py demo --project-root templates/bo_client_full --steps 5
 ```
 
-Note: If BoTorch is unavailable and the template config allows fallback, `bo_client_full` falls back to proxy mode and records the reason in acquisition logs.
+Note: If BoTorch is unavailable and the template config allows fallback,
+`bo_client_full` falls back to proxy mode and records the reason in
+acquisition logs.
 
 ## First Clean-Run Flow (Practical Starting Path)
 
-On a clean template copy (no existing state), the bundled `example_results.json` matches the deterministic first suggestion for the default seed.
+On a clean template copy (no existing state), the bundled
+`example_results.json` matches the deterministic first suggestion for the
+default seed.
 
 ```bash
 python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo
-python3 templates/bo_client_demo/run_bo.py ingest --project-root templates/bo_client_demo --results-file templates/bo_client_demo/examples/example_results.json
+python3 templates/bo_client_demo/run_bo.py ingest \
+  --project-root templates/bo_client_demo \
+  --results-file templates/bo_client_demo/examples/example_results.json
 python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_client_demo
 ```
 
-If you already generated a different pending suggestion, generate a matching payload instead of reusing `example_results.json`.
+If you already generated a different pending suggestion, generate a matching
+payload instead of reusing `example_results.json`.
 
 ## State Files and Resume Behavior
 
@@ -89,7 +104,9 @@ Resume rules:
 
 ## State File Examples
 
-Reference snapshots (captured from a temp run of `templates/bo_client_demo`) are checked in under `docs/examples/state_snapshots/`:
+Reference snapshots (captured from a temp run of
+`templates/bo_client_demo`) are checked in under
+`docs/examples/state_snapshots/`:
 
 - `docs/examples/state_snapshots/status_empty.json`
 - `docs/examples/state_snapshots/suggestion_1.json`
@@ -102,13 +119,17 @@ Reference snapshots (captured from a temp run of `templates/bo_client_demo`) are
 
 ## Synthetic Helper (Payload Generation Example)
 
-For local testing without an external system, the demo template includes a helper that converts a suggestion JSON into a valid result payload:
+For local testing without an external system, the demo template includes a
+helper that converts a suggestion JSON into a valid result payload:
 
 ```bash
-python3 templates/bo_client_demo/scripts/synthetic_experiment.py docs/examples/state_snapshots/suggestion_1.json /tmp/result.json
+python3 templates/bo_client_demo/scripts/synthetic_experiment.py \
+  docs/examples/state_snapshots/suggestion_1.json \
+  /tmp/result.json
 ```
 
-For a live run, pass the exact suggestion JSON produced by `suggest` (not full stdout with the trailing `Objective direction: ...` line).
+For a live run, pass the exact suggestion JSON produced by `suggest`
+(not full stdout with the trailing `Objective direction: ...` line).
 For strict machine-readable `suggest` output, use `--json-only`.
 
 ## Test Command (Repo Root)
