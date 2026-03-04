@@ -38,6 +38,16 @@ def _start_lock_holder(lock_path: Path) -> subprocess.Popen[str]:
     return holder
 
 
+def _stop_lock_holder(holder: subprocess.Popen[str]) -> None:
+    if holder.poll() is None:
+        holder.terminate()
+        try:
+            holder.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            holder.kill()
+            holder.wait(timeout=5)
+
+
 def test_report_generates_json_and_markdown(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -125,14 +135,48 @@ def test_suggest_fail_fast_on_lock_contention_reports_clean_error(template_copy)
             expect_ok=False,
         )
     finally:
-        if holder.poll() is None:
-            holder.terminate()
-            try:
-                holder.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                holder.kill()
-                holder.wait(timeout=5)
+        _stop_lock_holder(holder)
 
     assert out.returncode != 0
     assert "Could not acquire lock" in out.stderr
     assert "Traceback" not in out.stderr
+
+
+def test_suggest_timeout_on_lock_contention_reports_clean_error(template_copy) -> None:
+    if sys.platform == "win32":
+        pytest.skip("fcntl lock semantics are POSIX-only")
+
+    holder = _start_lock_holder(template_copy / "state" / ".looptimum.lock")
+    try:
+        out = run_cmd(
+            template_copy,
+            "suggest",
+            "--lock-timeout-seconds",
+            "0.1",
+            expect_ok=False,
+        )
+    finally:
+        _stop_lock_holder(holder)
+
+    assert out.returncode != 0
+    assert "Could not acquire lock (timeout)" in out.stderr
+    assert "Traceback" not in out.stderr
+
+
+def test_read_commands_work_while_mutation_lock_is_held(template_copy) -> None:
+    if sys.platform == "win32":
+        pytest.skip("fcntl lock semantics are POSIX-only")
+
+    holder = _start_lock_holder(template_copy / "state" / ".looptimum.lock")
+    try:
+        status = run_cmd(template_copy, "status")
+        validate = run_cmd(template_copy, "validate")
+        doctor = run_cmd(template_copy, "doctor", "--json")
+    finally:
+        _stop_lock_holder(holder)
+
+    status_payload = json.loads(status.stdout)
+    doctor_payload = json.loads(doctor.stdout)
+    assert status_payload["observations"] == 0
+    assert "Validation passed." in validate.stdout
+    assert doctor_payload["status"]["observations"] == 0
