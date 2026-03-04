@@ -825,6 +825,75 @@ def _validate_state_warnings(
     return warnings_out
 
 
+def _validate_jsonl_file_hard(path: Path, *, label: str) -> list[str]:
+    if not path.exists():
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except Exception as exc:
+        return [f"{label} unreadable: {exc}"]
+
+    errors: list[str] = []
+    for idx, raw_line in enumerate(lines, start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            payload = json.loads(line)
+        except Exception as exc:
+            errors.append(f"{label} line {idx} invalid JSON: {exc}")
+            continue
+        if not isinstance(payload, dict):
+            errors.append(f"{label} line {idx} must be a JSON object")
+    return errors
+
+
+def _validate_trial_manifests_hard(trials_dir: Path) -> list[str]:
+    if not trials_dir.exists():
+        return []
+    if not trials_dir.is_dir():
+        return [f"trials_dir is not a directory: {trials_dir}"]
+
+    errors: list[str] = []
+    for child in sorted(trials_dir.iterdir()):
+        if not child.is_dir() or not child.name.startswith("trial_"):
+            continue
+        suffix = child.name[len("trial_") :]
+        try:
+            expected_trial_id = int(suffix)
+        except ValueError:
+            errors.append(f"invalid trial directory name (expected trial_<id>): {child}")
+            continue
+
+        manifest_path = child / "manifest.json"
+        if not manifest_path.exists():
+            errors.append(f"missing manifest for trial directory: {child}")
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"invalid manifest JSON at {manifest_path}: {exc}")
+            continue
+        if not isinstance(manifest, dict):
+            errors.append(f"manifest must be a JSON object: {manifest_path}")
+            continue
+
+        manifest_trial_id = manifest.get("trial_id")
+        if not isinstance(manifest_trial_id, int):
+            errors.append(f"manifest trial_id must be an integer: {manifest_path}")
+        elif int(manifest_trial_id) != expected_trial_id:
+            errors.append(
+                "manifest trial_id does not match trial directory name: "
+                f"{manifest_path} (trial_id={manifest_trial_id}, expected={expected_trial_id})"
+            )
+
+        status = manifest.get("status")
+        if status is not None and status not in {"pending", "ok", "failed", "killed", "timeout"}:
+            errors.append(f"manifest status is invalid: {manifest_path} (status={status!r})")
+
+    return errors
+
+
 def _parse_heartbeat_meta(raw: str | None) -> dict | None:
     if raw is None:
         return None
@@ -1432,6 +1501,11 @@ def cmd_validate(args: argparse.Namespace) -> None:
         raise SystemExit(1) from exc
 
     hard_errors.extend(_validate_state_hard_checks(state, objective_name, objective_direction))
+    hard_errors.extend(
+        _validate_jsonl_file_hard(paths["acquisition_log_file"], label="acquisition_log_file")
+    )
+    hard_errors.extend(_validate_jsonl_file_hard(paths["event_log_file"], label="event_log_file"))
+    hard_errors.extend(_validate_trial_manifests_hard(paths["trials_dir"]))
     warnings_out.extend(
         _validate_state_warnings(
             state=state,

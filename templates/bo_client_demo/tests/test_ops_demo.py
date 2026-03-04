@@ -207,6 +207,25 @@ def test_validate_hard_failure_for_inconsistent_best_ranking(template_copy: Path
     )
 
 
+def test_validate_hard_failure_for_corrupt_event_log_jsonl(template_copy: Path) -> None:
+    event_log_path = template_copy / "state" / "event_log.jsonl"
+    event_log_path.parent.mkdir(parents=True, exist_ok=True)
+    event_log_path.write_text("{invalid json\n", encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "event_log_file line 1 invalid JSON:" in out.stdout
+
+
+def test_validate_hard_failure_for_missing_trial_manifest(template_copy: Path) -> None:
+    trial_dir_path = template_copy / "state" / "trials" / "trial_123"
+    trial_dir_path.mkdir(parents=True, exist_ok=True)
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "missing manifest for trial directory:" in out.stdout
+
+
 def test_doctor_json_reports_backend_and_status(template_copy: Path) -> None:
     out = run_cmd(template_copy, "doctor", "--json")
     payload = json.loads(out.stdout)
