@@ -16,11 +16,21 @@ __pycache__/
 bo_client*/bo_client_template/state/bo_state.json
 bo_client*/bo_client_template/state/observations.csv
 bo_client*/bo_client_template/state/acquisition_log.jsonl
+bo_client*/bo_client_template/state/event_log.jsonl
+bo_client*/bo_client_template/state/.looptimum.lock
+bo_client*/bo_client_template/state/report.json
+bo_client*/bo_client_template/state/report.md
+bo_client*/bo_client_template/state/trials/
 bo_client*/bo_client_template/examples/_demo_result.json
 
 templates/*/state/bo_state.json
 templates/*/state/observations.csv
 templates/*/state/acquisition_log.jsonl
+templates/*/state/event_log.jsonl
+templates/*/state/.looptimum.lock
+templates/*/state/report.json
+templates/*/state/report.md
+templates/*/state/trials/
 templates/*/examples/_demo_result.json
 
 # Documentation-generated sample artifacts can be committed intentionally;
