@@ -10,6 +10,7 @@ import json
 import math
 import os
 import random
+import sys
 import time
 from io import StringIO
 from pathlib import Path
@@ -398,6 +399,241 @@ def _status_payload(
             "lock_file": _relative_path(root, paths["lock_file"]),
         },
     }
+
+
+def _best_params_from_state(state: dict) -> dict | None:
+    best = state.get("best")
+    if not isinstance(best, dict):
+        return None
+    best_trial_id = int(best.get("trial_id", -1))
+    for obs in state.get("observations", []):
+        if int(obs.get("trial_id", -1)) == best_trial_id:
+            params = obs.get("params")
+            return params if isinstance(params, dict) else None
+    return None
+
+
+def _runtime_summary(observations: list[dict]) -> dict | None:
+    runtimes = [
+        float(obs["runtime_seconds"])
+        for obs in observations
+        if isinstance(obs.get("runtime_seconds"), (int, float))
+        and not isinstance(obs.get("runtime_seconds"), bool)
+        and math.isfinite(float(obs["runtime_seconds"]))
+    ]
+    if not runtimes:
+        return None
+    total = sum(runtimes)
+    return {
+        "count": len(runtimes),
+        "min_seconds": min(runtimes),
+        "max_seconds": max(runtimes),
+        "mean_seconds": total / len(runtimes),
+        "total_seconds": total,
+    }
+
+
+def _build_report_payload(
+    *,
+    state: dict,
+    objective: dict,
+    top_n: int,
+) -> dict:
+    objective_name = str(objective["name"])
+    objective_direction = str(objective["direction"])
+    observations = list(state.get("observations", []))
+    status_counts = _status_counts(observations)
+
+    ok_observations = [obs for obs in observations if str(obs.get("status", "")) == "ok"]
+    if objective_direction == "minimize":
+        ranked_ok = sorted(
+            ok_observations, key=lambda obs: float(obs["objectives"][objective_name])
+        )
+    else:
+        ranked_ok = sorted(
+            ok_observations, key=lambda obs: float(obs["objectives"][objective_name]), reverse=True
+        )
+
+    top_trials = []
+    for obs in ranked_ok[: max(1, int(top_n))]:
+        top_trials.append(
+            {
+                "trial_id": int(obs["trial_id"]),
+                "status": obs.get("status"),
+                "objective_value": float(obs["objectives"][objective_name]),
+                "penalty_objective": obs.get("penalty_objective"),
+                "completed_at": obs.get("completed_at"),
+                "params": obs.get("params"),
+                "terminal_reason": obs.get("terminal_reason"),
+            }
+        )
+
+    objective_trace = []
+    for obs in sorted(observations, key=lambda row: int(row.get("trial_id", 0))):
+        objective_trace.append(
+            {
+                "trial_id": int(obs["trial_id"]),
+                "status": obs.get("status"),
+                "objective_value": obs.get("objectives", {}).get(objective_name),
+                "completed_at": obs.get("completed_at"),
+            }
+        )
+
+    total_observations = len(observations)
+    non_ok = total_observations - status_counts.get("ok", 0)
+    failure_rate = (non_ok / total_observations) if total_observations else 0.0
+
+    report = {
+        "generated_at": time.time(),
+        "objective": {
+            "name": objective_name,
+            "direction": objective_direction,
+        },
+        "counts": {
+            "observations": total_observations,
+            "pending": len(state.get("pending", [])),
+            "observations_by_status": status_counts,
+            "failure_rate": failure_rate,
+        },
+        "best": state.get("best"),
+        "best_params": _best_params_from_state(state),
+        "top_trials": top_trials,
+        "objective_trace": objective_trace,
+        "runtime_summary": _runtime_summary(observations),
+    }
+    return report
+
+
+def _render_report_markdown(report: dict) -> str:
+    objective = report["objective"]
+    counts = report["counts"]
+    lines = [
+        "# Looptimum Report",
+        "",
+        f"- Generated at: `{report['generated_at']}`",
+        f"- Objective: `{objective['name']}` ({objective['direction']})",
+        f"- Observations: `{counts['observations']}`",
+        f"- Pending: `{counts['pending']}`",
+        f"- Failure rate: `{counts['failure_rate']:.4f}`",
+        "",
+        "## Best",
+        "",
+    ]
+    best = report.get("best")
+    if best is None:
+        lines.append("No best trial yet.")
+    else:
+        lines.append(f"- trial_id: `{best['trial_id']}`")
+        lines.append(f"- objective_value: `{best['objective_value']}`")
+        best_params = report.get("best_params")
+        lines.append(f"- params: `{json.dumps(best_params, sort_keys=True)}`")
+
+    lines.extend(["", "## Top Trials", ""])
+    top_trials = report.get("top_trials", [])
+    if not top_trials:
+        lines.append("No completed ok trials yet.")
+    else:
+        for row in top_trials:
+            lines.append(
+                f"- trial `{row['trial_id']}`: objective={row['objective_value']}, status={row['status']}"
+            )
+
+    runtime_summary = report.get("runtime_summary")
+    lines.extend(["", "## Runtime Summary", ""])
+    if runtime_summary is None:
+        lines.append("No runtime_seconds fields found in observations.")
+    else:
+        lines.append(f"- count: `{runtime_summary['count']}`")
+        lines.append(f"- min_seconds: `{runtime_summary['min_seconds']}`")
+        lines.append(f"- max_seconds: `{runtime_summary['max_seconds']}`")
+        lines.append(f"- mean_seconds: `{runtime_summary['mean_seconds']}`")
+        lines.append(f"- total_seconds: `{runtime_summary['total_seconds']}`")
+
+    return "\n".join(lines) + "\n"
+
+
+def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
+    errors: list[str] = []
+
+    required_keys = ("meta", "observations", "pending", "next_trial_id", "best")
+    for key in required_keys:
+        if key not in state:
+            errors.append(f"missing required state key: {key}")
+
+    if not isinstance(state.get("meta"), dict):
+        errors.append("state.meta must be an object")
+    if not isinstance(state.get("observations"), list):
+        errors.append("state.observations must be a list")
+    if not isinstance(state.get("pending"), list):
+        errors.append("state.pending must be a list")
+    if not isinstance(state.get("next_trial_id"), int):
+        errors.append("state.next_trial_id must be an integer")
+    elif int(state["next_trial_id"]) < 1:
+        errors.append("state.next_trial_id must be >= 1")
+
+    observations = state.get("observations")
+    if isinstance(observations, list):
+        for idx, obs in enumerate(observations):
+            if not isinstance(obs, dict):
+                errors.append(f"state.observations[{idx}] must be an object")
+                continue
+            if not isinstance(obs.get("trial_id"), int):
+                errors.append(f"state.observations[{idx}].trial_id must be an integer")
+            if not isinstance(obs.get("params"), dict):
+                errors.append(f"state.observations[{idx}].params must be an object")
+            objectives = obs.get("objectives")
+            if not isinstance(objectives, dict):
+                errors.append(f"state.observations[{idx}].objectives must be an object")
+            elif objective_name not in objectives:
+                errors.append(
+                    f"state.observations[{idx}].objectives missing primary objective '{objective_name}'"
+                )
+
+    pending = state.get("pending")
+    if isinstance(pending, list):
+        pending_ids: list[int] = []
+        for idx, row in enumerate(pending):
+            if not isinstance(row, dict):
+                errors.append(f"state.pending[{idx}] must be an object")
+                continue
+            if not isinstance(row.get("trial_id"), int):
+                errors.append(f"state.pending[{idx}].trial_id must be an integer")
+            else:
+                pending_ids.append(int(row["trial_id"]))
+            if not isinstance(row.get("params"), dict):
+                errors.append(f"state.pending[{idx}].params must be an object")
+            if not isinstance(row.get("suggested_at"), (int, float)):
+                errors.append(f"state.pending[{idx}].suggested_at must be numeric")
+        if len(pending_ids) != len(set(pending_ids)):
+            errors.append("state.pending contains duplicate trial_id values")
+
+    return errors
+
+
+def _validate_state_warnings(
+    *,
+    state: dict,
+    paths: dict[str, Path],
+    max_pending_age: float | None,
+) -> list[str]:
+    warnings_out: list[str] = []
+
+    pending = state.get("pending", [])
+    if isinstance(pending, list) and max_pending_age is not None:
+        now = time.time()
+        stale_count = sum(
+            1 for row in pending if pending_age_seconds(row, now=now) > max_pending_age
+        )
+        if stale_count > 0:
+            warnings_out.append(
+                f"{stale_count} pending trial(s) exceed max_pending_age_seconds={max_pending_age}"
+            )
+
+    for key in ("acquisition_log_file", "event_log_file", "observations_csv", "trials_dir"):
+        if not paths[key].exists():
+            warnings_out.append(f"optional path missing: {paths[key]}")
+
+    return warnings_out
 
 
 def _parse_heartbeat_meta(raw: str | None) -> dict | None:
@@ -904,6 +1140,189 @@ def cmd_status(args: argparse.Namespace) -> None:
     print(json.dumps(_status_payload(root, state, paths, max_pending_age), indent=2))
 
 
+def cmd_report(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective = obj_cfg["primary_objective"]
+    if not isinstance(objective, dict):
+        raise ValueError("objective_schema.primary_objective must be an object")
+
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="report",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            state = load_state(paths["state_file"])
+            report = _build_report_payload(
+                state=state,
+                objective=objective,
+                top_n=max(1, int(args.top_n)),
+            )
+            atomic_write_json(paths["report_json_file"], report, indent=2)
+            atomic_write_text(paths["report_md_file"], _render_report_markdown(report))
+            _append_event(
+                paths,
+                "report_generated",
+                report_json=_relative_path(root, paths["report_json_file"]),
+                report_md=_relative_path(root, paths["report_md_file"]),
+            )
+            print(
+                "Generated report files:\n"
+                f"- {paths['report_json_file']}\n"
+                f"- {paths['report_md_file']}"
+            )
+        finally:
+            _append_event(paths, "lock_released", command="report", pid=os.getpid())
+
+
+def cmd_validate(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    hard_errors: list[str] = []
+    warnings_out: list[str] = []
+
+    try:
+        cfg, _ = load_contract_document(root, "bo_config")
+        if not isinstance(cfg, dict):
+            raise ValueError("bo_config must be an object")
+    except Exception as exc:  # pragma: no cover - exercised by subprocess integration tests.
+        hard_errors.append(f"config load failure: {exc}")
+        cfg = {}
+
+    try:
+        space_cfg, space_path = load_contract_document(root, "parameter_space")
+        if not isinstance(space_cfg, dict):
+            raise ValueError("parameter_space must be an object")
+        search_space_schema, _ = load_schema_from_paths(
+            root,
+            cfg.get("paths", {}),
+            key="search_space_schema_file",
+            default_rel="../_shared/schemas/search_space.schema.json",
+        )
+        validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
+    except Exception as exc:  # pragma: no cover
+        hard_errors.append(f"parameter_space validation failure: {exc}")
+
+    objective_name = "loss"
+    try:
+        obj_cfg, _ = load_contract_document(root, "objective_schema")
+        if not isinstance(obj_cfg, dict):
+            raise ValueError("objective_schema must be an object")
+        objective = obj_cfg.get("primary_objective")
+        if not isinstance(objective, dict):
+            raise ValueError("objective_schema.primary_objective must be an object")
+        objective_name = str(objective["name"])
+    except Exception as exc:  # pragma: no cover
+        hard_errors.append(f"objective_schema validation failure: {exc}")
+
+    if hard_errors:
+        for err in hard_errors:
+            print(f"ERROR: {err}")
+        raise SystemExit(1)
+
+    paths = _runtime_paths(root, cfg)
+    try:
+        state = load_state(paths["state_file"])
+    except Exception as exc:
+        print(f"ERROR: state load failure: {exc}")
+        raise SystemExit(1) from exc
+
+    hard_errors.extend(_validate_state_hard_checks(state, objective_name))
+    warnings_out.extend(
+        _validate_state_warnings(
+            state=state,
+            paths=paths,
+            max_pending_age=resolve_max_pending_age_seconds(cfg),
+        )
+    )
+
+    for err in hard_errors:
+        print(f"ERROR: {err}")
+    for warning in warnings_out:
+        print(f"WARNING: {warning}")
+
+    if hard_errors:
+        raise SystemExit(1)
+    if warnings_out and args.strict:
+        raise SystemExit(1)
+
+    print("Validation passed.")
+
+
+def cmd_doctor(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective = obj_cfg["primary_objective"]
+
+    paths = _runtime_paths(root, cfg)
+    state = load_state(paths["state_file"])
+    max_pending_age = resolve_max_pending_age_seconds(cfg)
+    status = _status_payload(root, state, paths, max_pending_age)
+
+    backend = str(cfg.get("surrogate", {}).get("type", "rbf_proxy")).lower()
+    gp_dependency_available = None
+    if backend == "gp":
+        try:
+            import sklearn  # noqa: F401
+
+            gp_dependency_available = True
+        except Exception:
+            gp_dependency_available = False
+
+    payload = {
+        "generated_at": time.time(),
+        "python_version": sys.version.split()[0],
+        "python_executable": sys.executable,
+        "platform": sys.platform,
+        "project_root": str(root),
+        "pid": os.getpid(),
+        "backend": {
+            "configured": backend,
+            "gp_dependency_available": gp_dependency_available,
+        },
+        "objective": objective,
+        "status": status,
+    }
+
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return
+
+    print("Looptimum Doctor")
+    print(f"- python_version: {payload['python_version']}")
+    print(f"- python_executable: {payload['python_executable']}")
+    print(f"- platform: {payload['platform']}")
+    print(f"- project_root: {payload['project_root']}")
+    print(f"- backend.configured: {backend}")
+    if gp_dependency_available is not None:
+        print(f"- backend.gp_dependency_available: {gp_dependency_available}")
+    print(f"- observations: {status['observations']}")
+    print(f"- pending: {status['pending']}")
+    print(f"- stale_pending: {status['stale_pending']}")
+    print(f"- next_trial_id: {status['next_trial_id']}")
+    print(f"- state_file: {status['paths']['state_file']}")
+    print(f"- event_log_file: {status['paths']['event_log_file']}")
+
+
 def cmd_demo(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
 
@@ -946,7 +1365,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "command",
-        choices=["suggest", "ingest", "status", "demo", "cancel", "retire", "heartbeat"],
+        choices=[
+            "suggest",
+            "ingest",
+            "status",
+            "demo",
+            "cancel",
+            "retire",
+            "heartbeat",
+            "report",
+            "validate",
+            "doctor",
+        ],
     )
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--results-file", default="examples/example_results.json")
@@ -982,6 +1412,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="For mutating commands: fail immediately if lock is already held",
     )
+    parser.add_argument("--top-n", type=int, default=5, help="For report: number of top trials")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="For validate: treat warnings as fatal (non-zero exit).",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="For doctor: emit machine-readable JSON output."
+    )
     return parser.parse_args()
 
 
@@ -995,6 +1434,9 @@ def main() -> None:
         "cancel": cmd_cancel,
         "retire": cmd_retire,
         "heartbeat": cmd_heartbeat,
+        "report": cmd_report,
+        "validate": cmd_validate,
+        "doctor": cmd_doctor,
     }[args.command](args)
 
 
