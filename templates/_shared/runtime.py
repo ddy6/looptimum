@@ -15,6 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover - non-POSIX environments only.
 
 DEFAULT_LOCK_TIMEOUT_SECONDS = 45.0
 DEFAULT_MAX_PENDING_AGE_SECONDS = 86400.0
+_ATOMIC_FAIL_BASENAME_ENV = "LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME"
 
 DEFAULT_PATHS = {
     "state_file": "state/bo_state.json",
@@ -66,6 +67,9 @@ def atomic_write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}-{time.time_ns()}")
     tmp.write_text(text, encoding="utf-8")
+    fail_basename = os.getenv(_ATOMIC_FAIL_BASENAME_ENV, "").strip()
+    if fail_basename and path.name == fail_basename:
+        raise OSError(f"Injected atomic write failure for {path}")
     tmp.replace(path)
 
 

@@ -133,6 +133,31 @@ def test_retire_stale_command_retires_pending_trial(template_copy: Path) -> None
     assert obs["terminal_reason"] == "retired_stale"
 
 
+def test_suggest_auto_retires_stale_pending(template_copy: Path) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["max_pending_age_seconds"] = 60
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    first = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    state_path = template_copy / "state" / "bo_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["pending"][0]["suggested_at"] = time.time() - 3600
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+    second = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert second["trial_id"] == first["trial_id"] + 1
+
+    state_after = _read_state(template_copy)
+    assert len(state_after["observations"]) == 1
+    assert len(state_after["pending"]) == 1
+    stale_obs = state_after["observations"][0]
+    assert stale_obs["trial_id"] == first["trial_id"]
+    assert stale_obs["status"] == "killed"
+    assert stale_obs["terminal_reason"] == "retired_stale_auto"
+    assert state_after["pending"][0]["trial_id"] == second["trial_id"]
+
+
 def test_status_adds_phase5_fields_compatibly(template_copy: Path) -> None:
     payload = json.loads(run_cmd(template_copy, "status").stdout)
     for key in ("observations", "pending", "next_trial_id", "best"):

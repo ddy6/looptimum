@@ -144,6 +144,25 @@ def test_validate_hard_failure_for_corrupt_state_file(template_copy: Path) -> No
     assert "ERROR: state load failure:" in out.stdout
 
 
+def test_validate_hard_failure_for_malformed_bo_config(template_copy: Path) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg_path.write_text("{not valid json", encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: config load failure:" in out.stdout
+
+
+def test_validate_hard_failure_for_malformed_parameter_space(template_copy: Path) -> None:
+    space_path = template_copy / "parameter_space.json"
+    space_path.write_text("{}", encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: parameter_space validation failure:" in out.stdout
+    assert "field=$.parameters" in out.stdout
+
+
 def test_validate_hard_failure_for_duplicate_observation_trial_ids(template_copy: Path) -> None:
     suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -234,6 +253,37 @@ def test_doctor_json_reports_backend_and_status(template_copy: Path) -> None:
     assert payload["status"]["observations"] == 0
     assert payload["status"]["pending"] == 0
     assert "botorch_feature_flag" in payload["status"]
+
+
+def test_ingest_atomic_write_injection_preserves_last_good_state(
+    template_copy: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.31},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_atomic_fail_ingest.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    state_path = template_copy / "state" / "bo_state.json"
+    before = json.loads(state_path.read_text(encoding="utf-8"))
+    monkeypatch.setenv("LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME", "bo_state.json")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(result_path), expect_ok=False)
+    assert out.returncode != 0
+    assert "Injected atomic write failure" in out.stderr
+
+    after = json.loads(state_path.read_text(encoding="utf-8"))
+    assert after == before
+
+    monkeypatch.delenv("LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME", raising=False)
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 1
+    assert status["pending"] == 0
 
 
 def test_suggest_fail_fast_on_lock_contention_reports_clean_error(template_copy: Path) -> None:

@@ -47,6 +47,11 @@ def template_copy(tmp_path: Path) -> Path:
     return dst
 
 
+def _parse_suggestion(stdout: str) -> dict:
+    lines = [line for line in stdout.strip().splitlines() if line.strip()]
+    return json.loads("\n".join(lines[:-1]))
+
+
 def test_status_initial(template_copy: Path) -> None:
     out = run_cmd(template_copy, "status")
     payload = json.loads(out.stdout)
@@ -142,6 +147,27 @@ def test_duplicate_ingest_identical_replay_is_noop(template_copy: Path) -> None:
     assert after == before
 
 
+def test_duplicate_ingest_conflicting_replay_is_rejected_with_diff(template_copy: Path) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.07},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_dup_result_conflict.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+    payload["objectives"]["loss"] = 0.2
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert out.returncode != 0
+    assert "conflicting duplicate ingest" in out.stderr
+    assert "$.objectives.loss differs" in out.stderr
+
+
 def test_non_ok_timeout_null_objective_is_accepted(template_copy: Path) -> None:
     s = run_cmd(template_copy, "suggest")
     lines = [line for line in s.stdout.strip().splitlines() if line.strip()]
@@ -163,6 +189,48 @@ def test_non_ok_timeout_null_objective_is_accepted(template_copy: Path) -> None:
     assert obs["objectives"]["loss"] is None
     assert obs["penalty_objective"] == 1234.0
     assert state["best"] is None
+
+
+def test_non_ok_killed_null_objective_is_accepted(template_copy: Path) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "killed",
+        "penalty_objective": 555.0,
+    }
+    path = template_copy / "examples" / "_killed_result.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    obs = state["observations"][0]
+    assert obs["status"] == "killed"
+    assert obs["objectives"]["loss"] is None
+    assert obs["penalty_objective"] == 555.0
+    assert state["best"] is None
+
+
+def test_non_ok_sentinel_failed_objective_is_accepted_with_deprecation(template_copy: Path) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 1e12},
+        "status": "failed",
+    }
+    path = template_copy / "examples" / "_failed_sentinel_result.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
+    assert "Deprecated" in out.stderr
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    obs = state["observations"][0]
+    assert obs["status"] == "failed"
+    assert obs["objectives"]["loss"] is None
+    assert obs["penalty_objective"] == 1e12
 
 
 def test_non_ok_penalty_does_not_affect_best_ranking(template_copy: Path) -> None:
@@ -197,6 +265,28 @@ def test_non_ok_penalty_does_not_affect_best_ranking(template_copy: Path) -> Non
     assert len(state["observations"]) == 2
     assert state["best"]["trial_id"] == suggestion1["trial_id"]
     assert state["best"]["objective_value"] == 0.1
+
+
+def test_resume_restores_state_and_trial_ids(template_copy: Path) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.2},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_resume_ingest.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 1
+    assert status["next_trial_id"] == 2
+
+    second = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert second["trial_id"] == 2
+    status2 = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status2["pending"] == 1
 
 
 def test_demo_runs(template_copy: Path) -> None:

@@ -156,6 +156,27 @@ def test_non_ok_allows_null_objective_with_optional_penalty(template_copy) -> No
     assert state["best"] is None
 
 
+def test_non_ok_killed_allows_null_objective_with_optional_penalty(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "killed",
+        "penalty_objective": 777.0,
+    }
+    path = template_copy / "examples" / "_ingest_killed_null.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    obs = state["observations"][0]
+    assert obs["status"] == "killed"
+    assert obs["objectives"]["loss"] is None
+    assert obs["penalty_objective"] == 777.0
+    assert state["best"] is None
+
+
 def test_non_ok_penalty_does_not_affect_best_ranking(template_copy) -> None:
     first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     ok_payload = {
