@@ -1612,7 +1612,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    {
+    commands = {
         "suggest": cmd_suggest,
         "ingest": cmd_ingest,
         "status": cmd_status,
@@ -1623,7 +1623,14 @@ def main() -> None:
         "report": cmd_report,
         "validate": cmd_validate,
         "doctor": cmd_doctor,
-    }[args.command](args)
+    }
+    try:
+        commands[args.command](args)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":

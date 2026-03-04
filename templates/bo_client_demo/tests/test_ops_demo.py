@@ -9,6 +9,21 @@ from pathlib import Path
 
 import pytest
 
+_LOCK_HOLDER_SCRIPT = "\n".join(
+    [
+        "import fcntl",
+        "import pathlib",
+        "import sys",
+        "import time",
+        "path = pathlib.Path(sys.argv[1])",
+        "path.parent.mkdir(parents=True, exist_ok=True)",
+        "handle = path.open('a+', encoding='utf-8')",
+        "fcntl.flock(handle.fileno(), fcntl.LOCK_EX)",
+        "print('LOCKED', flush=True)",
+        "time.sleep(30)",
+    ]
+)
+
 
 def run_cmd(
     project_root: Path, *args: str, expect_ok: bool = True
@@ -51,6 +66,19 @@ def template_copy(tmp_path: Path) -> Path:
 def _parse_suggestion(stdout: str) -> dict:
     lines = [line for line in stdout.strip().splitlines() if line.strip()]
     return json.loads("\n".join(lines[:-1]))
+
+
+def _start_lock_holder(lock_path: Path) -> subprocess.Popen[str]:
+    holder = subprocess.Popen(
+        [sys.executable, "-c", _LOCK_HOLDER_SCRIPT, str(lock_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert holder.stdout is not None
+    ready = holder.stdout.readline().strip()
+    assert ready == "LOCKED"
+    return holder
 
 
 def test_report_generates_json_and_markdown(template_copy: Path) -> None:
@@ -113,3 +141,31 @@ def test_doctor_json_reports_backend_and_status(template_copy: Path) -> None:
     assert payload["status"]["observations"] == 0
     assert payload["status"]["pending"] == 0
     assert "paths" in payload["status"]
+
+
+def test_suggest_fail_fast_on_lock_contention_reports_clean_error(template_copy: Path) -> None:
+    if sys.platform == "win32":
+        pytest.skip("fcntl lock semantics are POSIX-only")
+
+    holder = _start_lock_holder(template_copy / "state" / ".looptimum.lock")
+    try:
+        out = run_cmd(
+            template_copy,
+            "suggest",
+            "--fail-fast",
+            "--lock-timeout-seconds",
+            "0",
+            expect_ok=False,
+        )
+    finally:
+        if holder.poll() is None:
+            holder.terminate()
+            try:
+                holder.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                holder.kill()
+                holder.wait(timeout=5)
+
+    assert out.returncode != 0
+    assert "Could not acquire lock" in out.stderr
+    assert "Traceback" not in out.stderr
