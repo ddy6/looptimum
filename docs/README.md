@@ -11,6 +11,8 @@ Included files:
   workflow plus lifecycle/ops command usage
 - `operational-semantics.md`: idempotency, pending semantics, lifecycle
   controls, locking, resume behavior, and crash recovery expectations
+- `stability-guarantees.md`: public compatibility guarantees, deprecation
+  policy, and breaking-change rules for `v0.2.x`
 - `search-space.md`: supported parameter types, constraints framing, and
   multi-objective boundaries
 - `decision-trace.md`: acquisition log schema and decision metadata guidance

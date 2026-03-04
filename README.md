@@ -190,6 +190,15 @@ Best ranking rule:
   deprecation warning.
 - Sentinel primary-objective compatibility is planned for removal in `v0.3.0`.
 
+### Stability Promise (`v0.2.x`)
+
+- No breaking changes within the `v0.2.x` line for CLI command names/required
+  flags, ingest required fields/status vocabulary, and core state-file
+  compatibility.
+- Breaking changes are allowed only on `0.x` major-line increments (for
+  example `0.2 -> 0.3`) and require migration notes.
+- Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
+
 ### Duplicate Ingest Behavior
 
 - Identical replay of an already ingested trial: explicit no-op success.
