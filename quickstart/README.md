@@ -81,7 +81,8 @@ To regenerate the golden decision-trace sample:
 ```bash
 python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py \
   --steps 8 \
-  --write-acquisition-log docs/examples/decision_trace/golden_acquisition_log.jsonl
+  --write-acquisition-log docs/examples/decision_trace/golden_acquisition_log.jsonl \
+  --normalize-acquisition-timestamps
 ```
 
 Related artifacts:

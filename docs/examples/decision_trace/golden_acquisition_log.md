@@ -14,7 +14,8 @@ Run from repo root:
 ```bash
 python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py \
   --steps 8 \
-  --write-acquisition-log docs/examples/decision_trace/golden_acquisition_log.jsonl
+  --write-acquisition-log docs/examples/decision_trace/golden_acquisition_log.jsonl \
+  --normalize-acquisition-timestamps
 ```
 
 Generation context:
@@ -23,6 +24,7 @@ Generation context:
 - seed: `17` (from `bo_config.json`)
 - objective module:
   `examples/toy_objectives/03_tiny_quadratic_loop/objective.py`
+- timestamp policy: normalized to deterministic synthetic values for stable diffs
 
 ## What the 8 Records Show
 

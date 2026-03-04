@@ -34,6 +34,14 @@ def _parse_args() -> argparse.Namespace:
         help="Optional output path for copied acquisition log JSONL.",
     )
     parser.add_argument(
+        "--normalize-acquisition-timestamps",
+        action="store_true",
+        help=(
+            "When exporting acquisition log, replace timestamps with deterministic "
+            "synthetic values for stable docs diffs."
+        ),
+    )
+    parser.add_argument(
         "--keep-temp-dir",
         action="store_true",
         help="Keep the temporary run directory instead of deleting it.",
@@ -93,6 +101,27 @@ def _prepare_temp_project(temp_root: Path) -> Path:
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _export_acquisition_log(src: Path, dst: Path, *, normalize_timestamps: bool) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if not normalize_timestamps:
+        shutil.copyfile(src, dst)
+        return
+
+    rows: list[dict[str, Any]] = []
+    for line in src.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        rows.append(json.loads(line))
+
+    # Normalize wall-clock timestamps to a deterministic sequence for stable
+    # checked-in docs artifacts.
+    base = 1_700_000_000.0
+    with dst.open("w", encoding="utf-8") as handle:
+        for idx, row in enumerate(rows, start=1):
+            row["timestamp"] = base + float(idx)
+            handle.write(json.dumps(row) + "\n")
 
 
 def _run_loop(run_project: Path, steps: int) -> dict[str, Any]:
@@ -169,9 +198,15 @@ def main() -> None:
         if args.write_acquisition_log:
             src = run_project / "state" / "acquisition_log.jsonl"
             dst = Path(args.write_acquisition_log).resolve()
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, dst)
-            print(f"[tiny_loop] wrote acquisition log: {dst}")
+            _export_acquisition_log(
+                src,
+                dst,
+                normalize_timestamps=args.normalize_acquisition_timestamps,
+            )
+            if args.normalize_acquisition_timestamps:
+                print(f"[tiny_loop] wrote normalized acquisition log: {dst}")
+            else:
+                print(f"[tiny_loop] wrote acquisition log: {dst}")
 
         print("[tiny_loop] final status:")
         print(json.dumps(status_payload, indent=2))

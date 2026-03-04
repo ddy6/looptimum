@@ -1,8 +1,8 @@
-{"decision": {"strategy": "initial_random"}, "timestamp": 1772639818.558626, "trial_id": 1}
-{"decision": {"strategy": "initial_random"}, "timestamp": 1772639818.725156, "trial_id": 2}
-{"decision": {"strategy": "initial_random"}, "timestamp": 1772639818.888961, "trial_id": 3}
-{"decision": {"strategy": "initial_random"}, "timestamp": 1772639819.053388, "trial_id": 4}
-{"decision": {"strategy": "initial_random"}, "timestamp": 1772639819.21346, "trial_id": 5}
-{"decision": {"strategy": "initial_random"}, "timestamp": 1772639819.3716962, "trial_id": 6}
-{"decision": {"acquisition_score": 2.128205697875364, "acquisition_type": "ucb", "predicted_mean": 0.19146482652554245, "predicted_std": 1.2887058468893926, "strategy": "surrogate_acquisition"}, "timestamp": 1772639819.5376132, "trial_id": 7}
-{"decision": {"acquisition_score": 1.8007857451168057, "acquisition_type": "ucb", "predicted_mean": 0.21778842755619246, "predicted_std": 1.1214300959294434, "strategy": "surrogate_acquisition"}, "timestamp": 1772639819.697394, "trial_id": 8}
+{"decision": {"strategy": "initial_random"}, "timestamp": 1700000001.0, "trial_id": 1}
+{"decision": {"strategy": "initial_random"}, "timestamp": 1700000002.0, "trial_id": 2}
+{"decision": {"strategy": "initial_random"}, "timestamp": 1700000003.0, "trial_id": 3}
+{"decision": {"strategy": "initial_random"}, "timestamp": 1700000004.0, "trial_id": 4}
+{"decision": {"strategy": "initial_random"}, "timestamp": 1700000005.0, "trial_id": 5}
+{"decision": {"strategy": "initial_random"}, "timestamp": 1700000006.0, "trial_id": 6}
+{"decision": {"acquisition_score": 2.128205697875364, "acquisition_type": "ucb", "predicted_mean": 0.19146482652554245, "predicted_std": 1.2887058468893926, "strategy": "surrogate_acquisition"}, "timestamp": 1700000007.0, "trial_id": 7}
+{"decision": {"acquisition_score": 1.8007857451168057, "acquisition_type": "ucb", "predicted_mean": 0.21778842755619246, "predicted_std": 1.1214300959294434, "strategy": "surrogate_acquisition"}, "timestamp": 1700000008.0, "trial_id": 8}

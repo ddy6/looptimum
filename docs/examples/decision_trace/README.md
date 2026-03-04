@@ -7,3 +7,8 @@ This folder holds Phase 6 trust-building decision-trace artifacts:
 - `cli_transcript.md`: text transcript of `suggest -> evaluate -> ingest -> status`
 
 These artifacts are integration/audit references, not benchmark claims.
+
+Note:
+
+- The golden log export uses normalized synthetic timestamps so regenerated files
+  are stable in version control.
