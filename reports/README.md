@@ -12,8 +12,9 @@ Current update-program progress is tracked in:
 Status as of 2026-03-04:
 
 - Phases 0-6 complete
-- Phase 6 validation baseline passed (`.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `105 passed, 1 skipped`)
+- Phase 6 validation baseline passed (`.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `107 passed, 1 skipped`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
+- Phase 6 follow-on hardening shipped (deterministic golden-log regeneration + golden artifact contract tests)
 - Phase 7 is next active scope (step 61 onward)
 
 Included:
