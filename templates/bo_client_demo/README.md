@@ -33,3 +33,12 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   (`status: "timeout"`, `objective: null`, `penalty_objective`)
 - `examples/example_run.sh [results-file]`: run script; optional arg selects
   which sample payload to ingest
+
+## Cross-Repo References
+
+- Tiny end-to-end objective loop:
+  `examples/toy_objectives/03_tiny_quadratic_loop/`
+- Golden decision-trace sample:
+  `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- Text transcript of `suggest -> evaluate -> ingest -> status`:
+  `docs/examples/decision_trace/cli_transcript.md`

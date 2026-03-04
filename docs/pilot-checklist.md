@@ -130,3 +130,5 @@ A pilot should be considered complete when:
 - `docs/search-space.md`
 - `docs/decision-trace.md`
 - `docs/security-data-handling.md`
+- `docs/examples/decision_trace/README.md`
+- `examples/toy_objectives/03_tiny_quadratic_loop/README.md`

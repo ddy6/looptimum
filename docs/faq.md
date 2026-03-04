@@ -53,6 +53,33 @@ Start with:
 
 Use `templates/bo_client_full` if you specifically want the optional feature-flag GP path in that variant.
 
+## How do I validate the full loop in under a minute?
+
+Use the dedicated tiny end-to-end objective example:
+
+```bash
+python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 6
+```
+
+This runs `suggest -> evaluate -> ingest -> status` on an isolated temp copy of
+`templates/bo_client_demo`.
+
+References:
+
+- `examples/toy_objectives/03_tiny_quadratic_loop/README.md`
+- `quickstart/README.md` ("Tiny End-to-End Objective" section)
+
+## Where can I find a golden acquisition log sample?
+
+Use the decision-trace example artifacts:
+
+- `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- `docs/examples/decision_trace/golden_acquisition_log.md`
+- `docs/examples/decision_trace/cli_transcript.md`
+
+These provide a deterministic sample plus field annotations and a text
+command/output transcript.
+
 ## What is the difference between proxy-only and GP-backed variants?
 
 ### Proxy-only (`rbf_proxy`)
