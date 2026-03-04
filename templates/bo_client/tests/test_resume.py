@@ -33,3 +33,5 @@ def test_demo_stops_cleanly_when_budget_exhausted(template_copy) -> None:
     cfg = json.loads((template_copy / "bo_config.json").read_text(encoding="utf-8"))
     assert status["observations"] == cfg["max_trials"]
     assert status["pending"] == 0
+    assert not (template_copy / "examples" / "_demo_result.json").exists()
+    assert (template_copy / "state" / "trials" / "trial_1" / "demo_result.json").exists()

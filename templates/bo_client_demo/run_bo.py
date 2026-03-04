@@ -1400,8 +1400,8 @@ def cmd_demo(args: argparse.Namespace) -> None:
             "objectives": {"loss": toy_loss(latest["params"])},
             "status": "ok",
         }
-        path = root / "examples" / "_demo_result.json"
-        path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+        path = trial_dir(paths["trials_dir"], int(latest["trial_id"])) / "demo_result.json"
+        atomic_write_json(path, out, indent=2)
         args.results_file = str(path)
         cmd_ingest(args)
     cmd_status(args)

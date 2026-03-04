@@ -205,6 +205,8 @@ def test_demo_runs(template_copy: Path) -> None:
     payload = json.loads(st.stdout)
     assert payload["observations"] == 2
     assert payload["pending"] == 0
+    assert not (template_copy / "examples" / "_demo_result.json").exists()
+    assert (template_copy / "state" / "trials" / "trial_1" / "demo_result.json").exists()
 
 
 def test_demo_stops_cleanly_when_budget_exhausted(template_copy: Path) -> None:

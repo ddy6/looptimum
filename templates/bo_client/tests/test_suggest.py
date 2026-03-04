@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -40,10 +41,17 @@ def test_deterministic_first_suggestion_under_fixed_seed(template_copy, tmp_path
         second_copy / "state" / "bo_state.json",
         second_copy / "state" / "observations.csv",
         second_copy / "state" / "acquisition_log.jsonl",
+        second_copy / "state" / "event_log.jsonl",
+        second_copy / "state" / ".looptimum.lock",
+        second_copy / "state" / "report.json",
+        second_copy / "state" / "report.md",
         second_copy / "examples" / "_demo_result.json",
     ]:
         if p.exists():
             p.unlink()
+    trials_dir = second_copy / "state" / "trials"
+    if trials_dir.exists():
+        shutil.rmtree(trials_dir)
 
     first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     second = parse_suggestion(run_cmd(second_copy, "suggest").stdout)
