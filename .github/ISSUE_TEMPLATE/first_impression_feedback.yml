@@ -1,0 +1,92 @@
+name: First Impression Feedback
+description: Capture first-run clarity, trust, and integration friction for Looptimum.
+title: "[first-impression] <short summary>"
+labels:
+  - feedback
+  - first-impression
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reviewing Looptimum.
+        This issue template is the primary intake path for post-`v0.2.0` first-impression feedback.
+
+  - type: dropdown
+    id: reader_profile
+    attributes:
+      label: Reader profile
+      description: What best describes your background?
+      options:
+        - Software engineer (non-ML specialization)
+        - ML/DS practitioner
+        - Platform/infrastructure engineer
+        - Applied scientist/simulation engineer
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Evaluation context
+      description: Where did you start and what were you trying to determine?
+      placeholder: "Example: Read README and quickstart to decide if this fits a tuning workflow for an API service."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: first_screen_clarity
+    attributes:
+      label: First-screen clarity
+      description: How clear was fit and value from the first README screen?
+      options:
+        - Very clear
+        - Mostly clear
+        - Somewhat unclear
+        - Unclear
+    validations:
+      required: true
+
+  - type: textarea
+    id: confusion_points
+    attributes:
+      label: Top confusion points
+      description: What was ambiguous, missing, or hard to trust?
+      placeholder: "List 1-3 points."
+    validations:
+      required: true
+
+  - type: textarea
+    id: trust_signals
+    attributes:
+      label: Trust blockers or trust builders
+      description: What increased or reduced confidence in adopting this?
+      placeholder: "Example: contract semantics were clear, but release/version policy was hard to locate."
+    validations:
+      required: true
+
+  - type: textarea
+    id: integration_friction
+    attributes:
+      label: Integration friction
+      description: What part of suggest/evaluate/ingest/status felt hardest?
+      placeholder: "Mention docs or commands that caused friction."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Suggested improvements
+      description: What should be changed first to improve onboarding?
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment (optional)
+      description: Python version, OS, and any constraints (offline/on-prem/CI).
+      placeholder: "Python 3.12, Ubuntu 24.04, offline CI runner"
+    validations:
+      required: false

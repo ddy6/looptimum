@@ -284,11 +284,16 @@ Expanded gallery with equal mainstream/specialized coverage is in
 
 If you have an expensive tuning problem, start with `intake.md` and open an
 issue describing your use case.
+For first-impression and adoption feedback, use the GitHub Issues template at
+`.github/ISSUE_TEMPLATE/first_impression_feedback.yml` (Issues are the primary
+feedback source of truth).
 
 ## Deeper Docs
 
 - `docs/integration-guide.md`
 - `docs/operational-semantics.md`
+- `docs/stability-guarantees.md`
+- `docs/feedback-loop.md`
 - `docs/search-space.md`
 - `docs/decision-trace.md`
 - `docs/pilot-checklist.md`
