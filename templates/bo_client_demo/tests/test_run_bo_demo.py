@@ -159,9 +159,8 @@ def test_non_ok_timeout_null_objective_is_accepted(template_copy: Path) -> None:
 
 def test_non_ok_penalty_does_not_affect_best_ranking(template_copy: Path) -> None:
     s1 = run_cmd(template_copy, "suggest")
-    suggestion1 = json.loads(
-        "\n".join(line for line in s1.stdout.strip().splitlines() if line.strip())[:-1]
-    )
+    lines1 = [line for line in s1.stdout.strip().splitlines() if line.strip()]
+    suggestion1 = json.loads("\n".join(lines1[:-1]))
     ok_payload = {
         "trial_id": suggestion1["trial_id"],
         "params": suggestion1["params"],
@@ -173,9 +172,8 @@ def test_non_ok_penalty_does_not_affect_best_ranking(template_copy: Path) -> Non
     run_cmd(template_copy, "ingest", "--results-file", str(p1))
 
     s2 = run_cmd(template_copy, "suggest")
-    suggestion2 = json.loads(
-        "\n".join(line for line in s2.stdout.strip().splitlines() if line.strip())[:-1]
-    )
+    lines2 = [line for line in s2.stdout.strip().splitlines() if line.strip()]
+    suggestion2 = json.loads("\n".join(lines2[:-1]))
     failed_payload = {
         "trial_id": suggestion2["trial_id"],
         "params": suggestion2["params"],
