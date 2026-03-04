@@ -12,3 +12,4 @@ Included:
 
 - `state_snapshots/`: sample state/log/CSV snapshots captured from a temp run
   of `templates/bo_client_demo`
+- snapshots include both `status: "ok"` and non-`ok` ingest examples

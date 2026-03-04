@@ -121,9 +121,13 @@ Reference snapshots (captured from a temp run of
 - `docs/examples/state_snapshots/bo_state_after_suggest.json`
 - `docs/examples/state_snapshots/acquisition_log_after_suggest.jsonl`
 - `docs/examples/state_snapshots/result_1_generated.json`
+- `docs/examples/state_snapshots/result_1_timeout_generated.json`
 - `docs/examples/state_snapshots/bo_state_after_ingest.json`
+- `docs/examples/state_snapshots/bo_state_after_timeout_ingest.json`
 - `docs/examples/state_snapshots/observations_after_ingest.csv`
+- `docs/examples/state_snapshots/observations_after_timeout_ingest.csv`
 - `docs/examples/state_snapshots/status_after_ingest.json`
+- `docs/examples/state_snapshots/status_after_timeout_ingest.json`
 
 ## Synthetic Helper (Payload Generation Example)
 

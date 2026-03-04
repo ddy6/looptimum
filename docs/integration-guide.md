@@ -277,7 +277,8 @@ Behavior:
 See:
 
 - `quickstart/README.md`
-- `docs/examples/state_snapshots/`
+- `docs/examples/state_snapshots/` (includes both `ok` and non-`ok`
+  ingest examples)
 
 ## Reproducibility: Seeds and Determinism Boundaries
 

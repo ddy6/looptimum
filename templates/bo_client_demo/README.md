@@ -20,3 +20,11 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 - Legacy `.yaml`/`.yml` files still load with deprecation warnings; full YAML
   parsing requires `pip install "looptimum[yaml]"`.
 - This demo variant intentionally leaves out BoTorch.
+
+## Example Payloads
+
+- `examples/example_results.json`: success (`status: "ok"`)
+- `examples/example_results_timeout.json`: non-`ok` sample
+  (`status: "timeout"`, `objective: null`, `penalty_objective`)
+- `examples/example_run.sh [results-file]`: run script; optional arg selects
+  which sample payload to ingest

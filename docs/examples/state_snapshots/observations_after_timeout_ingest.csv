@@ -1,0 +1,2 @@
+completed_at,objective_loss,param_x1,param_x2,penalty_objective,status,trial_id
+1772049465.675209,,0.18126486333322134,0.6614305484952444,1000000000000.0,timeout,1

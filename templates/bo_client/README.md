@@ -42,6 +42,14 @@ No CLI changes are needed when switching backend.
 - State and trial IDs are resumable via `state/bo_state.json`.
 - Acquisition decisions are logged in `state/acquisition_log.jsonl`.
 
+## Example Payloads
+
+- `examples/example_results.json`: success (`status: "ok"`)
+- `examples/example_results_timeout.json`: non-`ok` sample
+  (`status: "timeout"`, `objective: null`, `penalty_objective`)
+- `examples/example_run.sh [results-file]`: run script; optional arg selects
+  which sample payload to ingest
+
 ## Dependencies
 
 - Core/demo mode: Python standard library + `pytest` for tests.

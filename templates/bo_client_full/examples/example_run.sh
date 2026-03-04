@@ -9,11 +9,14 @@ if [ -f state/bo_state.json ]; then
   fi
 fi
 
+RESULT_FILE="${1:-examples/example_results.json}"
+
 python3 run_bo.py status
 python3 run_bo.py suggest
 
 # In a real workflow, an external experiment system produces results JSON.
-python3 run_bo.py ingest --results-file examples/example_results.json
+# Pass an alternate payload path as arg1 (for example: examples/example_results_timeout.json).
+python3 run_bo.py ingest --results-file "$RESULT_FILE"
 
 python3 run_bo.py status
 python3 run_bo.py demo --steps 5
