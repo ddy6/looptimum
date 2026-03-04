@@ -182,3 +182,26 @@ def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> Non
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "ok"
     assert payload["objectives"] == {"score": 0.123}
+
+
+def test_legacy_yaml_objective_schema_is_supported_with_deprecation(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_ok.py"
+    schema = tmp_path / "objective_schema.yaml"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_ok_objective(objective)
+    _write_objective_schema(schema, name="score", direction="maximize")
+
+    out = _run_cmd(
+        str(suggestion),
+        str(result),
+        "--objective-module",
+        str(objective),
+        "--objective-schema",
+        str(schema),
+    )
+    payload = json.loads(result.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert payload["objectives"] == {"score": 0.123}
+    assert "Deprecated objective schema extension" in out.stderr

@@ -100,6 +100,9 @@ def evaluate(params):
 The optimization harness objective direction is defined in
 `objective_schema.json` (for example, `loss` + `minimize`).
 
+`run_one_eval.py --objective-schema` prefers `.json`. Legacy
+`.yaml`/`.yml` objective schema files are still accepted with deprecation warnings.
+
 Your integration must return the raw scalar in the same direction convention
 expected by the harness.
 

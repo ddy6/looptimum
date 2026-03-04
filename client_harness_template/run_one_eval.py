@@ -12,6 +12,7 @@ import importlib.util
 import json
 import math
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,51 @@ DEFAULT_FAILURE_PENALTY_MAXIMIZE = -1e12
 CANONICAL_STATUSES = {"ok", "failed", "killed", "timeout"}
 SUCCESS_ALIAS = "success"
 _MISSING = object()
+
+
+def _warn_deprecation(message: str) -> None:
+    warnings.warn(message, UserWarning, stacklevel=2)
+
+
+def _load_data_file(path: Path) -> Any:
+    text = path.read_text(encoding="utf-8")
+    suffix = path.suffix.lower()
+
+    if suffix == ".json":
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Failed to parse JSON file {path}: {exc}") from exc
+
+    if suffix in {".yaml", ".yml"}:
+        _warn_deprecation(
+            f"Deprecated objective schema extension in use: {path.name}. "
+            "Rename to objective_schema.json."
+        )
+        try:
+            import yaml  # type: ignore
+        except ModuleNotFoundError:
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Failed to parse YAML file {path}. Install YAML support with "
+                    f'`pip install ".[yaml]"` (or `pip install "looptimum[yaml]"`).'
+                ) from exc
+            _warn_deprecation(
+                f"Parsed {path.name} via JSON compatibility fallback. "
+                'Full YAML requires `pip install ".[yaml]"` or `pip install "looptimum[yaml]"`.'
+            )
+            return parsed
+
+        parsed = yaml.safe_load(text)
+        if parsed is None:
+            return {}
+        return parsed
+
+    raise ValueError(
+        f"Unsupported objective schema extension for {path}. Supported: .json, .yaml, .yml"
+    )
 
 
 def _load_json_or_suggest_stdout(path: Path) -> dict[str, Any]:
@@ -134,9 +180,9 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
 
 
 def _load_objective_contract(path: Path) -> tuple[str, str]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = _load_data_file(path)
     if not isinstance(data, dict):
-        raise ValueError(f"objective schema at {path} must be a JSON object")
+        raise ValueError(f"objective schema at {path} must be an object")
 
     primary = data.get("primary_objective")
     if not isinstance(primary, dict):
@@ -204,7 +250,10 @@ def parse_args() -> tuple[argparse.Namespace, bool]:
     p.add_argument(
         "--objective-schema",
         default=None,
-        help="Path to objective_schema.json; objective name/direction default from primary_objective",
+        help=(
+            "Path to objective_schema.json (preferred). "
+            "Legacy .yaml/.yml accepted with deprecation warnings."
+        ),
     )
     p.add_argument(
         "--on-exception",

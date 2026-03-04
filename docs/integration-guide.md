@@ -203,6 +203,10 @@ Use `intake.md` to capture this precisely.
 
 Objective direction is configured in `objective_schema.json` in your chosen template.
 
+For `client_harness_template/run_one_eval.py --objective-schema`, `.json` is
+preferred; legacy `.yaml`/`.yml` objective schema files are accepted with
+deprecation warnings.
+
 Examples:
 
 - `loss` + `minimize`
