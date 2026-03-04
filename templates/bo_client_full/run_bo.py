@@ -735,6 +735,7 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
         errors.append("state.next_trial_id must be >= 1")
 
     observations = state.get("observations")
+    observation_ids: list[int] = []
     if isinstance(observations, list):
         for idx, observation in enumerate(observations):
             if not isinstance(observation, dict):
@@ -742,6 +743,8 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
                 continue
             if not isinstance(observation.get("trial_id"), int):
                 errors.append(f"state.observations[{idx}].trial_id must be an integer")
+            else:
+                observation_ids.append(int(observation["trial_id"]))
             if not isinstance(observation.get("params"), dict):
                 errors.append(f"state.observations[{idx}].params must be an object")
             objectives = observation.get("objectives")
@@ -751,10 +754,12 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
                 errors.append(
                     f"state.observations[{idx}].objectives missing primary objective '{objective_name}'"
                 )
+        if len(observation_ids) != len(set(observation_ids)):
+            errors.append("state.observations contains duplicate trial_id values")
 
     pending = state.get("pending")
+    pending_ids: list[int] = []
     if isinstance(pending, list):
-        pending_ids: list[int] = []
         for idx, row in enumerate(pending):
             if not isinstance(row, dict):
                 errors.append(f"state.pending[{idx}] must be an object")
@@ -769,6 +774,78 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
                 errors.append(f"state.pending[{idx}].suggested_at must be numeric")
         if len(pending_ids) != len(set(pending_ids)):
             errors.append("state.pending contains duplicate trial_id values")
+
+    overlap = sorted(set(observation_ids).intersection(pending_ids))
+    if overlap:
+        overlap_preview = ", ".join(str(trial_id) for trial_id in overlap[:5])
+        if len(overlap) > 5:
+            overlap_preview = f"{overlap_preview}, ..."
+        errors.append(
+            "state contains trial_id values present in both observations and pending: "
+            f"{overlap_preview}"
+        )
+
+    if isinstance(state.get("next_trial_id"), int):
+        highest_seen = max(observation_ids + pending_ids, default=0)
+        if int(state["next_trial_id"]) <= highest_seen:
+            errors.append("state.next_trial_id must be greater than any observed/pending trial_id")
+
+    best = state.get("best")
+    if best is not None:
+        if not isinstance(best, dict):
+            errors.append("state.best must be null or an object")
+        else:
+            best_trial_id = best.get("trial_id")
+            if not isinstance(best_trial_id, int):
+                errors.append("state.best.trial_id must be an integer")
+            best_objective_name = best.get("objective_name")
+            if best_objective_name != objective_name:
+                errors.append(
+                    f"state.best.objective_name must equal primary objective '{objective_name}'"
+                )
+            best_objective_value = best.get("objective_value")
+            if (
+                not isinstance(best_objective_value, (int, float))
+                or isinstance(best_objective_value, bool)
+                or not math.isfinite(float(best_objective_value))
+            ):
+                errors.append("state.best.objective_value must be a finite number")
+
+            matching_ok_observation: dict[str, Any] | None = None
+            if isinstance(observations, list) and isinstance(best_trial_id, int):
+                for observation in observations:
+                    if (
+                        isinstance(observation, dict)
+                        and isinstance(observation.get("trial_id"), int)
+                        and int(observation["trial_id"]) == best_trial_id
+                        and str(observation.get("status", "")) == "ok"
+                    ):
+                        matching_ok_observation = observation
+                        break
+
+            if isinstance(best_trial_id, int) and matching_ok_observation is None:
+                errors.append("state.best.trial_id must reference an observed ok trial")
+            elif matching_ok_observation is not None:
+                objectives = matching_ok_observation.get("objectives")
+                observed_primary = (
+                    objectives.get(objective_name) if isinstance(objectives, dict) else None
+                )
+                if (
+                    not isinstance(observed_primary, (int, float))
+                    or isinstance(observed_primary, bool)
+                    or not math.isfinite(float(observed_primary))
+                ):
+                    errors.append(
+                        "state.best references an observation with non-numeric primary objective"
+                    )
+                elif (
+                    isinstance(best_objective_value, (int, float))
+                    and not isinstance(best_objective_value, bool)
+                    and abs(float(observed_primary) - float(best_objective_value)) > 1e-12
+                ):
+                    errors.append(
+                        "state.best.objective_value must match referenced observed objective"
+                    )
 
     return errors
 

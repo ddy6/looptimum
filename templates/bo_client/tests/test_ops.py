@@ -110,6 +110,28 @@ def test_validate_hard_failure_for_corrupt_state_file(template_copy) -> None:
     assert "ERROR: state load failure:" in out.stdout
 
 
+def test_validate_hard_failure_for_duplicate_observation_trial_ids(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.25},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_dup_obs_validate.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    state_path = template_copy / "state" / "bo_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["observations"].append(dict(state["observations"][0]))
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "state.observations contains duplicate trial_id values" in out.stdout
+
+
 def test_doctor_json_reports_backend_and_status(template_copy) -> None:
     out = run_cmd(template_copy, "doctor", "--json")
     payload = json.loads(out.stdout)
