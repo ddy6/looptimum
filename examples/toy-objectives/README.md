@@ -10,6 +10,10 @@ positioned as integration-pattern references:
 2. `02_subprocess_cli/`: wrapper calls a subprocess/CLI worker, parses raw
    metrics, computes scalar objective
 
+For a dedicated end-to-end tiny loop example, see the underscore-path sibling:
+
+- `examples/toy_objectives/03_tiny_quadratic_loop/`
+
 These examples mainly answer:
 
 - "How do I connect my evaluator to the optimization file contract?"

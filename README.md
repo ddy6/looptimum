@@ -92,6 +92,23 @@ Key fields:
 
 For full command sets and resume behavior, see `quickstart/README.md`.
 
+## Copy/Paste Evaluator Stub (Minimal)
+
+Drop this into `client_harness_template/objective.py` to get started quickly:
+
+```python
+def evaluate(params):
+    x1 = float(params["x1"])
+    x2 = float(params["x2"])
+    loss = (x1 - 0.3) ** 2 + (x2 - 0.7) ** 2
+    return {"status": "ok", "objective": loss}
+```
+
+Use this when your evaluator can return a scalar directly.
+For fuller failure handling (`failed`/`timeout` + `penalty_objective`), use the
+expanded stub in
+[`docs/integration-guide.md#copy-paste-evaluator-stub-fuller-version`](docs/integration-guide.md#copy-paste-evaluator-stub-fuller-version).
+
 ## When To Use Looptimum
 
 - Each evaluation is expensive enough that sample efficiency matters.
@@ -212,6 +229,38 @@ The `examples/` folder shows integration patterns, not benchmark leaderboards.
 
 - `examples/toy-objectives/01_python_function/`: in-process evaluator pattern
 - `examples/toy-objectives/02_subprocess_cli/`: subprocess/CLI wrapper pattern
+- `examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end
+  objective (`suggest -> evaluate -> ingest -> status`, typically under one minute)
+
+Run the tiny end-to-end objective from repo root:
+
+```bash
+python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 6
+```
+
+### Case-Study Gallery (Mainstream-First)
+
+- **ETL throughput tuning**: optimize `batch_size`, worker count, and retry policy;
+  score = `cost_per_gb + latency_penalty`.
+- **API/service tuning**: optimize concurrency limits, cache TTL, and timeout knobs;
+  score = `p95_latency + error_rate_penalty`.
+- **Search/ranking calibration**: optimize blending weights and threshold gates;
+  score = `-relevance_metric + latency_penalty`.
+- **Simulation meshing (specialized)**: optimize mesh density/refinement controls;
+  score = `runtime + instability_penalty`.
+- **Assay/process protocol (specialized)**: optimize concentration/time/temperature;
+  score = `-yield + failure_penalty`.
+- **OpenFOAM-style workflow (specialized)**: optimize meshing/solver controls;
+  score = `wall_clock_time + nonconvergence_penalty`.
+
+Expanded gallery with equal mainstream/specialized coverage is in
+[`docs/use-cases.md`](docs/use-cases.md).
+
+### Decision-Trace and CLI Transcript Assets
+
+- `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- `docs/examples/decision_trace/golden_acquisition_log.md`
+- `docs/examples/decision_trace/cli_transcript.md`
 - `meshing_example/`: advanced, environment-specific OpenFOAM-style case study
 
 ## Pilot and Service Options

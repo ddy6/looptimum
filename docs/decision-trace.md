@@ -17,6 +17,12 @@ Related runtime log:
   `heartbeat`, lock events, report generation) and is intentionally separate
   from acquisition decision records.
 
+Phase 6 reference artifacts:
+
+- `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- `docs/examples/decision_trace/golden_acquisition_log.md`
+- `docs/examples/decision_trace/cli_transcript.md`
+
 ## Record Shape
 
 Each log line has the same top-level structure:

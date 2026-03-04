@@ -27,6 +27,7 @@ Reference artifacts:
 
 - `examples/README.md`
 - `examples/state_snapshots/README.md`
+- `examples/decision_trace/README.md`
 
 Examples positioning:
 

@@ -32,6 +32,8 @@ The loop does not need raw data or internal model internals. It just needs:
   (`bo_client_demo`, `bo_client`, `bo_client_full`)
 - `client_harness_template/`: starter adapter for one-evaluation integration
 - `examples/toy-objectives/`: reference integration patterns
+- `examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end
+  objective loop example
 - `quickstart/README.md`: repo-root commands and state/resume examples
 - `intake.md`: project intake checklist
 - `SECURITY.MD`: top-level security/data-handling summary
@@ -106,6 +108,54 @@ This can be implemented as:
 - a scheduler job wrapper
 
 Use `client_harness_template/run_one_eval.py` as a starting adapter.
+
+## Copy-Paste Evaluator Stub (Fuller Version)
+
+Use this as a starting point for `client_harness_template/objective.py`:
+
+```python
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from typing import Any
+
+DEFAULT_FAILURE_PENALTY = 1e12  # for minimize objectives
+
+
+def _require_float(params: dict[str, Any], name: str) -> float:
+    value = params.get(name)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"missing/invalid numeric param: {name}")
+    return float(value)
+
+
+def evaluate(params: dict[str, Any]) -> dict[str, Any]:
+    x1 = _require_float(params, "x1")
+    x2 = _require_float(params, "x2")
+    try:
+        # Replace this with your real evaluator call + metric parsing.
+        loss = (x1 - 0.3) ** 2 + (x2 - 0.7) ** 2
+        return {"status": "ok", "objective": float(loss)}
+    except TimeoutError:
+        return {
+            "status": "timeout",
+            "objective": None,
+            "penalty_objective": DEFAULT_FAILURE_PENALTY,
+        }
+    except Exception:
+        return {
+            "status": "failed",
+            "objective": None,
+            "penalty_objective": DEFAULT_FAILURE_PENALTY,
+        }
+```
+
+Notes:
+
+- For maximize objectives, use a directionally bad penalty (for example `-1e12`).
+- Keep `trial_id` and `params` unchanged; only return objective/status fields.
+- If you prefer automatic failure wrapping, raise exceptions and use
+  `run_one_eval.py --on-exception failed`.
 
 ### 3. Write an Ingest-Compatible Result Payload
 

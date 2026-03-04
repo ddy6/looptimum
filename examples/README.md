@@ -11,6 +11,8 @@ Purpose:
 Included:
 
 - `toy-objectives/`: two toy examples covering different integration patterns
+- `toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end loop
+  example (`suggest -> evaluate -> ingest -> status` in under one minute)
 
 Planned later:
 

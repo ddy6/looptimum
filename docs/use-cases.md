@@ -72,6 +72,23 @@ Why this is a fit:
 - supports local/offline execution paths
 - keeps optimization artifacts auditable for experiment review
 
+## Case-Study Gallery (Equal Mainstream/Specialized Coverage)
+
+The gallery below is intentionally balanced across mainstream and specialized
+workloads. Each row states what is tuned and the scalar score fed into
+`ingest`.
+
+| Segment | Scenario | What is being optimized | Score definition (example) |
+|---|---|---|---|
+| Mainstream | ETL throughput vs cost | batch size, worker parallelism, retry/backoff | `cost_per_gb + latency_penalty` |
+| Mainstream | API latency reliability | cache TTL, concurrency limits, timeout values | `p95_latency_ms + error_rate_penalty` |
+| Mainstream | Search/recommendation calibration | relevance weights, eligibility thresholds, exploration ratio | `-relevance_metric + latency_penalty` |
+| Mainstream | Build/compile performance | compiler/linker flags, optimization levels, thread counts | `binary_runtime_ms + compile_time_penalty` |
+| Specialized | CFD/meshing stability | mesh density, refinement controls, solver tolerances | `runtime_minutes + instability_penalty` |
+| Specialized | Assay/protocol optimization | concentration, temperature/time windows, mixing rates | `-yield + failed_run_penalty` |
+| Specialized | Battery model calibration | diffusion coefficients, degradation factors, fit constraints | `fit_error + simulation_cost_penalty` |
+| Specialized | OpenFOAM-style meshing workflow | mesh controls, relaxation settings, solver parameters | `wall_clock_time + nonconvergence_penalty` |
+
 ## Reproducibility and Determinism Boundaries
 
 What is reproducible with stable config/state:
