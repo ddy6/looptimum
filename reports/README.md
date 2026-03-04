@@ -11,9 +11,9 @@ Current update-program progress is tracked in:
 
 Status as of 2026-03-04:
 
-- Phases 0-4 complete
-- Phase 4 validation passed (`ruff check .`; `pytest -q templates client_harness_template/tests`)
-- Phase 5 is next active scope (step 44 onward)
+- Phases 0-5 complete
+- Phase 5 validation passed (`.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `105 passed, 1 skipped`)
+- Phase 6 is next active scope (step 56 onward)
 
 Included:
 
