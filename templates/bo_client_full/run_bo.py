@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Client-facing single-stage optimization harness with resumable state.
 
-bo_client_full adds an optional BoTorch GP backend behind a feature flag (with proxy fallback support).
+bo_client_full adds an optional BoTorch GP backend behind a feature flag (with
+proxy fallback support).
 """
 
 from __future__ import annotations
@@ -11,29 +12,33 @@ import csv
 import importlib.util
 import json
 import math
+import os
 import random
 import time
+from io import StringIO
 from pathlib import Path
+from typing import Any
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent
 
 
-def _load_contract_module():
-    contract_path = _TEMPLATE_DIR.parent / "_shared" / "contract.py"
-    if not contract_path.exists():
+def _load_shared_module(module_name: str, filename: str):
+    module_path = _TEMPLATE_DIR.parent / "_shared" / filename
+    if not module_path.exists():
         raise ModuleNotFoundError(
-            f"Missing shared contract module at {contract_path}. "
-            "Ensure templates/_shared is present."
+            f"Missing shared module at {module_path}. Ensure templates/_shared is present."
         )
-    spec = importlib.util.spec_from_file_location("looptimum_shared_contract", contract_path)
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
     if spec is None or spec.loader is None:
-        raise ImportError(f"Unable to load shared contract module from {contract_path}")
+        raise ImportError(f"Unable to load shared module from {module_path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-_CONTRACT = _load_contract_module()
+_CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
+_RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
+
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
 format_contract_diff_error = _CONTRACT.format_contract_diff_error
@@ -42,6 +47,18 @@ load_data_file = _CONTRACT.load_data_file
 load_schema_from_paths = _CONTRACT.load_schema_from_paths
 normalize_ingest_payload = _CONTRACT.normalize_ingest_payload
 validate_against_schema = _CONTRACT.validate_against_schema
+
+append_jsonl = _RUNTIME.append_jsonl
+atomic_write_json = _RUNTIME.atomic_write_json
+atomic_write_text = _RUNTIME.atomic_write_text
+hold_exclusive_lock = _RUNTIME.hold_exclusive_lock
+load_trial_manifest = _RUNTIME.load_trial_manifest
+pending_age_seconds = _RUNTIME.pending_age_seconds
+resolve_lock_timeout_seconds = _RUNTIME.resolve_lock_timeout_seconds
+resolve_max_pending_age_seconds = _RUNTIME.resolve_max_pending_age_seconds
+resolve_runtime_paths = _RUNTIME.resolve_runtime_paths
+save_trial_manifest = _RUNTIME.save_trial_manifest
+trial_dir = _RUNTIME.trial_dir
 
 
 def load_cfg(path: Path) -> dict:
@@ -64,19 +81,19 @@ def load_state(path: Path) -> dict:
 
 
 def save_state(path: Path, state: dict) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    atomic_write_json(path, state, indent=2)
 
 
 def write_obs_csv(path: Path, rows: list[dict]) -> None:
     if not rows:
+        atomic_write_text(path, "")
         return
     keys = sorted({k for r in rows for k in r.keys()})
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=keys)
-        w.writeheader()
-        w.writerows(rows)
+    buffer = StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=keys)
+    writer.writeheader()
+    writer.writerows(rows)
+    atomic_write_text(path, buffer.getvalue())
 
 
 def norm_space(space_cfg: dict) -> list[dict]:
@@ -100,47 +117,48 @@ def random_point(rng: random.Random, params: list[dict]) -> dict:
 
 
 def norm_dist(a: dict, b: dict, params: list[dict]) -> float:
-    s = 0.0
-    for p in params:
-        lo, hi = map(float, p["bounds"])
+    total = 0.0
+    for param in params:
+        lo, hi = map(float, param["bounds"])
         span = max(hi - lo, 1e-12)
-        s += ((float(a[p["name"]]) - float(b[p["name"]])) / span) ** 2
-    return math.sqrt(s)
+        total += ((float(a[param["name"]]) - float(b[param["name"]])) / span) ** 2
+    return math.sqrt(total)
 
 
 def predict_rbf_proxy(
-    x: dict, obs: list[dict], params: list[dict], obj: str, l: float
+    x: dict, obs: list[dict], params: list[dict], objective_name: str, length_scale: float
 ) -> tuple[float, float]:
     if not obs:
         return 0.0, 1.0
-    ys, ws = [], []
+    ys = []
+    ws = []
     for row in obs:
-        d = norm_dist(x, row["params"], params)
-        w = math.exp(-(d * d) / (2.0 * max(l, 1e-6) ** 2))
-        ys.append(float(row["objectives"][obj]))
-        ws.append(w)
-    wsum = sum(ws)
-    if wsum < 1e-9:
+        distance = norm_dist(x, row["params"], params)
+        weight = math.exp(-(distance * distance) / (2.0 * max(length_scale, 1e-6) ** 2))
+        ys.append(float(row["objectives"][objective_name]))
+        ws.append(weight)
+    total_weight = sum(ws)
+    if total_weight < 1e-9:
         return sum(ys) / len(ys), 1.0
-    mean = sum(w * y for w, y in zip(ws, ys)) / wsum
-    var = sum(w * (y - mean) ** 2 for w, y in zip(ws, ys)) / wsum
-    density = wsum / len(obs)
-    std = math.sqrt(max(var, 1e-12)) + max(0.0, 1.0 - min(1.0, density))
+    mean = sum(weight * y for weight, y in zip(ws, ys)) / total_weight
+    variance = sum(weight * (y - mean) ** 2 for weight, y in zip(ws, ys)) / total_weight
+    density = total_weight / len(obs)
+    std = math.sqrt(max(variance, 1e-12)) + max(0.0, 1.0 - min(1.0, density))
     return mean, std
 
 
 def acq_score(mean: float, std: float, best: float | None, direction: str, acq: dict) -> float:
-    t = acq.get("type", "ucb")
+    acq_type = acq.get("type", "ucb")
     kappa = float(acq.get("kappa", 1.5))
     xi = float(acq.get("xi", 0.01))
-    if t == "ucb":
+    if acq_type == "ucb":
         return -(mean - kappa * std) if direction == "minimize" else (mean + kappa * std)
-    if t == "ei_proxy":
+    if acq_type == "ei_proxy":
         if best is None:
             return std
-        imp = max(0.0, best - mean) if direction == "minimize" else max(0.0, mean - best)
-        return imp + xi * std
-    raise ValueError(f"Unsupported acquisition type: {t}")
+        improvement = max(0.0, best - mean) if direction == "minimize" else max(0.0, mean - best)
+        return improvement + xi * std
+    raise ValueError(f"Unsupported acquisition type: {acq_type}")
 
 
 def _candidate_pool(rng: random.Random, params: list[dict], n: int) -> list[dict]:
@@ -150,21 +168,26 @@ def _candidate_pool(rng: random.Random, params: list[dict], n: int) -> list[dict
 def propose_with_proxy(
     rng: random.Random, state: dict, cfg: dict, params: list[dict], objective: dict
 ) -> tuple[dict, dict]:
-    obj_name, direction = objective["name"], objective["direction"]
-    surrogate, acq = cfg["surrogate"], cfg["acquisition"]
+    objective_name, direction = objective["name"], objective["direction"]
+    surrogate_cfg = cfg["surrogate"]
+    acq_cfg = cfg["acquisition"]
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
-    for cand in _candidate_pool(rng, params, int(cfg["candidate_pool_size"])):
+    for candidate in _candidate_pool(rng, params, int(cfg["candidate_pool_size"])):
         mean, std = predict_rbf_proxy(
-            cand, state["observations"], params, obj_name, float(surrogate.get("length_scale", 0.2))
+            candidate,
+            state["observations"],
+            params,
+            objective_name,
+            float(surrogate_cfg.get("length_scale", 0.2)),
         )
-        scored.append((acq_score(mean, std, best, direction, acq), cand, mean, std))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    score, cand, mean, std = scored[0]
-    return cand, {
+        scored.append((acq_score(mean, std, best, direction, acq_cfg), candidate, mean, std))
+    scored.sort(key=lambda row: row[0], reverse=True)
+    score, candidate, mean, std = scored[0]
+    return candidate, {
         "strategy": "surrogate_acquisition",
         "surrogate_backend": "rbf_proxy",
-        "acquisition_type": acq.get("type", "ucb"),
+        "acquisition_type": acq_cfg.get("type", "ucb"),
         "predicted_mean": mean,
         "predicted_std": std,
         "acquisition_score": score,
@@ -179,51 +202,55 @@ def propose_with_botorch(
     from botorch.models import SingleTaskGP
     from gpytorch.mlls import ExactMarginalLogLikelihood
 
-    obj_name, direction = objective["name"], objective["direction"]
-    acq = cfg["acquisition"]
+    objective_name, direction = objective["name"], objective["direction"]
+    acq_cfg = cfg["acquisition"]
 
     def normalize(vec: dict) -> list[float]:
         out = []
-        for p in params:
-            lo, hi = map(float, p["bounds"])
+        for param in params:
+            lo, hi = map(float, param["bounds"])
             span = max(hi - lo, 1e-12)
-            out.append((float(vec[p["name"]]) - lo) / span)
+            out.append((float(vec[param["name"]]) - lo) / span)
         return out
 
     def denormalize(vals: list[float]) -> dict:
         out: dict = {}
-        for i, p in enumerate(params):
-            lo, hi = map(float, p["bounds"])
-            v = lo + float(vals[i]) * (hi - lo)
-            out[p["name"]] = int(round(v)) if p["type"] == "int" else float(v)
+        for idx, param in enumerate(params):
+            lo, hi = map(float, param["bounds"])
+            value = lo + float(vals[idx]) * (hi - lo)
+            out[param["name"]] = int(round(value)) if param["type"] == "int" else float(value)
         return out
 
-    X = torch.tensor([normalize(o["params"]) for o in state["observations"]], dtype=torch.double)
-    Y_raw = [float(o["objectives"][obj_name]) for o in state["observations"]]
-    Y = torch.tensor([[-y] if direction == "maximize" else [y] for y in Y_raw], dtype=torch.double)
+    x_train = torch.tensor(
+        [normalize(obs["params"]) for obs in state["observations"]], dtype=torch.double
+    )
+    y_raw = [float(obs["objectives"][objective_name]) for obs in state["observations"]]
+    y_train = torch.tensor(
+        [[-value] if direction == "maximize" else [value] for value in y_raw], dtype=torch.double
+    )
 
-    model = SingleTaskGP(X, Y)
+    model = SingleTaskGP(x_train, y_train)
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     fit_gpytorch_mll(mll)
 
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
-    for cand in _candidate_pool(rng, params, int(cfg["candidate_pool_size"])):
-        x = torch.tensor([normalize(cand)], dtype=torch.double)
-        post = model.posterior(x)
-        mean_t = post.mean.detach().cpu().view(-1)[0].item()
-        std_t = post.variance.detach().cpu().clamp_min(1e-12).sqrt().view(-1)[0].item()
+    for candidate in _candidate_pool(rng, params, int(cfg["candidate_pool_size"])):
+        x = torch.tensor([normalize(candidate)], dtype=torch.double)
+        posterior = model.posterior(x)
+        mean_tensor = posterior.mean.detach().cpu().view(-1)[0].item()
+        std_tensor = posterior.variance.detach().cpu().clamp_min(1e-12).sqrt().view(-1)[0].item()
 
-        mean = -mean_t if direction == "maximize" else mean_t
-        score = acq_score(mean, std_t, best, direction, acq)
-        scored.append((score, denormalize(normalize(cand)), mean, std_t))
+        mean = -mean_tensor if direction == "maximize" else mean_tensor
+        score = acq_score(mean, std_tensor, best, direction, acq_cfg)
+        scored.append((score, denormalize(normalize(candidate)), mean, std_tensor))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    score, cand, mean, std = scored[0]
-    return cand, {
+    scored.sort(key=lambda row: row[0], reverse=True)
+    score, candidate, mean, std = scored[0]
+    return candidate, {
         "strategy": "surrogate_acquisition",
         "surrogate_backend": "botorch_gp",
-        "acquisition_type": acq.get("type", "ucb"),
+        "acquisition_type": acq_cfg.get("type", "ucb"),
         "predicted_mean": mean,
         "predicted_std": std,
         "acquisition_score": score,
@@ -251,10 +278,11 @@ def propose(
         try:
             return propose_with_botorch(rng, state, cfg, params, objective)
         except Exception as exc:
-            if cfg.get("feature_flags", {}).get("fallback_to_proxy_if_unavailable", True):
-                cand, decision = propose_with_proxy(rng, state, cfg, params, objective)
+            flags = cfg.get("feature_flags", {})
+            if flags.get("fallback_to_proxy_if_unavailable", True):
+                candidate, decision = propose_with_proxy(rng, state, cfg, params, objective)
                 decision["fallback_reason"] = str(exc)
-                return cand, decision
+                return candidate, decision
             raise
     return propose_with_proxy(rng, state, cfg, params, objective)
 
@@ -275,8 +303,273 @@ def update_best(state: dict, objective: dict) -> None:
     }
 
 
+def _runtime_paths(root: Path, cfg: dict) -> dict[str, Path]:
+    raw = cfg.get("paths", {})
+    if not isinstance(raw, dict):
+        raise ValueError("bo_config.paths must be an object")
+    return resolve_runtime_paths(root, raw)
+
+
+def _relative_path(root: Path, path: Path) -> str:
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return str(path)
+
+
+def _append_event(paths: dict[str, Path], event: str, **fields: Any) -> None:
+    payload = {"event": event, "timestamp": time.time()}
+    payload.update(fields)
+    append_jsonl(paths["event_log_file"], payload)
+
+
+def _require_finite_number(value: Any, *, field_name: str, trial_id: int) -> float:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"trial_id {trial_id}: {field_name} must be a finite number")
+    out = float(value)
+    if not math.isfinite(out):
+        raise ValueError(f"trial_id {trial_id}: {field_name} must be a finite number")
+    return out
+
+
+def _load_heartbeat_fields(payload: dict, trial_id: int) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    if "heartbeat_at" in payload:
+        out["last_heartbeat_at"] = _require_finite_number(
+            payload["heartbeat_at"], field_name="heartbeat_at", trial_id=trial_id
+        )
+    if "heartbeat_note" in payload:
+        note = payload["heartbeat_note"]
+        if not isinstance(note, str):
+            raise ValueError(f"trial_id {trial_id}: heartbeat_note must be a string")
+        out["heartbeat_note"] = note
+    if "heartbeat_meta" in payload:
+        meta = payload["heartbeat_meta"]
+        if not isinstance(meta, dict):
+            raise ValueError(f"trial_id {trial_id}: heartbeat_meta must be an object")
+        out["heartbeat_meta"] = meta
+    return out
+
+
+def _pending_index(state: dict, trial_id: int) -> int | None:
+    for idx, pending in enumerate(state["pending"]):
+        if int(pending["trial_id"]) == trial_id:
+            return idx
+    return None
+
+
+def _pop_pending(state: dict, trial_id: int) -> dict | None:
+    idx = _pending_index(state, trial_id)
+    if idx is None:
+        return None
+    return state["pending"].pop(idx)
+
+
+def _ensure_pending_manifest(
+    paths: dict[str, Path], pending_entry: dict, *, objective_name: str, now: float
+) -> None:
+    trial_id = int(pending_entry["trial_id"])
+    manifest = load_trial_manifest(paths["trials_dir"], trial_id)
+    manifest.setdefault("created_at", now)
+    manifest["trial_id"] = trial_id
+    manifest["status"] = "pending"
+    manifest["terminal_reason"] = None
+    manifest["params"] = pending_entry["params"]
+    manifest["objective_name"] = objective_name
+    manifest["objective_value"] = None
+    manifest["penalty_objective"] = None
+    manifest["suggested_at"] = float(pending_entry.get("suggested_at", now))
+    manifest["completed_at"] = None
+    manifest["last_heartbeat_at"] = pending_entry.get("last_heartbeat_at")
+    manifest["heartbeat_count"] = int(pending_entry.get("heartbeat_count", 0) or 0)
+    if "heartbeat_note" in pending_entry:
+        manifest["heartbeat_note"] = pending_entry["heartbeat_note"]
+    if "heartbeat_meta" in pending_entry:
+        manifest["heartbeat_meta"] = pending_entry["heartbeat_meta"]
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, dict):
+        artifacts = {}
+    manifest["artifacts"] = artifacts
+    manifest["updated_at"] = now
+    save_trial_manifest(paths["trials_dir"], trial_id, manifest)
+
+
+def _ensure_terminal_manifest(
+    root: Path,
+    paths: dict[str, Path],
+    observation: dict,
+    *,
+    objective_name: str,
+    payload_copy_path: Path | None,
+    now: float,
+) -> None:
+    trial_id = int(observation["trial_id"])
+    manifest = load_trial_manifest(paths["trials_dir"], trial_id)
+    manifest.setdefault("created_at", now)
+    manifest["trial_id"] = trial_id
+    manifest["status"] = observation["status"]
+    manifest["terminal_reason"] = observation.get("terminal_reason")
+    manifest["params"] = observation["params"]
+    manifest["objective_name"] = objective_name
+    manifest["objective_value"] = observation["objectives"].get(objective_name)
+    manifest["penalty_objective"] = observation.get("penalty_objective")
+    manifest["suggested_at"] = observation.get("suggested_at", manifest.get("suggested_at"))
+    manifest["completed_at"] = observation.get("completed_at")
+    manifest["last_heartbeat_at"] = observation.get("last_heartbeat_at")
+    manifest["heartbeat_count"] = int(observation.get("heartbeat_count", 0) or 0)
+    if "heartbeat_note" in observation:
+        manifest["heartbeat_note"] = observation["heartbeat_note"]
+    if "heartbeat_meta" in observation:
+        manifest["heartbeat_meta"] = observation["heartbeat_meta"]
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, dict):
+        artifacts = {}
+    if payload_copy_path is not None:
+        artifacts["ingest_payload"] = _relative_path(root, payload_copy_path)
+    manifest["artifacts"] = artifacts
+    manifest["updated_at"] = now
+    save_trial_manifest(paths["trials_dir"], trial_id, manifest)
+
+
+def _observation_rows(state: dict) -> list[dict]:
+    rows = []
+    for obs in state["observations"]:
+        row = {
+            "trial_id": obs["trial_id"],
+            "status": obs["status"],
+            "completed_at": obs["completed_at"],
+        }
+        row.update({f"param_{k}": v for k, v in obs["params"].items()})
+        row.update({f"objective_{k}": v for k, v in obs["objectives"].items()})
+        if "penalty_objective" in obs:
+            row["penalty_objective"] = obs["penalty_objective"]
+        if "terminal_reason" in obs:
+            row["terminal_reason"] = obs["terminal_reason"]
+        if "last_heartbeat_at" in obs:
+            row["last_heartbeat_at"] = obs["last_heartbeat_at"]
+        rows.append(row)
+    return rows
+
+
+def _save_state_and_rows(paths: dict[str, Path], state: dict) -> None:
+    save_state(paths["state_file"], state)
+    write_obs_csv(paths["observations_csv"], _observation_rows(state))
+
+
+def _new_terminal_observation(
+    pending: dict,
+    *,
+    objective_name: str,
+    terminal_reason: str,
+    now: float,
+) -> dict:
+    observation = {
+        "trial_id": int(pending["trial_id"]),
+        "params": pending["params"],
+        "objectives": {str(objective_name): None},
+        "status": "killed",
+        "terminal_reason": terminal_reason,
+        "suggested_at": pending.get("suggested_at"),
+        "completed_at": now,
+    }
+    if "last_heartbeat_at" in pending:
+        observation["last_heartbeat_at"] = pending["last_heartbeat_at"]
+    if "heartbeat_count" in pending:
+        observation["heartbeat_count"] = pending["heartbeat_count"]
+    if "heartbeat_note" in pending:
+        observation["heartbeat_note"] = pending["heartbeat_note"]
+    if "heartbeat_meta" in pending:
+        observation["heartbeat_meta"] = pending["heartbeat_meta"]
+    return observation
+
+
+def _retire_stale_pending(
+    state: dict,
+    *,
+    objective_name: str,
+    max_pending_age_seconds: float,
+    now: float,
+    reason: str,
+) -> list[dict]:
+    stale_ids = [
+        int(pending["trial_id"])
+        for pending in state["pending"]
+        if pending_age_seconds(pending, now=now) > max_pending_age_seconds
+    ]
+    observations: list[dict] = []
+    for trial_id in stale_ids:
+        pending = _pop_pending(state, trial_id)
+        if pending is None:
+            continue
+        obs = _new_terminal_observation(
+            pending,
+            objective_name=objective_name,
+            terminal_reason=reason,
+            now=now,
+        )
+        state["observations"].append(obs)
+        observations.append(obs)
+    return observations
+
+
+def _status_counts(observations: list[dict]) -> dict[str, int]:
+    counts = {"ok": 0, "failed": 0, "killed": 0, "timeout": 0}
+    for obs in observations:
+        status = str(obs.get("status", "")).lower()
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def _status_payload(
+    root: Path,
+    state: dict,
+    paths: dict[str, Path],
+    max_pending_age: float | None,
+    *,
+    botorch_feature_flag: bool | None = None,
+) -> dict:
+    now = time.time()
+    stale_pending = 0
+    if max_pending_age is not None:
+        stale_pending = sum(
+            1
+            for pending in state["pending"]
+            if pending_age_seconds(pending, now=now) > max_pending_age
+        )
+
+    payload = {
+        "observations": len(state["observations"]),
+        "pending": len(state["pending"]),
+        "next_trial_id": state["next_trial_id"],
+        "best": state["best"],
+        "stale_pending": stale_pending,
+        "observations_by_status": _status_counts(state["observations"]),
+        "max_pending_age_seconds": max_pending_age,
+        "paths": {
+            "state_file": _relative_path(root, paths["state_file"]),
+            "observations_csv": _relative_path(root, paths["observations_csv"]),
+            "acquisition_log_file": _relative_path(root, paths["acquisition_log_file"]),
+            "event_log_file": _relative_path(root, paths["event_log_file"]),
+            "trials_dir": _relative_path(root, paths["trials_dir"]),
+            "lock_file": _relative_path(root, paths["lock_file"]),
+        },
+    }
+    if botorch_feature_flag is not None:
+        payload["botorch_feature_flag"] = bool(botorch_feature_flag)
+    return payload
+
+
+def _parse_heartbeat_meta(raw: str | None) -> dict | None:
+    if raw is None:
+        return None
+    parsed = json.loads(raw)
+    if not isinstance(parsed, dict):
+        raise ValueError("--heartbeat-meta-json must parse to an object")
+    return parsed
+
+
 def cmd_suggest(args: argparse.Namespace) -> None:
-    root = Path(args.project_root)
+    root = Path(args.project_root).resolve()
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
@@ -297,49 +590,109 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     if not isinstance(obj_cfg, dict):
         raise ValueError("objective_schema must be an object")
     objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
 
-    state_path = root / cfg["paths"]["state_file"]
-    state = load_state(state_path)
-    if state["meta"]["seed"] is None:
-        state["meta"]["seed"] = int(cfg["seed"])
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+    max_pending_age = resolve_max_pending_age_seconds(cfg)
 
-    if len(state["observations"]) + len(state["pending"]) >= int(cfg["max_trials"]):
-        print("No suggestion generated: budget exhausted.")
-        return
-
-    rng = random.Random(int(state["meta"]["seed"]) + int(state["next_trial_id"]))
-    cand, decision = propose(rng, state, cfg, params, obj_cfg, args)
-    tid = int(state["next_trial_id"])
-    suggestion = {"trial_id": tid, "params": cand, "suggested_at": time.time()}
-    suggestion_schema, _ = load_schema_from_paths(
-        root,
-        cfg["paths"],
-        key="suggestion_schema_file",
-        default_rel="../_shared/schemas/suggestion_payload.schema.json",
-    )
-    validate_against_schema(
-        suggestion,
-        suggestion_schema,
-        source_path=Path("<generated_suggestion>"),
-        trial_id=tid,
-    )
-    state["pending"].append(suggestion)
-    state["next_trial_id"] = tid + 1
-
-    log_path = root / cfg["paths"]["acquisition_log_file"]
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(
-            json.dumps({"trial_id": tid, "decision": decision, "timestamp": time.time()}) + "\n"
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="suggest",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
         )
+        try:
+            state = load_state(paths["state_file"])
+            if state["meta"]["seed"] is None:
+                state["meta"]["seed"] = int(cfg["seed"])
 
-    save_state(state_path, state)
-    print(json.dumps(suggestion, indent=2))
-    if not args.json_only:
-        print(f"Objective direction: {objective['direction']} ({objective['name']})")
+            now = time.time()
+            stale_observations: list[dict] = []
+            if max_pending_age is not None:
+                stale_observations = _retire_stale_pending(
+                    state,
+                    objective_name=objective_name,
+                    max_pending_age_seconds=max_pending_age,
+                    now=now,
+                    reason="retired_stale_auto",
+                )
+                for obs in stale_observations:
+                    _ensure_terminal_manifest(
+                        root,
+                        paths,
+                        obs,
+                        objective_name=objective_name,
+                        payload_copy_path=None,
+                        now=now,
+                    )
+                    _append_event(
+                        paths,
+                        "trial_retired",
+                        command="suggest",
+                        mode="auto_stale",
+                        trial_id=obs["trial_id"],
+                        reason=obs["terminal_reason"],
+                    )
+
+            if len(state["observations"]) + len(state["pending"]) >= int(cfg["max_trials"]):
+                if stale_observations:
+                    update_best(state, objective)
+                    _save_state_and_rows(paths, state)
+                print("No suggestion generated: budget exhausted.")
+                return
+
+            seed = int(state["meta"]["seed"]) + int(state["next_trial_id"])
+            rng = random.Random(seed)
+            cand, decision = propose(rng, state, cfg, params, obj_cfg, args)
+            trial_id = int(state["next_trial_id"])
+            suggestion = {"trial_id": trial_id, "params": cand, "suggested_at": time.time()}
+
+            suggestion_schema, _ = load_schema_from_paths(
+                root,
+                cfg["paths"],
+                key="suggestion_schema_file",
+                default_rel="../_shared/schemas/suggestion_payload.schema.json",
+            )
+            validate_against_schema(
+                suggestion,
+                suggestion_schema,
+                source_path=Path("<generated_suggestion>"),
+                trial_id=trial_id,
+            )
+
+            state["pending"].append(suggestion)
+            state["next_trial_id"] = trial_id + 1
+            _ensure_pending_manifest(
+                paths,
+                suggestion,
+                objective_name=objective_name,
+                now=time.time(),
+            )
+
+            append_jsonl(
+                paths["acquisition_log_file"],
+                {"trial_id": trial_id, "decision": decision, "timestamp": time.time()},
+            )
+            _append_event(paths, "suggestion_created", trial_id=trial_id)
+
+            save_state(paths["state_file"], state)
+            if stale_observations:
+                write_obs_csv(paths["observations_csv"], _observation_rows(state))
+
+            print(json.dumps(suggestion, indent=2))
+            if not args.json_only:
+                print(f"Objective direction: {objective['direction']} ({objective['name']})")
+        finally:
+            _append_event(paths, "lock_released", command="suggest", pid=os.getpid())
 
 
 def cmd_ingest(args: argparse.Namespace) -> None:
-    root = Path(args.project_root)
+    root = Path(args.project_root).resolve()
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
@@ -348,6 +701,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     if not isinstance(obj_cfg, dict):
         raise ValueError("objective_schema must be an object")
     objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
 
     ingest_schema, _ = load_schema_from_paths(
         root,
@@ -356,109 +710,389 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         legacy_key="result_schema_file",
         default_rel="../_shared/schemas/ingest_payload.schema.json",
     )
-    state_path = root / cfg["paths"]["state_file"]
-    state = load_state(state_path)
 
-    payload_path = Path(args.results_file)
-    payload = load_data_file(payload_path)
-    if not isinstance(payload, dict):
-        raise ValueError(f"Ingest payload must be an object: {payload_path}")
-    validate_against_schema(payload, ingest_schema, source_path=payload_path)
-    payload, tid = normalize_ingest_payload(
-        payload,
-        objective_name=str(objective["name"]),
-        source_path=payload_path,
-    )
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
 
-    pending = {int(p["trial_id"]): p for p in state["pending"]}
-    if tid not in pending:
-        prior = next((o for o in state["observations"] if int(o["trial_id"]) == tid), None)
-        if prior is None:
-            raise ValueError(f"trial_id {tid} is not pending")
-
-        expected = build_observation_contract(prior, objective_name=str(objective["name"]))
-        received = {
-            "trial_id": tid,
-            "params": payload["params"],
-            "objectives": payload["objectives"],
-            "status": payload["status"],
-        }
-        if "penalty_objective" in payload:
-            received["penalty_objective"] = payload["penalty_objective"]
-        diffs = diff_contract_records(expected, received)
-        if not diffs:
-            print(f"No-op: trial_id={tid} already ingested with identical payload.")
-            return
-        raise ValueError(format_contract_diff_error(tid, diffs))
-
-    if payload.get("params") != pending[tid].get("params"):
-        param_diffs = diff_contract_records(
-            {"params": pending[tid].get("params", {})},
-            {"params": payload.get("params", {})},
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="ingest",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
         )
-        details = "\n".join(f"- field {d}" for d in param_diffs)
-        raise ValueError(f"ingest payload params mismatch for pending trial_id {tid}:\n{details}")
+        try:
+            state = load_state(paths["state_file"])
 
-    state["pending"] = [p for p in state["pending"] if int(p["trial_id"]) != tid]
-    observation = {
-        "trial_id": tid,
-        "params": payload["params"],
-        "objectives": payload["objectives"],
-        "status": payload["status"],
-        "completed_at": time.time(),
-    }
-    if "penalty_objective" in payload:
-        observation["penalty_objective"] = payload["penalty_objective"]
-    state["observations"].append(observation)
-    update_best(state, objective)
-    save_state(state_path, state)
+            payload_path = Path(args.results_file)
+            payload = load_data_file(payload_path)
+            if not isinstance(payload, dict):
+                raise ValueError(f"Ingest payload must be an object: {payload_path}")
+            validate_against_schema(payload, ingest_schema, source_path=payload_path)
+            payload, trial_id = normalize_ingest_payload(
+                payload,
+                objective_name=objective_name,
+                source_path=payload_path,
+            )
+            heartbeat_fields = _load_heartbeat_fields(payload, trial_id)
 
-    rows = []
-    for o in state["observations"]:
-        r = {"trial_id": o["trial_id"], "status": o["status"], "completed_at": o["completed_at"]}
-        r.update({f"param_{k}": v for k, v in o["params"].items()})
-        r.update({f"objective_{k}": v for k, v in o["objectives"].items()})
-        if "penalty_objective" in o:
-            r["penalty_objective"] = o["penalty_objective"]
-        rows.append(r)
-    write_obs_csv(root / cfg["paths"]["observations_csv"], rows)
-    print(f"Ingested trial_id={tid}. Observations={len(state['observations'])}")
+            pending = {int(row["trial_id"]): row for row in state["pending"]}
+            if trial_id not in pending:
+                prior = next(
+                    (obs for obs in state["observations"] if int(obs["trial_id"]) == trial_id), None
+                )
+                if prior is None:
+                    raise ValueError(f"trial_id {trial_id} is not pending")
+
+                expected = build_observation_contract(prior, objective_name=objective_name)
+                received = {
+                    "trial_id": trial_id,
+                    "params": payload["params"],
+                    "objectives": payload["objectives"],
+                    "status": payload["status"],
+                }
+                if "penalty_objective" in payload:
+                    received["penalty_objective"] = payload["penalty_objective"]
+                diffs = diff_contract_records(expected, received)
+                if not diffs:
+                    _append_event(paths, "ingest_duplicate_noop", trial_id=trial_id)
+                    print(f"No-op: trial_id={trial_id} already ingested with identical payload.")
+                    return
+                raise ValueError(format_contract_diff_error(trial_id, diffs))
+
+            if payload.get("params") != pending[trial_id].get("params"):
+                param_diffs = diff_contract_records(
+                    {"params": pending[trial_id].get("params", {})},
+                    {"params": payload.get("params", {})},
+                )
+                details = "\n".join(f"- field {diff}" for diff in param_diffs)
+                raise ValueError(
+                    f"ingest payload params mismatch for pending trial_id {trial_id}:\n{details}"
+                )
+
+            pending_entry = _pop_pending(state, trial_id)
+            if pending_entry is None:
+                raise ValueError(f"trial_id {trial_id} is not pending")
+
+            now = time.time()
+            observation = {
+                "trial_id": trial_id,
+                "params": payload["params"],
+                "objectives": payload["objectives"],
+                "status": payload["status"],
+                "suggested_at": pending_entry.get("suggested_at"),
+                "completed_at": now,
+            }
+            if "penalty_objective" in payload:
+                observation["penalty_objective"] = payload["penalty_objective"]
+
+            if "heartbeat_count" in pending_entry:
+                observation["heartbeat_count"] = pending_entry["heartbeat_count"]
+            if "last_heartbeat_at" in pending_entry:
+                observation["last_heartbeat_at"] = pending_entry["last_heartbeat_at"]
+            if "heartbeat_note" in pending_entry:
+                observation["heartbeat_note"] = pending_entry["heartbeat_note"]
+            if "heartbeat_meta" in pending_entry:
+                observation["heartbeat_meta"] = pending_entry["heartbeat_meta"]
+
+            observation.update(heartbeat_fields)
+            state["observations"].append(observation)
+            update_best(state, objective)
+
+            payload_copy_path = trial_dir(paths["trials_dir"], trial_id) / "ingest_payload.json"
+            atomic_write_json(payload_copy_path, payload, indent=2)
+            _ensure_terminal_manifest(
+                root,
+                paths,
+                observation,
+                objective_name=objective_name,
+                payload_copy_path=payload_copy_path,
+                now=now,
+            )
+
+            _save_state_and_rows(paths, state)
+            _append_event(paths, "ingest_applied", trial_id=trial_id, status=observation["status"])
+            print(f"Ingested trial_id={trial_id}. Observations={len(state['observations'])}")
+        finally:
+            _append_event(paths, "lock_released", command="ingest", pid=os.getpid())
 
 
-def cmd_status(args: argparse.Namespace) -> None:
-    root = Path(args.project_root)
+def cmd_cancel(args: argparse.Namespace) -> None:
+    if args.trial_id is None:
+        raise ValueError("cancel requires --trial-id")
+
+    root = Path(args.project_root).resolve()
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
-    s = load_state(root / cfg["paths"]["state_file"])
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
+
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="cancel",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            state = load_state(paths["state_file"])
+            pending_entry = _pop_pending(state, int(args.trial_id))
+            if pending_entry is None:
+                raise ValueError(f"trial_id {args.trial_id} is not pending")
+
+            now = time.time()
+            terminal_reason = args.reason or "canceled"
+            observation = _new_terminal_observation(
+                pending_entry,
+                objective_name=objective_name,
+                terminal_reason=terminal_reason,
+                now=now,
+            )
+            state["observations"].append(observation)
+            update_best(state, objective)
+            _ensure_terminal_manifest(
+                root,
+                paths,
+                observation,
+                objective_name=objective_name,
+                payload_copy_path=None,
+                now=now,
+            )
+            _save_state_and_rows(paths, state)
+            _append_event(
+                paths,
+                "trial_canceled",
+                trial_id=observation["trial_id"],
+                reason=terminal_reason,
+            )
+            print(f"Canceled trial_id={observation['trial_id']}. Pending={len(state['pending'])}")
+        finally:
+            _append_event(paths, "lock_released", command="cancel", pid=os.getpid())
+
+
+def cmd_retire(args: argparse.Namespace) -> None:
+    if args.trial_id is None and not args.stale:
+        raise ValueError("retire requires --trial-id and/or --stale")
+
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
+
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="retire",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            state = load_state(paths["state_file"])
+            now = time.time()
+
+            stale_ids: set[int] = set()
+            max_age_for_stale: float | None = None
+            if args.stale:
+                if args.max_age_seconds is not None:
+                    max_age_for_stale = float(args.max_age_seconds)
+                    if max_age_for_stale <= 0:
+                        raise ValueError("--max-age-seconds must be > 0 when provided")
+                else:
+                    max_age_for_stale = resolve_max_pending_age_seconds(cfg)
+                if max_age_for_stale is None:
+                    raise ValueError(
+                        "retire --stale requires max_pending_age_seconds in config or --max-age-seconds"
+                    )
+                stale_ids = {
+                    int(pending["trial_id"])
+                    for pending in state["pending"]
+                    if pending_age_seconds(pending, now=now) > max_age_for_stale
+                }
+
+            target_ids: list[int] = []
+            if args.trial_id is not None:
+                target_ids.append(int(args.trial_id))
+            for trial_id in sorted(stale_ids):
+                if trial_id not in target_ids:
+                    target_ids.append(trial_id)
+
+            retired: list[dict] = []
+            for trial_id in target_ids:
+                pending_entry = _pop_pending(state, trial_id)
+                if pending_entry is None:
+                    if args.trial_id == trial_id:
+                        raise ValueError(f"trial_id {trial_id} is not pending")
+                    continue
+                terminal_reason = args.reason or (
+                    "retired_stale" if trial_id in stale_ids else "retired_manual"
+                )
+                observation = _new_terminal_observation(
+                    pending_entry,
+                    objective_name=objective_name,
+                    terminal_reason=terminal_reason,
+                    now=now,
+                )
+                state["observations"].append(observation)
+                retired.append(observation)
+
+            if not retired:
+                print("No pending trials retired.")
+                return
+
+            update_best(state, objective)
+            for observation in retired:
+                _ensure_terminal_manifest(
+                    root,
+                    paths,
+                    observation,
+                    objective_name=objective_name,
+                    payload_copy_path=None,
+                    now=now,
+                )
+                _append_event(
+                    paths,
+                    "trial_retired",
+                    trial_id=observation["trial_id"],
+                    reason=observation["terminal_reason"],
+                    mode="manual",
+                )
+
+            _save_state_and_rows(paths, state)
+            print(f"Retired {len(retired)} pending trial(s). Pending={len(state['pending'])}")
+        finally:
+            _append_event(paths, "lock_released", command="retire", pid=os.getpid())
+
+
+def cmd_heartbeat(args: argparse.Namespace) -> None:
+    if args.trial_id is None:
+        raise ValueError("heartbeat requires --trial-id")
+
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
+
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="heartbeat",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            state = load_state(paths["state_file"])
+            index = _pending_index(state, int(args.trial_id))
+            if index is None:
+                raise ValueError(f"trial_id {args.trial_id} is not pending")
+
+            heartbeat_at = time.time() if args.heartbeat_at is None else float(args.heartbeat_at)
+            if heartbeat_at <= 0 or not math.isfinite(heartbeat_at):
+                raise ValueError("--heartbeat-at must be a positive finite epoch seconds value")
+
+            heartbeat_meta = _parse_heartbeat_meta(args.heartbeat_meta_json)
+            pending_entry = state["pending"][index]
+            pending_entry["last_heartbeat_at"] = heartbeat_at
+            pending_entry["heartbeat_count"] = int(pending_entry.get("heartbeat_count", 0) or 0) + 1
+            if args.heartbeat_note is not None:
+                pending_entry["heartbeat_note"] = args.heartbeat_note
+            if heartbeat_meta is not None:
+                pending_entry["heartbeat_meta"] = heartbeat_meta
+
+            state["pending"][index] = pending_entry
+            _ensure_pending_manifest(
+                paths,
+                pending_entry,
+                objective_name=objective_name,
+                now=time.time(),
+            )
+            save_state(paths["state_file"], state)
+            _append_event(
+                paths,
+                "heartbeat",
+                trial_id=int(args.trial_id),
+                heartbeat_at=heartbeat_at,
+            )
+            print(f"Heartbeat recorded for trial_id={int(args.trial_id)}.")
+        finally:
+            _append_event(paths, "lock_released", command="heartbeat", pid=os.getpid())
+
+
+def cmd_status(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    paths = _runtime_paths(root, cfg)
+    state = load_state(paths["state_file"])
+    max_pending_age = resolve_max_pending_age_seconds(cfg)
     print(
         json.dumps(
-            {
-                "observations": len(s["observations"]),
-                "pending": len(s["pending"]),
-                "next_trial_id": s["next_trial_id"],
-                "best": s["best"],
-                "botorch_feature_flag": use_botorch_backend(args, cfg),
-            },
+            _status_payload(
+                root,
+                state,
+                paths,
+                max_pending_age,
+                botorch_feature_flag=use_botorch_backend(args, cfg),
+            ),
             indent=2,
         )
     )
 
 
 def cmd_demo(args: argparse.Namespace) -> None:
-    root = Path(args.project_root)
+    root = Path(args.project_root).resolve()
 
-    def toy_loss(p: dict) -> float:
-        return (p["x1"] - 0.25) ** 2 + (p["x2"] - 0.75) ** 2 + 0.2 * math.sin(8.0 * p["x1"])
+    def toy_loss(params: dict) -> float:
+        return (
+            (params["x1"] - 0.25) ** 2
+            + (params["x2"] - 0.75) ** 2
+            + 0.2 * math.sin(8.0 * params["x1"])
+        )
 
     for _ in range(int(args.steps)):
         cfg, _ = load_contract_document(root, "bo_config")
         if not isinstance(cfg, dict):
             raise ValueError("bo_config must be an object")
-        state_before = load_state(root / cfg["paths"]["state_file"])
+        paths = _runtime_paths(root, cfg)
+        state_before = load_state(paths["state_file"])
         pending_before = len(state_before["pending"])
         cmd_suggest(args)
-        state = load_state(root / cfg["paths"]["state_file"])
+        state = load_state(paths["state_file"])
         if len(state["pending"]) <= pending_before:
             print("Demo stopped: no pending suggestion generated.")
             break
@@ -469,35 +1103,72 @@ def cmd_demo(args: argparse.Namespace) -> None:
             "objectives": {"loss": toy_loss(latest["params"])},
             "status": "ok",
         }
-        p = root / "examples" / "_demo_result.json"
-        p.write_text(json.dumps(out, indent=2), encoding="utf-8")
-        args.results_file = str(p)
+        path = root / "examples" / "_demo_result.json"
+        path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+        args.results_file = str(path)
         cmd_ingest(args)
     cmd_status(args)
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Looptimum: minimal client-facing optimization harness")
-    p.add_argument("command", choices=["suggest", "ingest", "status", "demo"])
-    p.add_argument("--project-root", default=".")
-    p.add_argument("--results-file", default="examples/example_results.json")
-    p.add_argument("--steps", type=int, default=8)
-    p.add_argument(
+    parser = argparse.ArgumentParser(
+        description="Looptimum: minimal client-facing optimization harness"
+    )
+    parser.add_argument(
+        "command",
+        choices=["suggest", "ingest", "status", "demo", "cancel", "retire", "heartbeat"],
+    )
+    parser.add_argument("--project-root", default=".")
+    parser.add_argument("--results-file", default="examples/example_results.json")
+    parser.add_argument("--steps", type=int, default=8)
+    parser.add_argument("--trial-id", type=int)
+    parser.add_argument(
+        "--stale", action="store_true", help="For retire: retire stale pending trials"
+    )
+    parser.add_argument(
+        "--max-age-seconds",
+        type=float,
+        help="For retire --stale: override stale age threshold in seconds",
+    )
+    parser.add_argument("--reason", help="For cancel/retire: terminal reason to store")
+    parser.add_argument("--heartbeat-at", type=float, help="For heartbeat: explicit epoch seconds")
+    parser.add_argument("--heartbeat-note", help="For heartbeat: short status note")
+    parser.add_argument(
+        "--heartbeat-meta-json",
+        help='For heartbeat: JSON object payload, e.g. \'{"worker":"node-1"}\'',
+    )
+    parser.add_argument(
         "--json-only",
         action="store_true",
         help="For suggest: print only JSON (no trailing human-readable line).",
     )
-    p.add_argument(
+    parser.add_argument(
+        "--lock-timeout-seconds",
+        type=float,
+        help="Override lock acquisition timeout for mutating commands",
+    )
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="For mutating commands: fail immediately if lock is already held",
+    )
+    parser.add_argument(
         "--enable-botorch-gp", action="store_true", help="Enable BoTorch GP backend for suggestions"
     )
-    return p.parse_args()
+    return parser.parse_args()
 
 
 def main() -> None:
-    a = parse_args()
-    {"suggest": cmd_suggest, "ingest": cmd_ingest, "status": cmd_status, "demo": cmd_demo}[
-        a.command
-    ](a)
+    args = parse_args()
+    {
+        "suggest": cmd_suggest,
+        "ingest": cmd_ingest,
+        "status": cmd_status,
+        "demo": cmd_demo,
+        "cancel": cmd_cancel,
+        "retire": cmd_retire,
+        "heartbeat": cmd_heartbeat,
+    }[args.command](args)
 
 
 if __name__ == "__main__":
