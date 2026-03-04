@@ -214,3 +214,39 @@ def test_read_commands_work_while_mutation_lock_is_held(template_copy: Path) -> 
     assert status_payload["observations"] == 0
     assert "Validation passed." in validate.stdout
     assert doctor_payload["status"]["observations"] == 0
+
+
+@pytest.mark.parametrize(
+    ("command", "extra_args"),
+    [
+        ("suggest", []),
+        ("ingest", []),
+        ("cancel", ["--trial-id", "1"]),
+        ("retire", ["--trial-id", "1"]),
+        ("heartbeat", ["--trial-id", "1"]),
+        ("report", []),
+    ],
+)
+def test_all_mutating_commands_fail_fast_when_lock_is_held(
+    template_copy: Path, command: str, extra_args: list[str]
+) -> None:
+    if sys.platform == "win32":
+        pytest.skip("fcntl lock semantics are POSIX-only")
+
+    holder = _start_lock_holder(template_copy / "state" / ".looptimum.lock")
+    try:
+        out = run_cmd(
+            template_copy,
+            command,
+            "--fail-fast",
+            "--lock-timeout-seconds",
+            "0",
+            *extra_args,
+            expect_ok=False,
+        )
+    finally:
+        _stop_lock_holder(holder)
+
+    assert out.returncode != 0
+    assert "Could not acquire lock (fail-fast)" in out.stderr
+    assert "Traceback" not in out.stderr
