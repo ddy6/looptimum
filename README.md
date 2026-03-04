@@ -91,6 +91,8 @@ Key fields:
 - `best`
 
 For full command sets and resume behavior, see `quickstart/README.md`.
+For the dedicated tiny end-to-end objective walkthrough, see
+`examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
 
 ## Copy/Paste Evaluator Stub (Minimal)
 

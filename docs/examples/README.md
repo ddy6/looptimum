@@ -15,3 +15,5 @@ Included:
 - snapshots include both `status: "ok"` and non-`ok` ingest examples
 - `decision_trace/`: deterministic acquisition-log sample, annotations, and CLI
   transcript
+- `../../examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny
+  end-to-end objective loop used to generate the golden decision trace

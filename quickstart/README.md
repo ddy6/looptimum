@@ -68,6 +68,28 @@ Note: If BoTorch is unavailable and the template config allows fallback,
 `bo_client_full` falls back to proxy mode and records the reason in
 acquisition logs.
 
+## Tiny End-to-End Objective (<1 Minute)
+
+For a dedicated trust-building loop demo (separate from template `demo`), run:
+
+```bash
+python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 6
+```
+
+To regenerate the golden decision-trace sample:
+
+```bash
+python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py \
+  --steps 8 \
+  --write-acquisition-log docs/examples/decision_trace/golden_acquisition_log.jsonl
+```
+
+Related artifacts:
+
+- `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- `docs/examples/decision_trace/golden_acquisition_log.md`
+- `docs/examples/decision_trace/cli_transcript.md`
+
 ## Lifecycle and Ops Commands (All Variants)
 
 The same lifecycle/ops commands are available in each template:
