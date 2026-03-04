@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -37,8 +38,15 @@ def template_copy(tmp_path: Path) -> Path:
         dst / "state" / "bo_state.json",
         dst / "state" / "observations.csv",
         dst / "state" / "acquisition_log.jsonl",
+        dst / "state" / "event_log.jsonl",
+        dst / "state" / ".looptimum.lock",
+        dst / "state" / "report.json",
+        dst / "state" / "report.md",
         dst / "examples" / "_demo_result.json",
     ]:
         if p.exists():
             p.unlink()
+    trials_dir = dst / "state" / "trials"
+    if trials_dir.exists():
+        shutil.rmtree(trials_dir)
     return dst

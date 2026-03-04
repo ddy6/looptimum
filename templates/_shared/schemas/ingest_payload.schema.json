@@ -23,6 +23,15 @@
     },
     "penalty_objective": {
       "type": "number"
+    },
+    "heartbeat_at": {
+      "type": "number"
+    },
+    "heartbeat_note": {
+      "type": "string"
+    },
+    "heartbeat_meta": {
+      "type": "object"
     }
   }
 }
