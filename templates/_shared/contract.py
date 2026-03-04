@@ -248,11 +248,15 @@ def load_schema_from_paths(
     default_rel: str,
     legacy_key: str | None = None,
 ) -> tuple[dict, Path]:
+    used_legacy_key = False
     rel = paths_cfg.get(key)
-    if rel is None and legacy_key is not None:
+    if rel is None and legacy_key is not None and legacy_key in paths_cfg:
         rel = paths_cfg.get(legacy_key)
+        used_legacy_key = True
     if rel is None:
         rel = default_rel
+    if used_legacy_key and legacy_key is not None:
+        _warn_deprecation(f"Deprecated config path key '{legacy_key}' used; rename to '{key}'.")
     schema_path = (project_root / str(rel)).resolve()
     schema = load_data_file(schema_path)
     if not isinstance(schema, dict):

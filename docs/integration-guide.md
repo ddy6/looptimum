@@ -142,6 +142,11 @@ If valid:
 - best-so-far is updated
 - `state/observations.csv` is rewritten
 
+Schema path note:
+
+- canonical config key is `paths.ingest_schema_file`
+- legacy `paths.result_schema_file` is still accepted with a deprecation warning
+
 ## Minimal Working Integration (Recommended Path)
 
 Start with `client_harness_template` (it usually saves time).

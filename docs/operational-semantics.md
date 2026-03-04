@@ -15,6 +15,11 @@ Legacy `.yaml`/`.yml` contract files are still accepted for compatibility, but
 emit deprecation warnings. Full YAML parsing requires installing YAML extras
 (`pip install ".[yaml]"` or `pip install "looptimum[yaml]"`).
 
+Schema path compatibility:
+
+- canonical config key: `paths.ingest_schema_file`
+- legacy key still accepted: `paths.result_schema_file` (deprecated warning)
+
 ## Core Files and Authority
 
 | File | Role | Authority Level |

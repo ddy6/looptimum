@@ -14,3 +14,18 @@ Each template exposes the same CLI surface:
 - `suggest`
 - `ingest`
 - `demo`
+
+## Shared Contract Runtime
+
+Canonical shared contract components live under:
+
+- `templates/_shared/contract.py`
+- `templates/_shared/schemas/`
+
+Template-local `schemas/` directories are compatibility copies for standalone use.
+
+To vendor shared contract helpers/schemas into a standalone template copy:
+
+```bash
+python3 templates/_shared/vendor_copy.py templates/bo_client_demo --rewrite-config-paths
+```

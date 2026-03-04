@@ -22,6 +22,28 @@ def test_ingest_accepts_valid_payload(template_copy) -> None:
     assert status["pending"] == 0
 
 
+def test_ingest_accepts_legacy_result_schema_key_with_deprecation(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    paths = cfg.setdefault("paths", {})
+    ingest_rel = paths.pop("ingest_schema_file")
+    paths["result_schema_file"] = ingest_rel
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    result = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.05},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_ingest_legacy_schema_key.json"
+    path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
+    assert "Deprecated config path key 'result_schema_file'" in out.stderr
+
+
 def test_ingest_rejects_schema_violation(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     bad = {
