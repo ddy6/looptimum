@@ -85,6 +85,12 @@ python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py \
   --normalize-acquisition-timestamps
 ```
 
+Equivalent one-command helper:
+
+```bash
+bash docs/examples/decision_trace/regenerate_golden_log.sh
+```
+
 Related artifacts:
 
 - `docs/examples/decision_trace/golden_acquisition_log.jsonl`

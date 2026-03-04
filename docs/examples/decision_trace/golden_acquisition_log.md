@@ -18,6 +18,12 @@ python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py \
   --normalize-acquisition-timestamps
 ```
 
+Shortcut script:
+
+```bash
+bash docs/examples/decision_trace/regenerate_golden_log.sh
+```
+
 Generation context:
 
 - template: `templates/bo_client_demo`
