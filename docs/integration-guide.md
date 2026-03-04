@@ -217,6 +217,13 @@ can continue and the failure is recorded.
 - Set `status` to `failed`
 - Write a finite sentinel objective value that is directionally bad
 
+Current behavior note:
+
+- public `v0.1` templates require a numeric finite primary objective for ingest
+  validation, including failed trials
+- `v0.2` target semantics move to `objective: null` for non-`ok` statuses, with
+  optional `penalty_objective` where numeric penalties are still needed
+
 Sentinel guidance:
 
 - minimize objective: large value (example `1e12`)
@@ -269,6 +276,27 @@ See:
 
 - `quickstart/README.md`
 - `docs/examples/state_snapshots/`
+
+## Reproducibility: Seeds and Determinism Boundaries
+
+What is designed to be reproducible:
+
+- persisted optimizer seed in `state.meta.seed`
+- trial id sequence (`next_trial_id`) in state
+- suggestion ordering for a stable config/state/backend path
+
+What is not fully deterministic:
+
+- wall-clock timestamps in state/log records
+- external evaluator randomness unless you control it
+- optional GP backends across dependency/runtime changes
+
+Recommended reproducibility checklist:
+
+1. Keep config, parameter space, and objective schema versioned for each pilot.
+2. Capture evaluator seed policy (fixed/derived/randomized) in intake notes.
+3. Record runtime dependency versions before starting a campaign.
+4. Preserve `bo_state.json` and `acquisition_log.jsonl` as canonical run traces.
 
 ## Noisy Objectives and Repeated Evaluations
 
@@ -327,6 +355,10 @@ Poor fits:
 
 - `quickstart/README.md`
 - `client_harness_template/README_INTEGRATION.md`
+- `docs/operational-semantics.md`
+- `docs/search-space.md`
+- `docs/decision-trace.md`
+- `docs/pilot-checklist.md`
 - `docs/faq.md`
 - `docs/security-data-handling.md`
 - `docs/use-cases.md`

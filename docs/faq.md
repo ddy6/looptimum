@@ -105,6 +105,30 @@ Then choose a simple policy:
 
 Consistency matters more than cleverness here. See `docs/integration-guide.md` for implementation guidance.
 
+## How reproducible are runs?
+
+Practical reproducibility comes from controlling both optimizer state and
+evaluator behavior.
+
+Designed to be reproducible with stable inputs:
+
+- persisted seed in optimizer state
+- trial id progression and pending/observation state transitions
+- suggestion sequence for a fixed config/state/backend path
+
+Common nondeterminism sources:
+
+- wall-clock timestamps in artifacts
+- external evaluator randomness not tied to fixed seeds
+- optional GP backend behavior across dependency/runtime changes
+
+For best results, record:
+
+- config/parameter/objective versions used
+- evaluator seed policy
+- dependency/runtime versions
+- retained state artifacts (`bo_state.json`, `acquisition_log.jsonl`)
+
 ## What if an evaluation fails?
 
 Recommended approach:
@@ -114,6 +138,13 @@ Recommended approach:
 - keep `trial_id` and `params` unchanged
 
 This preserves traceability and allows the loop to continue.
+
+Current/target semantics note:
+
+- current public templates validate failed payloads with numeric finite primary
+  objective values
+- planned `v0.2` contract uses `objective: null` for non-`ok` statuses with
+  optional penalty objective support
 
 ## What if `ingest` rejects my result payload?
 

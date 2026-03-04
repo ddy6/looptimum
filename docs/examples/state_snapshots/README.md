@@ -7,3 +7,8 @@ These files are generated reference artifacts showing a minimal run lifecycle fo
 3. `result_1_generated.json` + `bo_state_after_ingest.json` + `observations_after_ingest.csv`
 
 They are for documentation examples, not replay into an active run.
+
+Integration pattern note:
+
+- these snapshots demonstrate artifact wiring and state transitions
+- they are not benchmark or optimization performance claims
