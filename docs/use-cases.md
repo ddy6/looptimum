@@ -1,177 +1,131 @@
 # Use Cases and Fit
 
-This document describes where the Looptimum templates are a strong fit, how to
-frame the optimization problem, and where the approach is a weaker fit.
+This page frames Looptimum in cross-vertical language for teams that run
+expensive evaluations and need a reliable `suggest -> evaluate -> ingest` loop.
 
-## What the System Optimizes
+## First-Principles Fit
 
-The templates are designed for expensive black-box evaluations where:
+Looptimum is a strong fit when:
 
-- you can define a scalar objective
 - each evaluation is costly enough that sample efficiency matters
-- you can run evaluations programmatically (function, script, API, or job wrapper)
+- you can compute one scalar objective (or explicit scalarization)
+- you can run evaluations programmatically (function, CLI, API, scheduler job)
+- you need resumable state and auditability
 
-## Strong-Fit Use Cases
+## Vertical 1: Engineering and Simulation Teams
 
-### 1. Simulations (CFD, FEA, physics models, system simulators)
+Typical users:
 
-Typical pattern:
+- simulation engineers (CFD/FEA/system models)
+- platform/performance teams tuning infra knobs
+- operations teams tuning scheduling/replay systems
 
-- parameters configure a simulation setup
-- a simulation is executed
-- outputs are parsed into one scalar objective (or scalarized)
+Common tuning knobs:
 
-Examples of objectives:
+- solver tolerances, mesh controls, calibration coefficients
+- thread pools, cache TTLs, queue concurrency, memory limits
+- scheduling weights, timeout limits, penalty coefficients
 
-- minimize error to target behavior
-- minimize runtime subject to quality constraints
-- maximize efficiency / yield proxy
+Why this is a fit:
 
-Why this repo fits:
+- run costs are often high (minutes to hours)
+- invalid regions and occasional failures are expected
+- deterministic state and restart safety matter for long campaigns
 
-- expensive evaluations
-- failure handling matters
-- resumability matters (especially for long-running jobs)
+## Vertical 2: Biotech, Lab, and Process Pipelines
 
-### 2. Model Calibration / Parameter Estimation
+Typical users:
 
-Typical pattern:
+- assay/protocol optimization teams
+- lab automation and process engineering teams
+- quality/yield optimization programs
 
-- parameters define a model configuration
-- model outputs are compared against observed data
-- mismatch/error metric becomes the scalar objective
+Common tuning knobs:
 
-Examples:
+- concentrations, temperature/time windows, mixing rates
+- process recipe settings, throughput controls, quality guardrails
+- analysis thresholds and pipeline parameters
 
-- minimize RMSE / MAE / weighted loss
-- minimize calibration residual under constraints
+Why this is a fit:
 
-Why this repo fits:
+- each run consumes real time/materials
+- failures and invalid outcomes need explicit tracking
+- pilot planning usually requires clear budget and deliverable alignment
 
-- black-box calibration loops are often expensive
-- restartable local state is useful for long campaigns
+## Vertical 3: ML HPO Teams
 
-### 3. Black-Box ML Tuning (Hyperparameters / Pipelines)
+Typical users:
 
-Typical pattern:
+- teams with expensive model training/evaluation loops
+- teams without dedicated HPO platform ownership
+- teams needing repeatable optimization in restricted environments
 
-- parameters configure training pipeline settings
-- a training/evaluation run executes
-- validation metric + penalties are converted into a scalar objective
+Common tuning knobs:
 
-Examples:
+- learning rate, batch size, regularization strength
+- augmentation controls, early-stopping thresholds
+- runtime-cost penalties combined with quality metrics
 
-- maximize validation score
-- minimize validation loss + runtime penalty
-- maximize quality under memory/runtime constraints
+Why this is a fit:
 
-Why this repo fits:
+- can wrap existing training scripts or job schedulers
+- supports local/offline execution paths
+- keeps optimization artifacts auditable for experiment review
 
-- can wrap existing training scripts without deep refactoring
-- supports subprocess/CLI integration pattern
+## Reproducibility and Determinism Boundaries
 
-### 4. Process Optimization (Manufacturing / Industrial / Operations)
+What is reproducible with stable config/state:
 
-Typical pattern:
+- suggestion order and trial-id progression
+- state-file schema and contract-level payload shape
+- decision trace chronology in `acquisition_log.jsonl`
 
-- parameters define process settings or recipe values
-- process outcome is measured or simulated
-- output quality/cost/yield is scalarized
+What is not fully deterministic by default:
 
-Examples:
+- wall-clock timing and runtime jitter
+- external evaluator stochasticity unless controlled by client
+- GP backend numerics across dependency/runtime variations
 
-- maximize yield
-- minimize defect rate
-- minimize cost while meeting quality thresholds
+Practical guidance:
 
-Why this repo fits:
+- define seed policy before pilot start
+- record dependency/runtime versions used during runs
+- treat state files as the canonical audit source
 
-- explicit constraints and invalid regions are common
-- auditability and reproducibility are often important
+## Common Challenges (Normal)
 
-### 5. Scheduling / Resource Allocation (With a Scalar Objective)
+- multi-metric objectives that need scalarization
+- invalid parameter combinations discovered during execution
+- noisy/stochastic evaluations
+- budget limits that require tight trial prioritization
 
-Typical pattern:
+These are expected and should be addressed through clear objective and failure
+policy design.
 
-- parameters control scheduling heuristics or resource allocation settings
-- scheduler/simulator runs
-- throughput, lateness, cost, or utilization is scalarized
+## Weaker-Fit Cases
 
-Examples:
+Looptimum is usually not the best choice when:
 
-- minimize weighted lateness
-- maximize throughput subject to SLA penalties
-- minimize cost + penalty score
+- objective evaluations are cheap and simple sweeps are sufficient
+- gradients are reliable and gradient methods are clearly better
+- search space is extremely high-dimensional without structure
+- no scalar objective can be defined or agreed
 
-Why this repo fits:
+## Pilot Scoping Guidance
 
-- useful when each evaluation requires nontrivial simulation or replay
-- file-backed integration can wrap existing schedulers
+For first pilot execution:
 
-### 6. Pricing and Marketing Optimization (Expensive Evaluations / Simulations)
-
-Typical pattern:
-
-- parameters set campaign/pricing controls
-- evaluation is a simulation, historical replay, or expensive model
-- KPI(s) are scalarized into one objective
-
-Examples:
-
-- maximize profit proxy
-- maximize conversion with spend penalty
-- maximize LTV proxy under CAC constraints
-
-Why this repo fits:
-
-- works well for simulation/replay-driven evaluations
-- supports constrained optimization framing via penalties and failure handling
-
-## How to Frame a Use Case for This Repo
-
-A strong integration usually has:
-
-1. A finite parameter set with clear types and bounds/choices
-2. A programmatic way to run one evaluation
-3. A scalar objective (or a clear scalarization rule)
-4. A practical evaluation budget
-5. A failure/invalid-run policy
-
-Use `intake.md` to capture this before pilot work.
-
-## Common Challenges (Normal, Not Show-Stoppers)
-
-- Objective is multi-metric and needs scalarization
-- Some parameter regions are invalid
-- Evaluations fail intermittently
-- Runtime varies significantly
-- The system is noisy/stochastic
-
-These are common and usually manageable with a clear integration contract and
-failure policy.
-
-## Weaker-Fit / Not-Ideal Cases
-
-This repo may be a weaker fit if:
-
-- the problem has cheap gradients and standard gradient methods are better
-- the search space is extremely high-dimensional without structure
-- the evaluation loop needs real-time decisions at very low latency
-- no scalar objective can be defined or agreed upon
-
-## Pilot Scoping Guidance (Pragmatic)
-
-For a first pilot:
-
-- choose a bounded parameter subset (not every possible knob)
-- define one primary objective
-- document hard constraints and failure behavior
-- set a realistic initial budget (for example, 10-30 evaluations)
-- review and refine after the pilot
+1. Start with a bounded subset of high-leverage parameters.
+2. Freeze one primary objective and failure policy.
+3. Run 10-30 evaluations for initial learning.
+4. Review results, then expand bounds/variables only if needed.
 
 ## Related Docs
 
 - `docs/integration-guide.md`
+- `docs/operational-semantics.md`
+- `docs/search-space.md`
+- `docs/decision-trace.md`
+- `docs/pilot-checklist.md`
 - `docs/faq.md`
 - `intake.md`
-- `docs/pricing-tiers.md`

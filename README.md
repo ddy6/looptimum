@@ -208,6 +208,10 @@ issue describing your use case.
 ## Deeper Docs
 
 - `docs/integration-guide.md`
+- `docs/operational-semantics.md`
+- `docs/search-space.md`
+- `docs/decision-trace.md`
+- `docs/pilot-checklist.md`
 - `docs/faq.md`
 - `docs/security-data-handling.md`
 - `docs/use-cases.md`

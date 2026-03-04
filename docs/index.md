@@ -1,8 +1,7 @@
-# Looptimum
+# Looptimum Docs
 
-Looping refinement toward an optimum parameter set.
-
-Use this site as the quick launch point for setup, integration, and pilot planning.
+Use this page as the launch point for integration, contract semantics, and
+pilot planning.
 
 ## Quick Start
 
@@ -16,11 +15,16 @@ python3 templates/bo_client_demo/run_bo.py demo \
 
 For full command sequences and resume behavior:
 
-- [FAQ](./faq.md)
+- [Integration Guide](./integration-guide.md)
+- [Operational Semantics](./operational-semantics.md)
 
 ## Core Documentation
 
 - [Integration Guide](./integration-guide.md)
+- [Operational Semantics](./operational-semantics.md)
+- [Search Space Contract](./search-space.md)
+- [Decision Trace](./decision-trace.md)
+- [Pilot Checklist](./pilot-checklist.md)
 - [FAQ](./faq.md)
 - [Security and Data Handling](./security-data-handling.md)
 - [Use Cases and Fit](./use-cases.md)
@@ -43,10 +47,16 @@ Repository paths used during integration:
 The optimization loop is local-first and file-backed (`suggest -> evaluate -> ingest`).
 It does not require hosted orchestration and works in restricted/offline environments.
 
+Integration note:
+
+- examples are wiring references for contract implementation, not benchmark
+  performance claims.
+
 ## Next Action
 
 If you are evaluating fit for a pilot, start with:
 
 1. Intake checklist (`intake.md`)
-2. [Integration Guide](./integration-guide.md)
-3. FAQ + security docs on this site
+2. [Pilot Checklist](./pilot-checklist.md)
+3. [Integration Guide](./integration-guide.md)
+4. [Operational Semantics](./operational-semantics.md)
