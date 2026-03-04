@@ -201,3 +201,40 @@ For strict machine-readable `suggest` output, use `--json-only`.
 ```bash
 python3 -m pytest -q templates
 ```
+
+## Release Smoke Checks (Automated + Manual)
+
+Canonical automated guardrail:
+
+```bash
+python3 scripts/release_smoke.py
+```
+
+Manual fallback checklist (run on a temporary copy to avoid mutating tracked
+template state):
+
+```bash
+TMP_ROOT="$(mktemp -d /tmp/looptimum_release_smoke.XXXXXX)"
+cp -R templates "$TMP_ROOT/templates"
+
+python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" status --project-root "$TMP_ROOT/templates/bo_client_demo"
+python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client_demo"
+python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" ingest --project-root "$TMP_ROOT/templates/bo_client_demo" --results-file "$TMP_ROOT/templates/bo_client_demo/examples/example_results.json"
+python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" demo --project-root "$TMP_ROOT/templates/bo_client_demo" --steps 3
+
+python3 "$TMP_ROOT/templates/bo_client/run_bo.py" status --project-root "$TMP_ROOT/templates/bo_client"
+python3 "$TMP_ROOT/templates/bo_client/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client"
+python3 "$TMP_ROOT/templates/bo_client/run_bo.py" ingest --project-root "$TMP_ROOT/templates/bo_client" --results-file "$TMP_ROOT/templates/bo_client/examples/example_results.json"
+python3 "$TMP_ROOT/templates/bo_client/run_bo.py" demo --project-root "$TMP_ROOT/templates/bo_client" --steps 3
+
+python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" status --project-root "$TMP_ROOT/templates/bo_client_full"
+python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client_full"
+python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client_full" --enable-botorch-gp
+python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" ingest --project-root "$TMP_ROOT/templates/bo_client_full" --results-file "$TMP_ROOT/templates/bo_client_full/examples/example_results.json"
+python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" demo --project-root "$TMP_ROOT/templates/bo_client_full" --steps 3
+
+python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 4
+```
+
+Also run the lifecycle/ops command checklist from the "Lifecycle and Ops
+Commands (All Variants)" section for each variant project root.
