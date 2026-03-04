@@ -52,3 +52,7 @@ git push origin v0.2.0
 ```
 
 Then publish GitHub Release notes using `CHANGELOG.md` + migration notes.
+
+Detailed operator runbook:
+
+- `reports/v0.2.0_release_execution_checklist.md`

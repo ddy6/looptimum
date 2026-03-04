@@ -30,6 +30,13 @@ Primary system of record: GitHub Issues.
 - Backlog grooming: weekly while phase 8 is open; bi-weekly after `v0.2.0` release stabilization.
 - Progress summary channel: `reports/update_program_tracking_issue.md`.
 
+## Current Phase 8 State
+
+- Feedback-loop scaffolding is complete.
+- Final phase 8 completion still requires external submissions and maintainer
+  triage decisions.
+- External dependency checklist: `reports/phase8_external_inputs.md`.
+
 ## Initial Backlog Seed
 
 The starting post-release backlog is tracked in:

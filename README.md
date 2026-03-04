@@ -302,6 +302,8 @@ feedback source of truth).
 - `docs/use-cases.md`
 - `client_harness_template/README_INTEGRATION.md`
 - `quickstart/README.md`
+- `reports/phase8_release_readiness.md`
+- `reports/v0.2.0_release_execution_checklist.md`
 
 ## Testing
 
