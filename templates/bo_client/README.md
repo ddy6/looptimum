@@ -10,7 +10,7 @@ surrogate backend, and restartable JSON state.
 - `parameter_space.json`: explicit parameter types and bounds.
 - `objective_schema.json`: objective direction and failure policy.
 - `experiment_interface.md`: async experiment I/O contract.
-- `examples/`: sample result payload and runnable command sequence.
+- `examples/`: sample success/failure result payloads and runnable command sequence.
 - `schemas/`: compatibility copy of ingest schema (canonical schemas live under `templates/_shared/schemas/`).
 - `scripts/`: synthetic objective helper.
 - `surrogate_proxy.py`: proxy backend scoring.

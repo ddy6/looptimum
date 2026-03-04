@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-DEFAULT_FAILURE_SENTINEL_MINIMIZE = 1e12
-DEFAULT_FAILURE_SENTINEL_MAXIMIZE = -1e12
+DEFAULT_FAILURE_PENALTY_MINIMIZE = 1e12
+DEFAULT_FAILURE_PENALTY_MAXIMIZE = -1e12
 CANONICAL_STATUSES = {"ok", "failed", "killed", "timeout"}
 SUCCESS_ALIAS = "success"
 _MISSING = object()
@@ -151,10 +151,10 @@ def _load_objective_contract(path: Path) -> tuple[str, str]:
     return name, str(direction)
 
 
-def _default_failure_sentinel(direction: str) -> float:
+def _default_failure_penalty(direction: str) -> float:
     if direction == "maximize":
-        return DEFAULT_FAILURE_SENTINEL_MAXIMIZE
-    return DEFAULT_FAILURE_SENTINEL_MINIMIZE
+        return DEFAULT_FAILURE_PENALTY_MAXIMIZE
+    return DEFAULT_FAILURE_PENALTY_MINIMIZE
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -165,20 +165,20 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 def build_failed_payload(
     suggestion: dict[str, Any],
     objective_name: str,
-    sentinel_value: float,
+    penalty_value: float,
 ) -> dict[str, Any]:
-    if not math.isfinite(sentinel_value):
+    if not math.isfinite(penalty_value):
         raise ValueError("failure penalty_objective must be finite")
     return {
         "trial_id": int(suggestion["trial_id"]),
         "params": suggestion["params"],
         "objectives": {objective_name: None},
-        "penalty_objective": float(sentinel_value),
+        "penalty_objective": float(penalty_value),
         "status": "failed",
     }
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args() -> tuple[argparse.Namespace, bool]:
     here = Path(__file__).resolve().parent
     p = argparse.ArgumentParser(
         description="Run one client evaluation and emit ingest payload JSON"
@@ -199,7 +199,7 @@ def parse_args() -> argparse.Namespace:
         "--objective-direction",
         choices=["minimize", "maximize"],
         default=None,
-        help="Objective direction used to choose the default failed-run sentinel",
+        help="Objective direction used to choose the default failure penalty",
     )
     p.add_argument(
         "--objective-schema",
@@ -213,20 +213,30 @@ def parse_args() -> argparse.Namespace:
         help="Write a failed payload (objective=null + penalty_objective) or re-raise",
     )
     p.add_argument(
-        "--failure-sentinel",
+        "--failure-penalty-objective",
+        dest="failure_penalty_objective",
         type=float,
         default=None,
         help=(
-            "Finite penalty_objective value for on-exception=failed; defaults to +1e12 for "
-            "minimize or -1e12 for maximize"
+            "Finite penalty_objective value for on-exception=failed; defaults to "
+            "+1e12 for minimize or -1e12 for maximize"
         ),
     )
+    p.add_argument(
+        "--failure-sentinel",
+        dest="failure_penalty_objective",
+        type=float,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
     p.add_argument("--print-result", action="store_true", help="Print written payload to stdout")
-    return p.parse_args()
+    args = p.parse_args()
+    legacy_flag_used = "--failure-sentinel" in sys.argv[1:]
+    return args, legacy_flag_used
 
 
 def main() -> None:
-    args = parse_args()
+    args, legacy_failure_flag_used = parse_args()
     suggestion_path = Path(args.suggestion_file)
     result_path = Path(args.result_file)
     objective_module_path = Path(args.objective_module)
@@ -244,13 +254,19 @@ def main() -> None:
     if objective_direction is None:
         objective_direction = "minimize"
 
-    failure_sentinel = (
-        float(args.failure_sentinel)
-        if args.failure_sentinel is not None
-        else _default_failure_sentinel(objective_direction)
+    failure_penalty = (
+        float(args.failure_penalty_objective)
+        if args.failure_penalty_objective is not None
+        else _default_failure_penalty(objective_direction)
     )
-    if not math.isfinite(failure_sentinel):
+    if not math.isfinite(failure_penalty):
         raise ValueError("failure penalty_objective must be finite")
+    if legacy_failure_flag_used:
+        print(
+            "[run_one_eval] Deprecated flag '--failure-sentinel' used; "
+            "prefer '--failure-penalty-objective'.",
+            file=sys.stderr,
+        )
 
     suggestion = _load_json_or_suggest_stdout(suggestion_path)
     _require_suggestion_shape(suggestion)
@@ -258,7 +274,7 @@ def main() -> None:
     try:
         objective_module = _load_objective_module(objective_module_path)
         eval_output = objective_module.evaluate(dict(suggestion["params"]))
-        normalized = _normalize_eval_output(eval_output, default_failure_penalty=failure_sentinel)
+        normalized = _normalize_eval_output(eval_output, default_failure_penalty=failure_penalty)
         result = {
             "trial_id": int(suggestion["trial_id"]),
             "params": suggestion["params"],
@@ -274,7 +290,7 @@ def main() -> None:
             f"[run_one_eval] objective evaluation failed; writing status=failed payload: {exc}",
             file=sys.stderr,
         )
-        result = build_failed_payload(suggestion, objective_name, failure_sentinel)
+        result = build_failed_payload(suggestion, objective_name, failure_penalty)
 
     _write_json(result_path, result)
     if args.print_result:

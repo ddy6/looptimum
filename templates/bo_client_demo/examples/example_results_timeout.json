@@ -1,0 +1,12 @@
+{
+  "trial_id": 1,
+  "params": {
+    "x1": 0.18126486333322134,
+    "x2": 0.6614305484952444
+  },
+  "objectives": {
+    "loss": null
+  },
+  "status": "timeout",
+  "penalty_objective": 1000000000000.0
+}

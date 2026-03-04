@@ -58,7 +58,7 @@ def _write_objective_schema(path: Path, *, name: str, direction: str) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def test_failed_payload_default_sentinel_for_minimize(tmp_path: Path) -> None:
+def test_failed_payload_default_penalty_for_minimize(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_raise.py"
     result = tmp_path / "result.json"
@@ -72,7 +72,7 @@ def test_failed_payload_default_sentinel_for_minimize(tmp_path: Path) -> None:
     assert payload["penalty_objective"] == 1.0e12
 
 
-def test_failed_payload_default_sentinel_for_maximize(tmp_path: Path) -> None:
+def test_failed_payload_default_penalty_for_maximize(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_raise.py"
     result = tmp_path / "result.json"
@@ -116,7 +116,7 @@ def test_objective_schema_drives_name_and_direction_defaults(tmp_path: Path) -> 
     assert payload["penalty_objective"] == -1.0e12
 
 
-def test_explicit_failure_sentinel_overrides_direction_default(tmp_path: Path) -> None:
+def test_explicit_failure_penalty_overrides_direction_default(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_raise.py"
     result = tmp_path / "result.json"
@@ -130,13 +130,36 @@ def test_explicit_failure_sentinel_overrides_direction_default(tmp_path: Path) -
         str(objective),
         "--objective-direction",
         "maximize",
-        "--failure-sentinel",
+        "--failure-penalty-objective",
         "-123.0",
     )
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "failed"
     assert payload["objectives"]["loss"] is None
     assert payload["penalty_objective"] == -123.0
+
+
+def test_legacy_failure_sentinel_flag_still_works_with_warning(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_raise.py"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_raising_objective(objective)
+
+    out = _run_cmd(
+        str(suggestion),
+        str(result),
+        "--objective-module",
+        str(objective),
+        "--failure-sentinel",
+        "777.0",
+    )
+
+    payload = json.loads(result.read_text(encoding="utf-8"))
+    assert payload["status"] == "failed"
+    assert payload["objectives"]["loss"] is None
+    assert payload["penalty_objective"] == 777.0
+    assert "Deprecated flag '--failure-sentinel'" in out.stderr
 
 
 def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> None:

@@ -74,6 +74,7 @@ Capture this before execution:
 - Seed/control strategy in external evaluator (if available)
 - Dependency/runtime versions used during pilot
 - Rules for reruns and duplicate ingest handling
+  (`identical replay -> no-op success`, `conflicting replay -> reject`)
 
 Define deterministic boundaries explicitly:
 
@@ -84,8 +85,8 @@ Define deterministic boundaries explicitly:
 
 Agree in advance:
 
-- What statuses represent failed runs in your current template path
-- What objective representation is used for failure payloads
+- What non-`ok` statuses you will emit (`failed`, `killed`, `timeout`)
+- Failure payload representation (`objective: null` and optional `penalty_objective`)
 - Retry policy for transient failures
 - Operator workflow when ingest fails validation
 - Escalation path when pending trials become stale

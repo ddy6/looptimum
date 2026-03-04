@@ -143,6 +143,8 @@ Default `penalty_objective` is direction-aware: `+1e12` for `minimize`,
 `-1e12` for `maximize`.
 Set direction explicitly with `--objective-direction` or provide
 `--objective-schema` to auto-read direction/name from `primary_objective`.
+Override the default penalty with `--failure-penalty-objective <value>`.
+Legacy alias `--failure-sentinel` is still accepted with a deprecation warning.
 
 ## Resume / Idempotency Notes
 

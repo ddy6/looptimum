@@ -85,6 +85,14 @@ python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_cl
 If you already generated a different pending suggestion, generate a matching
 payload instead of reusing `example_results.json`.
 
+To test non-`ok` ingest semantics with the bundled sample payload:
+
+```bash
+python3 templates/bo_client_demo/run_bo.py ingest \
+  --project-root templates/bo_client_demo \
+  --results-file templates/bo_client_demo/examples/example_results_timeout.json
+```
+
 ## State Files and Resume Behavior
 
 State and logs are configured in each template's `bo_config.json` and default to:

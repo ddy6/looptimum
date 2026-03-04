@@ -9,7 +9,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
 - `experiment_interface.md`: async I/O contract
-- `examples/`: sample payload and run script
+- `examples/`: sample success/failure payloads and run script
 - `schemas/`: compatibility copy of ingest schema (canonical schemas live under `templates/_shared/schemas/`)
 - `scripts/`: synthetic objective helper
 - `tests/`: `pytest` CLI and state-flow coverage

@@ -14,6 +14,7 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
 - `experiment_interface.md`: async I/O contract
+- `examples/`: sample success/failure result payloads and run script
 - `tests/`: `pytest` suite for CLI/state behavior
 
 ## Enable BoTorch GP
