@@ -22,7 +22,7 @@ def test_status_initial(template_copy) -> None:
 def test_suggest_returns_in_bounds_params(template_copy) -> None:
     out = run_cmd(template_copy, "suggest")
     suggestion = parse_suggestion(out.stdout)
-    bounds_cfg = json.loads((template_copy / "parameter_space.yaml").read_text(encoding="utf-8"))
+    bounds_cfg = json.loads((template_copy / "parameter_space.json").read_text(encoding="utf-8"))
     for param in bounds_cfg["parameters"]:
         name = param["name"]
         lo, hi = param["bounds"]
@@ -33,6 +33,9 @@ def test_deterministic_first_suggestion_under_fixed_seed(template_copy, tmp_path
     src = Path(__file__).resolve().parents[1]
     second_copy = tmp_path / "template_two"
     subprocess.run(["cp", "-R", str(src), str(second_copy)], check=True)
+    shared_src = src.parent / "_shared"
+    if shared_src.exists() and not (tmp_path / "_shared").exists():
+        subprocess.run(["cp", "-R", str(shared_src), str(tmp_path / "_shared")], check=True)
     for p in [
         second_copy / "state" / "bo_state.json",
         second_copy / "state" / "observations.csv",
@@ -53,7 +56,7 @@ def test_deterministic_first_suggestion_under_fixed_seed(template_copy, tmp_path
     reason="set RUN_GP_TESTS=1 and install botorch to run GP backend tests",
 )
 def test_suggest_works_with_gp_backend(template_copy) -> None:
-    cfg_path = template_copy / "bo_config.yaml"
+    cfg_path = template_copy / "bo_config.json"
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     cfg["surrogate"]["type"] = "gp"
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")

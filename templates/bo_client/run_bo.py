@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import importlib.util
 import json
 import math
 import random
@@ -14,58 +15,40 @@ from pathlib import Path
 from surrogate_gp import propose_with_gp
 from surrogate_proxy import propose_with_proxy
 
+_TEMPLATE_DIR = Path(__file__).resolve().parent
+
+
+def _load_contract_module():
+    contract_path = _TEMPLATE_DIR.parent / "_shared" / "contract.py"
+    if not contract_path.exists():
+        raise ModuleNotFoundError(
+            f"Missing shared contract module at {contract_path}. "
+            "Ensure templates/_shared is present."
+        )
+    spec = importlib.util.spec_from_file_location("looptimum_shared_contract", contract_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load shared contract module from {contract_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_CONTRACT = _load_contract_module()
+build_observation_contract = _CONTRACT.build_observation_contract
+diff_contract_records = _CONTRACT.diff_contract_records
+format_contract_diff_error = _CONTRACT.format_contract_diff_error
+load_contract_document = _CONTRACT.load_contract_document
+load_data_file = _CONTRACT.load_data_file
+load_schema_from_paths = _CONTRACT.load_schema_from_paths
+normalize_ingest_payload = _CONTRACT.normalize_ingest_payload
+validate_against_schema = _CONTRACT.validate_against_schema
+
 
 def load_cfg(path: Path) -> dict:
-    # .yaml files use JSON syntax (valid YAML subset) to avoid extra parser deps.
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _is_type(value: object, expected: str) -> bool:
-    if expected == "object":
-        return isinstance(value, dict)
-    if expected == "integer":
-        return isinstance(value, int) and not isinstance(value, bool)
-    if expected == "number":
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
-    if expected == "string":
-        return isinstance(value, str)
-    return True
-
-
-def validate_against_schema(value: object, schema: dict, path: str = "$") -> None:
-    expected = schema.get("type")
-    if isinstance(expected, str) and not _is_type(value, expected):
-        raise ValueError(f"{path} must be of type '{expected}'")
-
-    if "enum" in schema and value not in schema["enum"]:
-        raise ValueError(f"{path} must be one of {schema['enum']}")
-
-    if "minimum" in schema and isinstance(value, (int, float)) and not isinstance(value, bool):
-        if float(value) < float(schema["minimum"]):
-            raise ValueError(f"{path} must be >= {schema['minimum']}")
-
-    if schema.get("type") == "object":
-        assert isinstance(value, dict)
-        for key in schema.get("required", []):
-            if key not in value:
-                raise ValueError(f"{path}.{key} is required")
-        for key, child_schema in schema.get("properties", {}).items():
-            if key in value:
-                validate_against_schema(value[key], child_schema, f"{path}.{key}")
-
-
-def validate_ingest_payload(payload: dict, schema: dict, objective: dict) -> None:
-    validate_against_schema(payload, schema)
-    obj_name = str(objective["name"])
-    objectives = payload.get("objectives", {})
-    if obj_name not in objectives:
-        raise ValueError(f"ingest payload missing primary objective '{obj_name}'")
-    try:
-        obj_value = float(objectives[obj_name])
-    except (TypeError, ValueError):
-        raise ValueError(f"ingest payload objective '{obj_name}' must be numeric") from None
-    if not math.isfinite(obj_value):
-        raise ValueError(f"ingest payload objective '{obj_name}' must be finite")
+    data = load_data_file(path)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config/state file must contain an object: {path}")
+    return data
 
 
 def load_state(path: Path) -> dict:
@@ -99,7 +82,7 @@ def write_obs_csv(path: Path, rows: list[dict]) -> None:
 def norm_space(space_cfg: dict) -> list[dict]:
     params = space_cfg.get("parameters", [])
     if not params:
-        raise ValueError("parameter_space.yaml must define 'parameters'")
+        raise ValueError("parameter_space.json must define 'parameters'")
     return params
 
 
@@ -155,9 +138,25 @@ def update_best(state: dict, objective: dict) -> None:
 
 def cmd_suggest(args: argparse.Namespace) -> None:
     root = Path(args.project_root)
-    cfg = load_cfg(root / "bo_config.yaml")
-    params = norm_space(load_cfg(root / "parameter_space.yaml"))
-    obj_cfg = load_cfg(root / "objective_schema.yaml")
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    space_cfg, space_path = load_contract_document(root, "parameter_space")
+    if not isinstance(space_cfg, dict):
+        raise ValueError(f"parameter_space must be an object: {space_path}")
+    search_space_schema, _ = load_schema_from_paths(
+        root,
+        cfg["paths"],
+        key="search_space_schema_file",
+        default_rel="../_shared/schemas/search_space.schema.json",
+    )
+    validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
+    params = norm_space(space_cfg)
+
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
     objective = obj_cfg["primary_objective"]
 
     state_path = root / cfg["paths"]["state_file"]
@@ -175,6 +174,18 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     )
     tid = int(state["next_trial_id"])
     suggestion = {"trial_id": tid, "params": cand, "suggested_at": time.time()}
+    suggestion_schema, _ = load_schema_from_paths(
+        root,
+        cfg["paths"],
+        key="suggestion_schema_file",
+        default_rel="../_shared/schemas/suggestion_payload.schema.json",
+    )
+    validate_against_schema(
+        suggestion,
+        suggestion_schema,
+        source_path=Path("<generated_suggestion>"),
+        trial_id=tid,
+    )
     state["pending"].append(suggestion)
     state["next_trial_id"] = tid + 1
 
@@ -192,32 +203,76 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
 def cmd_ingest(args: argparse.Namespace) -> None:
     root = Path(args.project_root)
-    cfg = load_cfg(root / "bo_config.yaml")
-    objective = load_cfg(root / "objective_schema.yaml")["primary_objective"]
-    schema_rel = cfg["paths"].get("result_schema_file", "schemas/result_payload.schema.json")
-    result_schema = load_cfg(root / schema_rel)
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    obj_cfg, _ = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective = obj_cfg["primary_objective"]
+
+    ingest_schema, _ = load_schema_from_paths(
+        root,
+        cfg["paths"],
+        key="ingest_schema_file",
+        legacy_key="result_schema_file",
+        default_rel="../_shared/schemas/ingest_payload.schema.json",
+    )
     state_path = root / cfg["paths"]["state_file"]
     state = load_state(state_path)
 
-    payload = load_cfg(Path(args.results_file))
-    validate_ingest_payload(payload, result_schema, objective)
-    tid = int(payload["trial_id"])
+    payload_path = Path(args.results_file)
+    payload = load_data_file(payload_path)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Ingest payload must be an object: {payload_path}")
+    validate_against_schema(payload, ingest_schema, source_path=payload_path)
+    payload, tid = normalize_ingest_payload(
+        payload,
+        objective_name=str(objective["name"]),
+        source_path=payload_path,
+    )
+
     pending = {int(p["trial_id"]): p for p in state["pending"]}
     if tid not in pending:
-        raise ValueError(f"trial_id {tid} is not pending")
-    if payload.get("params") != pending[tid].get("params"):
-        raise ValueError("ingest payload params do not match the pending suggestion")
+        prior = next((o for o in state["observations"] if int(o["trial_id"]) == tid), None)
+        if prior is None:
+            raise ValueError(f"trial_id {tid} is not pending")
 
-    state["pending"] = [p for p in state["pending"] if int(p["trial_id"]) != tid]
-    state["observations"].append(
-        {
+        expected = build_observation_contract(prior, objective_name=str(objective["name"]))
+        received = {
             "trial_id": tid,
             "params": payload["params"],
             "objectives": payload["objectives"],
-            "status": payload.get("status", "ok"),
-            "completed_at": time.time(),
+            "status": payload["status"],
         }
-    )
+        if "penalty_objective" in payload:
+            received["penalty_objective"] = payload["penalty_objective"]
+        diffs = diff_contract_records(expected, received)
+        if not diffs:
+            print(f"No-op: trial_id={tid} already ingested with identical payload.")
+            return
+        raise ValueError(format_contract_diff_error(tid, diffs))
+
+    if payload.get("params") != pending[tid].get("params"):
+        param_diffs = diff_contract_records(
+            {"params": pending[tid].get("params", {})},
+            {"params": payload.get("params", {})},
+        )
+        details = "\n".join(f"- field {d}" for d in param_diffs)
+        raise ValueError(f"ingest payload params mismatch for pending trial_id {tid}:\n{details}")
+
+    state["pending"] = [p for p in state["pending"] if int(p["trial_id"]) != tid]
+    observation = {
+        "trial_id": tid,
+        "params": payload["params"],
+        "objectives": payload["objectives"],
+        "status": payload["status"],
+        "completed_at": time.time(),
+    }
+    if "penalty_objective" in payload:
+        observation["penalty_objective"] = payload["penalty_objective"]
+    state["observations"].append(observation)
     update_best(state, objective)
     save_state(state_path, state)
 
@@ -226,6 +281,8 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         r = {"trial_id": o["trial_id"], "status": o["status"], "completed_at": o["completed_at"]}
         r.update({f"param_{k}": v for k, v in o["params"].items()})
         r.update({f"objective_{k}": v for k, v in o["objectives"].items()})
+        if "penalty_objective" in o:
+            r["penalty_objective"] = o["penalty_objective"]
         rows.append(r)
     write_obs_csv(root / cfg["paths"]["observations_csv"], rows)
     print(f"Ingested trial_id={tid}. Observations={len(state['observations'])}")
@@ -233,7 +290,9 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
 def cmd_status(args: argparse.Namespace) -> None:
     root = Path(args.project_root)
-    cfg = load_cfg(root / "bo_config.yaml")
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
     s = load_state(root / cfg["paths"]["state_file"])
     print(
         json.dumps(
@@ -255,7 +314,9 @@ def cmd_demo(args: argparse.Namespace) -> None:
         return (p["x1"] - 0.25) ** 2 + (p["x2"] - 0.75) ** 2 + 0.2 * math.sin(8.0 * p["x1"])
 
     for _ in range(int(args.steps)):
-        cfg = load_cfg(root / "bo_config.yaml")
+        cfg, _ = load_contract_document(root, "bo_config")
+        if not isinstance(cfg, dict):
+            raise ValueError("bo_config must be an object")
         state_before = load_state(root / cfg["paths"]["state_file"])
         pending_before = len(state_before["pending"])
         cmd_suggest(args)

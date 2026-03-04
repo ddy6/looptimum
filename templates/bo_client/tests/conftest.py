@@ -30,6 +30,9 @@ def template_copy(tmp_path: Path) -> Path:
     src = Path(__file__).resolve().parents[1]
     dst = tmp_path / "template"
     subprocess.run(["cp", "-R", str(src), str(dst)], check=True)
+    shared_src = src.parent / "_shared"
+    if shared_src.exists():
+        subprocess.run(["cp", "-R", str(shared_src), str(tmp_path / "_shared")], check=True)
     for p in [
         dst / "state" / "bo_state.json",
         dst / "state" / "observations.csv",

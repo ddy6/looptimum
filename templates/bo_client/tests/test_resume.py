@@ -30,6 +30,6 @@ def test_resume_restores_state_and_trial_ids(template_copy) -> None:
 def test_demo_stops_cleanly_when_budget_exhausted(template_copy) -> None:
     run_cmd(template_copy, "demo", "--steps", "45")
     status = json.loads(run_cmd(template_copy, "status").stdout)
-    cfg = json.loads((template_copy / "bo_config.yaml").read_text(encoding="utf-8"))
+    cfg = json.loads((template_copy / "bo_config.json").read_text(encoding="utf-8"))
     assert status["observations"] == cfg["max_trials"]
     assert status["pending"] == 0

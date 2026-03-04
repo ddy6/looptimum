@@ -1,3 +1,13 @@
+[project]
+name = "looptimum"
+version = "0.2.0"
+description = "File-backed optimization loop templates for suggest/ingest workflows."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6,<7"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
