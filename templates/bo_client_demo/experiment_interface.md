@@ -29,11 +29,13 @@ The external runner must write one JSON payload per completed trial:
 
 ## Failure Handling
 
-- If a trial fails, submit with `status: "failed"` and a sentinel objective value your team defines.
+- Use canonical statuses: `ok`, `failed`, `killed`, `timeout`.
+- For non-`ok` statuses, submit `objectives.<primary_name>: null`.
+- Optionally include `penalty_objective` (number) for non-`ok` statuses.
 - Failed trials remain in observations for traceability.
 
 ## Reproducibility
 
-- All randomness is seeded via `bo_config.yaml`.
+- All randomness is seeded via `bo_config.json`.
 - Resume behavior is controlled by `state/bo_state.json`.
 - Every suggestion has a matching acquisition decision in `state/acquisition_log.jsonl`.

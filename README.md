@@ -108,9 +108,7 @@ For full command sets and resume behavior, see `quickstart/README.md`.
 - Search space is extremely high-dimensional without useful structure.
 - You cannot define a scalar objective or acceptable scalarization rule.
 
-## Contract (v0.2 Target)
-
-This section describes the frozen contract target for `v0.2`.
+## Contract (Current)
 
 ### Inputs
 
@@ -132,17 +130,12 @@ Each suggestion includes:
 - `trial_id` (must match a pending trial)
 - `params` (must match suggested params exactly)
 - `objectives`:
-  primary objective must be numeric and finite for `status: ok`;
-  primary objective must be `null` for non-`ok` statuses
-- `status`:
-  `ok`, `failed`, `killed`, `timeout`
+  - `status: ok` -> primary objective must be numeric and finite
+  - non-`ok` status -> primary objective must be `null`
+- `status`: `ok`, `failed`, `killed`, `timeout`
 
-### `ingest` Optional Fields (v0.2 Target)
+### `ingest` Optional Fields
 
-- `metrics` (object)
-- `runtime_seconds` (number)
-- `stderr_excerpt` (string)
-- `artifact_links` (list/object)
 - `penalty_objective` (number, only for non-`ok` statuses)
 
 ### `status` Headline Fields
@@ -158,13 +151,19 @@ Each suggestion includes:
 - `state/observations.csv`: flattened observation export.
 - `state/acquisition_log.jsonl`: append-only decision trace.
 
-### Current Behavior (v0.1)
+### Compatibility Notes
 
-- Current public templates accept `status: ok|failed`.
-- `success` alias normalization and `killed|timeout` statuses are part of the
-  `v0.2` target contract.
-- Optional `v0.2` ingest fields above are forward-looking documentation and may
-  not yet be consumed by all current template implementations.
+- `success` is accepted as a deprecated alias and normalized to `ok`.
+- Legacy non-`ok` payloads with numeric primary objective are accepted in
+  `v0.2.x`, normalized to `objective: null` + `penalty_objective`, and emit a
+  deprecation warning.
+- Sentinel primary-objective compatibility is planned for removal in `v0.3.0`.
+
+### Duplicate Ingest Behavior
+
+- Identical replay of an already ingested trial: explicit no-op success.
+- Conflicting replay for an already ingested trial: rejected with field-level
+  diff details.
 
 ## Templates (Choose Your Starting Level)
 

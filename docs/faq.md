@@ -133,18 +133,18 @@ For best results, record:
 
 Recommended approach:
 
-- return `status: "failed"`
-- include a finite sentinel objective value (directionally bad)
+- return a canonical non-`ok` status (`failed`, `killed`, or `timeout`)
+- set primary objective to `null`
+- optionally include `penalty_objective` for non-`ok` statuses
 - keep `trial_id` and `params` unchanged
 
 This preserves traceability and allows the loop to continue.
 
-Current/target semantics note:
+Compatibility note:
 
-- current public templates validate failed payloads with numeric finite primary
-  objective values
-- planned `v0.2` contract uses `objective: null` for non-`ok` statuses with
-  optional penalty objective support
+- legacy non-`ok` payloads with numeric primary objective are still accepted in
+  `v0.2.x`, normalized to `objective: null` + `penalty_objective`, and produce
+  a deprecation warning
 
 ## What if `ingest` rejects my result payload?
 

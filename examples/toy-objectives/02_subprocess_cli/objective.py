@@ -27,10 +27,11 @@ def evaluate(params: dict[str, Any]) -> dict[str, Any]:
         stderr = (proc.stderr or "").strip()
 
         if proc.returncode == 2:
-            # Synthetic invalid region. Return an explicit failed payload-friendly response.
+            # Synthetic invalid region. Use non-ok semantics with null primary objective.
             return {
-                "objective": FAILED_SENTINEL,
                 "status": "failed",
+                "objective": None,
+                "penalty_objective": FAILED_SENTINEL,
             }
 
         if proc.returncode != 0:

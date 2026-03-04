@@ -21,8 +21,8 @@ The Looptimum templates in `templates/` provide a restartable loop that:
 The loop does not need raw data or internal model internals. It just needs:
 
 - parameter values
-- one scalar objective value
-- a trial status (`ok` or `failed`)
+- one primary objective value (`number` for `ok`, `null` for non-`ok`)
+- a trial status (`ok`, `failed`, `killed`, or `timeout`)
 
 ## Repository Paths You Will Use
 
@@ -122,8 +122,10 @@ Requirements:
 
 - `trial_id` must match the pending suggestion
 - `params` must exactly match the pending suggestion
-- objective must be numeric and finite
-- `status` should be `ok` or `failed`
+- status must be one of `ok`, `failed`, `killed`, `timeout`
+- for `status: ok`, primary objective must be numeric and finite
+- for non-`ok` statuses, primary objective should be `null`
+- optional `penalty_objective` can be included for non-`ok` statuses
 
 ### 4. Ingest the Result
 
@@ -194,7 +196,7 @@ Use `intake.md` to capture this precisely.
 
 ## Objective Direction (Minimize vs Maximize)
 
-Objective direction is configured in `objective_schema.yaml` in your chosen template.
+Objective direction is configured in `objective_schema.json` in your chosen template.
 
 Examples:
 
@@ -214,20 +216,17 @@ can continue and the failure is recorded.
 ### Recommended Failure Payload Strategy
 
 - Keep `trial_id` and `params` unchanged
-- Set `status` to `failed`
-- Write a finite sentinel objective value that is directionally bad
+- Use non-`ok` status (`failed`, `killed`, or `timeout`) as appropriate
+- Set primary objective to `null`
+- Optionally include `penalty_objective` when numeric penalty ranking/reporting
+  is useful
 
-Current behavior note:
+Compatibility note (v0.2.x line):
 
-- public `v0.1` templates require a numeric finite primary objective for ingest
-  validation, including failed trials
-- `v0.2` target semantics move to `objective: null` for non-`ok` statuses, with
-  optional `penalty_objective` where numeric penalties are still needed
-
-Sentinel guidance:
-
-- minimize objective: large value (example `1e12`)
-- maximize objective: very small value (example `-1e12`)
+- Legacy sentinel payloads for non-`ok` statuses are still accepted and
+  normalized to `objective: null` + `penalty_objective`.
+- Ingest emits a deprecation warning for this path.
+- Sentinel primary objective compatibility is planned for removal in `v0.3.0`.
 
 ### Common Failure Modes
 
@@ -244,9 +243,11 @@ Common `ingest` rejections include:
 
 - result schema violation
 - missing primary objective
-- objective is not numeric/finite
+- objective/status policy mismatch (`ok` requires numeric finite; non-`ok`
+  requires `null`)
 - `trial_id` is not pending
 - `params` do not match the pending suggestion
+- conflicting duplicate replay (same `trial_id` with different payload fields)
 
 If `ingest` fails:
 
@@ -269,7 +270,8 @@ Behavior:
 
 - `suggest` creates a pending trial and increments `next_trial_id`
 - `ingest` consumes a matching pending trial
-- duplicate ingest is rejected
+- duplicate ingest with identical payload is accepted as explicit no-op
+- duplicate ingest with conflicting fields is rejected with diff details
 - if the budget is exhausted, `suggest` exits cleanly without creating a new pending trial
 
 See:

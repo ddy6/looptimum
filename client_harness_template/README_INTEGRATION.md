@@ -64,8 +64,11 @@ Required compatibility rules:
 
 1. `trial_id` must exactly match the suggestion.
 2. `params` must exactly match the suggestion.
-3. Objective value must be numeric and finite.
-4. `status` should be `ok` or `failed`.
+3. `status` must be one of `ok`, `failed`, `killed`, `timeout` (or legacy
+   `success`, normalized to `ok` by ingest).
+4. For `status: ok`, primary objective value must be numeric and finite.
+5. For non-`ok` statuses, set primary objective to `null`; optional
+   `penalty_objective` may be included.
 
 ## Implement `objective.py` (Params -> Run -> Scalar Objective)
 
@@ -76,7 +79,10 @@ Replace `evaluate(params)` in `objective.py` so it:
 3. Computes one scalar objective value.
 4. Returns either:
    - a number (treated as objective value, status=`ok`), or
-   - a dict like `{"objective": 0.123, "status": "ok"}`
+   - a dict like `{"objective": 0.123, "status": "ok"}` for success, or
+   - a dict like
+     `{"status": "failed", "objective": null, "penalty_objective": 1e12}`
+     for non-`ok` outcomes
 
 Example skeleton pattern:
 
@@ -92,7 +98,7 @@ def evaluate(params):
 ## Objective Direction (Minimize vs Maximize)
 
 The optimization harness objective direction is defined in
-`objective_schema.yaml` (for example, `loss` + `minimize`).
+`objective_schema.json` (for example, `loss` + `minimize`).
 
 Your integration must return the raw scalar in the same direction convention
 expected by the harness.
@@ -119,20 +125,22 @@ Common failure modes include:
 Recommended policy:
 
 1. Return `status: "failed"`.
-2. Provide a finite sentinel objective value that is directionally bad.
-3. Keep `trial_id` and `params` unchanged.
-4. Log detailed error context in your local system logs
+2. Set primary objective to `null`.
+3. Optionally provide `penalty_objective` as a finite numeric penalty
+   (directionally bad for your objective direction).
+4. Keep `trial_id` and `params` unchanged.
+5. Log detailed error context in your local system logs
    (not required in the ingest payload).
 
-Sentinel guidance:
+Penalty guidance:
 
 - For `minimize`: use a large value (example: `1e12`)
 - For `maximize`: use a very small value (example: `-1e12`)
 
 `run_one_eval.py` default behavior (`--on-exception failed`) writes a failed
 payload automatically if `objective.py` raises.
-Default sentinel is direction-aware: `+1e12` for `minimize`, `-1e12` for
-`maximize`.
+Default `penalty_objective` is direction-aware: `+1e12` for `minimize`,
+`-1e12` for `maximize`.
 Set direction explicitly with `--objective-direction` or provide
 `--objective-schema` to auto-read direction/name from `primary_objective`.
 
@@ -140,7 +148,8 @@ Set direction explicitly with `--objective-direction` or provide
 
 - `suggest` creates a pending trial in the optimization state file.
 - `ingest` only accepts results for pending trial IDs.
-- Duplicate ingest for the same trial ID is rejected.
+- Duplicate ingest for the same trial ID is idempotent:
+  identical replay is accepted as a no-op; conflicting replay is rejected.
 - Param mismatches are rejected.
 
 Practical rule: treat suggestion JSON as immutable and pass it through unchanged.
@@ -171,7 +180,7 @@ python3 templates/bo_client_demo/run_bo.py suggest \
 python3 client_harness_template/run_one_eval.py \
   /tmp/suggest_stdout.txt \
   /tmp/result.json \
-  --objective-schema templates/bo_client_demo/objective_schema.yaml
+  --objective-schema templates/bo_client_demo/objective_schema.json
 python3 templates/bo_client_demo/run_bo.py ingest \
   --project-root templates/bo_client_demo \
   --results-file /tmp/result.json
@@ -183,7 +192,8 @@ python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_cl
 - Set `--objective-name` (or use `--objective-schema`) to match your harness
   primary objective name.
 - Implement `objective.py:evaluate(params)`.
-- Pick a failure sentinel consistent with minimize/maximize direction.
+- Pick a non-`ok` policy (`failed`/`killed`/`timeout`) and optional
+  `penalty_objective` policy consistent with objective direction.
 - Add any client-specific logging, retries, and timeout handling inside
   `objective.py`.
 - If needed, extend your result schema and harness ingest validation in the

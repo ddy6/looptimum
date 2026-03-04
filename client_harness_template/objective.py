@@ -19,8 +19,11 @@ def evaluate(params: dict[str, Any]) -> float | dict[str, Any]:
     Supported return values:
     - `float` / `int`: interpreted as the scalar objective value (status = "ok")
     - `dict` with:
-      - `objective` or `objective_value` (required): numeric scalar
-      - `status` (optional): "ok" or "failed" (default "ok")
+      - `objective` or `objective_value`:
+        required numeric scalar for `status="ok"`
+        optional for non-`ok` statuses (use `null` semantics)
+      - `status` (optional): `ok`, `failed`, `killed`, `timeout` (default `ok`)
+      - `penalty_objective` (optional): numeric penalty for non-`ok` statuses
 
     Replace this stub with your real integration.
     """

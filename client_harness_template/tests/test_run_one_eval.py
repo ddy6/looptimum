@@ -68,7 +68,8 @@ def test_failed_payload_default_sentinel_for_minimize(tmp_path: Path) -> None:
     _run_cmd(str(suggestion), str(result), "--objective-module", str(objective))
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "failed"
-    assert payload["objectives"]["loss"] == 1.0e12
+    assert payload["objectives"]["loss"] is None
+    assert payload["penalty_objective"] == 1.0e12
 
 
 def test_failed_payload_default_sentinel_for_maximize(tmp_path: Path) -> None:
@@ -88,13 +89,14 @@ def test_failed_payload_default_sentinel_for_maximize(tmp_path: Path) -> None:
     )
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "failed"
-    assert payload["objectives"]["loss"] == -1.0e12
+    assert payload["objectives"]["loss"] is None
+    assert payload["penalty_objective"] == -1.0e12
 
 
 def test_objective_schema_drives_name_and_direction_defaults(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_raise.py"
-    schema = tmp_path / "objective_schema.yaml"
+    schema = tmp_path / "objective_schema.json"
     result = tmp_path / "result.json"
     _write_suggestion(suggestion)
     _write_raising_objective(objective)
@@ -110,7 +112,8 @@ def test_objective_schema_drives_name_and_direction_defaults(tmp_path: Path) -> 
     )
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "failed"
-    assert payload["objectives"]["score"] == -1.0e12
+    assert payload["objectives"]["score"] is None
+    assert payload["penalty_objective"] == -1.0e12
 
 
 def test_explicit_failure_sentinel_overrides_direction_default(tmp_path: Path) -> None:
@@ -132,13 +135,14 @@ def test_explicit_failure_sentinel_overrides_direction_default(tmp_path: Path) -
     )
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "failed"
-    assert payload["objectives"]["loss"] == -123.0
+    assert payload["objectives"]["loss"] is None
+    assert payload["penalty_objective"] == -123.0
 
 
 def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_ok.py"
-    schema = tmp_path / "objective_schema.yaml"
+    schema = tmp_path / "objective_schema.json"
     result = tmp_path / "result.json"
     _write_suggestion(suggestion)
     _write_ok_objective(objective)

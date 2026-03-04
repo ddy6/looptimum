@@ -10,9 +10,9 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`
-- `bo_config.yaml`: includes `feature_flags.enable_botorch_gp`
-- `parameter_space.yaml`: typed parameter bounds
-- `objective_schema.yaml`: objective direction and handling
+- `bo_config.json`: includes `feature_flags.enable_botorch_gp`
+- `parameter_space.json`: typed parameter bounds
+- `objective_schema.json`: objective direction and handling
 - `experiment_interface.md`: async I/O contract
 - `tests/`: `pytest` suite for CLI/state behavior
 
@@ -26,5 +26,7 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
 
 ## Notes
 
-- `.yaml` files use JSON syntax (valid YAML subset).
+- JSON (`.json`) is the canonical contract format.
+- Legacy `.yaml`/`.yml` files still load with deprecation warnings; full YAML
+  parsing requires `pip install "looptimum[yaml]"`.
 - Acquisition logs record selected backend and fallback reason when applicable.

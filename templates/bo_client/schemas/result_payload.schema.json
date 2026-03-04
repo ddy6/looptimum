@@ -1,12 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ExperimentResult",
+  "title": "IngestPayload",
   "type": "object",
   "required": ["trial_id", "params", "objectives"],
   "properties": {
-    "trial_id": {"type": "integer", "minimum": 1},
-    "params": {"type": "object"},
-    "objectives": {"type": "object"},
-    "status": {"type": "string", "enum": ["ok", "failed"]}
+    "trial_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "type": "object"
+    },
+    "objectives": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "null"]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "failed", "killed", "timeout", "success"]
+    },
+    "penalty_objective": {
+      "type": "number"
+    }
   }
 }

@@ -23,5 +23,6 @@ python3 client_harness_template/run_one_eval.py \
 ## Failure Handling (Demonstrated)
 
 - `worker_cli.py` exits with code `2` for a synthetic invalid region
-- `objective.py` maps that to a finite sentinel objective and `status: "failed"`
+- `objective.py` maps that to `status: "failed"`, `objective: null`, and
+  `penalty_objective`
 - Other unexpected subprocess errors are re-raised so `run_one_eval.py` can apply its default failure policy

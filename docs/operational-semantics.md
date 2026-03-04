@@ -1,13 +1,19 @@
 # Operational Semantics
 
-This document defines how the current public templates behave at runtime for
-`suggest -> ingest -> status`.
+This document defines current runtime behavior for public templates under
+`templates/` using the file-backed `suggest -> ingest -> status` workflow.
 
-Scope notes:
+## Contract Files
 
-- Current behavior reference: public `v0.1` templates in `templates/`.
-- Forward-looking notes are marked as `v0.2 target` when behavior is frozen in
-  planning docs but not fully implemented yet.
+Canonical contract files are JSON:
+
+- `bo_config.json`
+- `parameter_space.json`
+- `objective_schema.json`
+
+Legacy `.yaml`/`.yml` contract files are still accepted for compatibility, but
+emit deprecation warnings. Full YAML parsing requires installing YAML extras
+(`pip install ".[yaml]"` or `pip install "looptimum[yaml]"`).
 
 ## Core Files and Authority
 
@@ -50,20 +56,32 @@ Important implications:
 
 `ingest` performs these steps:
 
-1. Load config, objective schema, result schema, and state.
-2. Validate payload shape and objective value rules.
-3. Require `trial_id` to exist in pending set.
+1. Load config, objective schema, ingest schema, and state.
+2. Validate payload shape and normalize status/objective fields.
+3. Match `trial_id` to pending trials or evaluate duplicate replay behavior.
 4. Require payload `params` to exactly match pending suggestion params.
 5. Remove pending trial and append observation.
-6. Recompute `best` using `status == "ok"` observations only.
+6. Recompute `best` using only `status == "ok"` observations.
 7. Persist state with atomic temp-file replace.
 8. Rewrite `observations.csv` from full observation history.
 
-Current behavior (`v0.1`):
+Status handling:
 
-- Canonical accepted statuses: `ok`, `failed`.
-- Duplicate replay is rejected once a trial is no longer pending.
-- Primary objective is required numeric and finite.
+- Canonical statuses: `ok`, `failed`, `killed`, `timeout`
+- `success` is accepted as a deprecated alias and normalized to `ok`
+
+Primary objective handling:
+
+- `status == "ok"`: primary objective must be numeric and finite.
+- non-`ok` status: primary objective is normalized to `null`.
+- optional `penalty_objective` is accepted for non-`ok` statuses.
+
+Compatibility path (v0.2.x):
+
+- Legacy non-`ok` payloads with numeric primary objective are still accepted.
+- They are normalized to `objective: null` plus `penalty_objective`.
+- A deprecation warning is emitted; sentinel primary objective support is planned
+  for removal in `v0.3.0`.
 
 ### `status`
 
@@ -79,7 +97,7 @@ It does not mutate state.
 ## Pending Trial Semantics
 
 - Pending is created only by `suggest`.
-- Pending is resolved only by successful `ingest`.
+- Pending is resolved by successful `ingest`.
 - Pending entries are counted toward budget.
 - Multiple pending entries can exist if `suggest` is called repeatedly before
   ingesting results.
@@ -87,55 +105,43 @@ It does not mutate state.
 
 ## Duplicate Ingest and Idempotency
 
-| Scenario | Current `v0.1` behavior | `v0.2 target` |
-|---|---|---|
-| First valid ingest for pending trial | Accepted | Accepted |
-| Replaying same payload after resolution | Rejected (`trial_id is not pending`) | Planned idempotent accept/no-op |
-| Replaying conflicting payload | Rejected | Rejected with mismatch detail |
-
-For current integrations, treat ingest as strictly single-use per `trial_id`.
+| Scenario | Current behavior |
+|---|---|
+| First valid ingest for pending trial | Accepted |
+| Replay of identical payload after resolution | Accepted as explicit no-op (`No-op: trial_id=<id> already ingested with identical payload.`) |
+| Replay of conflicting payload after resolution | Rejected with field-level diff details |
+| Replay for unknown non-pending/non-observed trial | Rejected (`trial_id <id> is not pending`) |
 
 ## Resume and Crash Recovery
 
-The templates are restartable because state is file-backed and loaded each run.
+Templates are restartable because state is file-backed and loaded each run.
 
 Recovery model:
 
 - If process exits, next command resumes from `bo_state.json`.
-- `observations.csv` can be regenerated from state by re-ingesting or by tooling
-  added later.
-- `acquisition_log.jsonl` may contain events not represented in state if a crash
-  happens after log append but before state save.
+- `observations.csv` can be regenerated from canonical observations in state.
+- `acquisition_log.jsonl` may contain events not represented in state if a
+  crash happens after log append but before state save.
 
 Pragmatic recovery playbook:
 
 1. Stop all writers.
 2. Inspect `state/bo_state.json` for pending and observations.
 3. Treat `acquisition_log.jsonl` as audit context, not source of truth.
-4. For each pending trial, either ingest a matching result or mark it failed in
-   your external workflow policy.
+4. For each pending trial, either ingest a matching result or apply your
+   external failure policy.
 5. Resume with `status`, then continue `suggest -> ingest`.
 
 ## Reproducibility and Determinism Boundaries
 
-Current deterministic anchors:
+Deterministic anchors:
 
-- Initial seed is persisted in `state.meta.seed`.
-- Candidate generation uses deterministic `random.Random(seed + next_trial_id)`.
-- With identical state/config/backend path, candidate scoring is intended to be
-  reproducible.
+- Initial seed persisted in `state.meta.seed`.
+- Candidate generation based on deterministic seed + trial id progression.
+- Stable config/state/backend path yields stable suggestion order.
 
 Known nondeterminism boundaries:
 
 - Wall-clock timestamps (`suggested_at`, `completed_at`, log timestamps).
-- External evaluator runtime behavior and any uncontrolled randomness.
-- Optional GP backends may vary by dependency versions and numeric libraries.
-
-## Contract Transition Notes
-
-Planned `v0.2` contract changes (implemented in later phases):
-
-- Status vocabulary expands to `ok|failed|killed|timeout`.
-- `success` ingest alias normalizes to `ok`.
-- Non-`ok` statuses use `objective: null` with optional `penalty_objective`.
-- Duplicate identical ingest replay becomes idempotent.
+- External evaluator runtime behavior and uncontrolled randomness.
+- Optional GP backend numerical/runtime differences across environments.

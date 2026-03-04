@@ -21,8 +21,8 @@ The system does not require a hosted orchestration service to function.
 The optimization loop only needs a small contract surface to operate:
 
 - suggested parameter values
-- one scalar objective value per completed trial
-- trial status (`ok` or `failed`)
+- one primary objective value per completed trial (`number` for `ok`, `null` for non-`ok`)
+- trial status (`ok`, `failed`, `killed`, or `timeout`)
 
 This supports a data-minimization-first integration pattern.
 
@@ -113,8 +113,9 @@ Failed trials should still be represented in the optimization loop using a minim
 
 - `trial_id`
 - original `params`
-- finite sentinel objective
-- `status: "failed"`
+- non-`ok` `status` (`failed`, `killed`, or `timeout`)
+- primary objective set to `null`
+- optional numeric `penalty_objective` when needed
 
 Keep detailed stack traces, command outputs, or internal diagnostics in local
 client logs rather than the optimization payload unless intentionally needed.

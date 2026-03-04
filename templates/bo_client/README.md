@@ -6,12 +6,12 @@ surrogate backend, and restartable JSON state.
 ## Files
 
 - `run_bo.py`: driver for `suggest`, `ingest`, `status`, and `demo`.
-- `bo_config.yaml`: run budget, surrogate/acquisition choices, seed, and state paths.
-- `parameter_space.yaml`: explicit parameter types and bounds.
-- `objective_schema.yaml`: objective direction and failure policy.
+- `bo_config.json`: run budget, surrogate/acquisition choices, seed, and state paths.
+- `parameter_space.json`: explicit parameter types and bounds.
+- `objective_schema.json`: objective direction and failure policy.
 - `experiment_interface.md`: async experiment I/O contract.
 - `examples/`: sample result payload and runnable command sequence.
-- `schemas/`: JSON schema for result payloads.
+- `schemas/`: compatibility copy of ingest schema (canonical schemas live under `templates/_shared/schemas/`).
 - `scripts/`: synthetic objective helper.
 - `surrogate_proxy.py`: proxy backend scoring.
 - `surrogate_gp.py`: BoTorch/GPyTorch backend scoring.
@@ -19,16 +19,17 @@ surrogate backend, and restartable JSON state.
 
 ## Notes
 
-- `.yaml` files intentionally use JSON syntax (valid YAML subset) so no extra
-  parser dependency is required.
+- JSON (`.json`) is the canonical contract format.
+- Legacy `.yaml`/`.yml` files still load with deprecation warnings; full YAML
+  parsing requires `pip install "looptimum[yaml]"`.
 - State persists in `state/bo_state.json` and can be resumed between runs
   (no hidden service state).
-- `ingest` validates payload structure via `paths.result_schema_file` and
+- `ingest` validates payload structure via `paths.ingest_schema_file` and
   validates the primary objective value.
 
 ## Surrogate Selection
 
-Set `surrogate.type` in `bo_config.yaml`:
+Set `surrogate.type` in `bo_config.json`:
 
 - `rbf_proxy` (default): no heavy dependencies.
 - `gp`: BoTorch `SingleTaskGP` with Matern 2.5 kernel.

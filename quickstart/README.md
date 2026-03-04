@@ -46,7 +46,7 @@ python3 templates/bo_client/run_bo.py demo --project-root templates/bo_client --
 ```
 
 Optional GP backend (after dependencies are installed and `surrogate.type` is
-set to `gp` in `templates/bo_client/bo_config.yaml`):
+set to `gp` in `templates/bo_client/bo_config.json`):
 
 ```bash
 python3 templates/bo_client/run_bo.py suggest --project-root templates/bo_client
@@ -87,19 +87,19 @@ payload instead of reusing `example_results.json`.
 
 ## State Files and Resume Behavior
 
-State and logs are configured in each template's `bo_config.yaml` and default to:
+State and logs are configured in each template's `bo_config.json` and default to:
 
 - `state/bo_state.json`: resumable run state (`observations`, `pending`, `next_trial_id`, `best`)
 - `state/observations.csv`: flattened observation history written after ingest
 - `state/acquisition_log.jsonl`: append-only suggestion decision trace
-- `schemas/result_payload.schema.json`: payload structure for `ingest`
+- `paths.ingest_schema_file` (default `../_shared/schemas/ingest_payload.schema.json`): payload structure for `ingest`
 
 Resume rules:
 
 1. `suggest` adds a pending trial and increments `next_trial_id`.
 2. External evaluation must return the same `trial_id` and exact `params`.
 3. `ingest` removes the matching pending trial, appends an observation, updates `best`, and rewrites `observations.csv`.
-4. Re-running `ingest` for an already ingested trial is rejected (no state corruption).
+4. Re-running `ingest` with identical payload is a no-op success; conflicting replay is rejected with mismatch details.
 5. If the budget is exhausted, `suggest` exits cleanly with no new pending trial.
 
 ## State File Examples

@@ -78,7 +78,7 @@ Current templates optimize one primary objective.
 
 Details:
 
-- Primary objective is configured in `objective_schema.yaml`.
+- Primary objective is configured in `objective_schema.json`.
 - Best-so-far tracking uses only that primary objective.
 - Additional metrics/objectives can still be stored externally for analysis.
 
