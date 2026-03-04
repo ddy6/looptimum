@@ -715,7 +715,9 @@ def _render_report_markdown(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
+def _validate_state_hard_checks(
+    state: dict, objective_name: str, objective_direction: str
+) -> list[str]:
     errors: list[str] = []
 
     required_keys = ("meta", "observations", "pending", "next_trial_id", "best")
@@ -736,6 +738,7 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
 
     observations = state.get("observations")
     observation_ids: list[int] = []
+    ok_objective_sequence: list[tuple[int, float]] = []
     if isinstance(observations, list):
         for idx, observation in enumerate(observations):
             if not isinstance(observation, dict):
@@ -754,6 +757,28 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
                 errors.append(
                     f"state.observations[{idx}].objectives missing primary objective '{objective_name}'"
                 )
+            else:
+                status = str(observation.get("status", "ok"))
+                primary = objectives.get(objective_name)
+                if status not in {"ok", "failed", "killed", "timeout"}:
+                    errors.append(
+                        f"state.observations[{idx}].status must be one of ok|failed|killed|timeout"
+                    )
+                if status == "ok":
+                    if (
+                        not isinstance(primary, (int, float))
+                        or isinstance(primary, bool)
+                        or not math.isfinite(float(primary))
+                    ):
+                        errors.append(
+                            f"state.observations[{idx}] primary objective must be finite numeric when status=ok"
+                        )
+                    elif isinstance(observation.get("trial_id"), int):
+                        ok_objective_sequence.append((int(observation["trial_id"]), float(primary)))
+                elif primary is not None:
+                    errors.append(
+                        f"state.observations[{idx}] primary objective must be null when status={status}"
+                    )
         if len(observation_ids) != len(set(observation_ids)):
             errors.append("state.observations contains duplicate trial_id values")
 
@@ -790,6 +815,8 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
         if int(state["next_trial_id"]) <= highest_seen:
             errors.append("state.next_trial_id must be greater than any observed/pending trial_id")
 
+    best_trial_id_valid: int | None = None
+    best_objective_value_valid: float | None = None
     best = state.get("best")
     if best is not None:
         if not isinstance(best, dict):
@@ -798,6 +825,8 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
             best_trial_id = best.get("trial_id")
             if not isinstance(best_trial_id, int):
                 errors.append("state.best.trial_id must be an integer")
+            else:
+                best_trial_id_valid = int(best_trial_id)
             best_objective_name = best.get("objective_name")
             if best_objective_name != objective_name:
                 errors.append(
@@ -810,6 +839,8 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
                 or not math.isfinite(float(best_objective_value))
             ):
                 errors.append("state.best.objective_value must be a finite number")
+            else:
+                best_objective_value_valid = float(best_objective_value)
 
             matching_ok_observation: dict[str, Any] | None = None
             if isinstance(observations, list) and isinstance(best_trial_id, int):
@@ -846,6 +877,27 @@ def _validate_state_hard_checks(state: dict, objective_name: str) -> list[str]:
                     errors.append(
                         "state.best.objective_value must match referenced observed objective"
                     )
+
+    if objective_direction not in {"minimize", "maximize"}:
+        errors.append("objective direction must be either minimize or maximize")
+    elif ok_objective_sequence:
+        expected_best = (
+            max(ok_objective_sequence, key=lambda item: item[1])
+            if objective_direction == "maximize"
+            else min(ok_objective_sequence, key=lambda item: item[1])
+        )
+        expected_trial_id, expected_objective_value = expected_best
+        if best is None:
+            errors.append("state.best must be set when at least one ok observation exists")
+        elif best_trial_id_valid is not None and best_trial_id_valid != expected_trial_id:
+            errors.append(
+                "state.best.trial_id must reference the optimal ok trial for objective direction"
+            )
+        elif (
+            best_objective_value_valid is not None
+            and abs(best_objective_value_valid - expected_objective_value) > 1e-12
+        ):
+            errors.append("state.best.objective_value must match the optimal ok objective value")
 
     return errors
 
@@ -1468,6 +1520,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         hard_errors.append(f"parameter_space validation failure: {exc}")
 
     objective_name = "loss"
+    objective_direction = "minimize"
     try:
         obj_cfg, _ = load_contract_document(root, "objective_schema")
         if not isinstance(obj_cfg, dict):
@@ -1476,6 +1529,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         if not isinstance(objective, dict):
             raise ValueError("objective_schema.primary_objective must be an object")
         objective_name = str(objective["name"])
+        objective_direction = str(objective["direction"])
     except Exception as exc:
         hard_errors.append(f"objective_schema validation failure: {exc}")
 
@@ -1491,7 +1545,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         print(f"ERROR: state load failure: {exc}")
         raise SystemExit(1) from exc
 
-    hard_errors.extend(_validate_state_hard_checks(state, objective_name))
+    hard_errors.extend(_validate_state_hard_checks(state, objective_name, objective_direction))
     warnings_out.extend(
         _validate_state_warnings(
             state=state,

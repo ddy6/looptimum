@@ -166,6 +166,47 @@ def test_validate_hard_failure_for_duplicate_observation_trial_ids(template_copy
     assert "state.observations contains duplicate trial_id values" in out.stdout
 
 
+def test_validate_hard_failure_for_inconsistent_best_ranking(template_copy: Path) -> None:
+    first = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    first_payload = {
+        "trial_id": first["trial_id"],
+        "params": first["params"],
+        "objectives": {"loss": 0.1},
+        "status": "ok",
+    }
+    first_path = template_copy / "examples" / "_best_rank_first.json"
+    first_path.write_text(json.dumps(first_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(first_path))
+
+    second = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    second_payload = {
+        "trial_id": second["trial_id"],
+        "params": second["params"],
+        "objectives": {"loss": 0.3},
+        "status": "ok",
+    }
+    second_path = template_copy / "examples" / "_best_rank_second.json"
+    second_path.write_text(json.dumps(second_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(second_path))
+
+    state_path = template_copy / "state" / "bo_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["best"] = {
+        "trial_id": second["trial_id"],
+        "objective_name": "loss",
+        "objective_value": 0.3,
+        "updated_at": state["best"]["updated_at"],
+    }
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert (
+        "state.best.trial_id must reference the optimal ok trial for objective direction"
+        in out.stdout
+    )
+
+
 def test_doctor_json_reports_backend_and_status(template_copy: Path) -> None:
     out = run_cmd(template_copy, "doctor", "--json")
     payload = json.loads(out.stdout)
