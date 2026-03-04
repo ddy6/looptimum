@@ -22,4 +22,4 @@ Scope: Remaining external dependencies for full completion of phase 8 steps 72-7
 ## Completion Trigger
 
 Phase 8 can be marked fully complete once items 1-5 above are executed and
-recorded in `reports/update_program_tracking_issue.md`.
+recorded in `reports/README.md`.

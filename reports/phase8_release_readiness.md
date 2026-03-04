@@ -2,7 +2,7 @@
 
 Date: 2026-03-04
 Target: `v0.2.0`
-Scope: `comprehensive_update_plan.md` phase 8 steps 69-72 (pre-tag readiness)
+Scope: Phase 8 steps 69-72 (pre-tag readiness)
 
 ## Release Artifacts
 

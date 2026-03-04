@@ -7,8 +7,8 @@ The format is inspired by Keep a Changelog and follows the repository's
 
 ## [0.2.0] - 2026-03-04
 
-This release packages the end-to-end update program from phases 1-8 of
-`comprehensive_update_plan.md` into a stable `v0.2.x` line.
+This release packages the end-to-end 2026 update program (phases 1-8) into a
+stable `v0.2.x` line.
 
 ### Added
 

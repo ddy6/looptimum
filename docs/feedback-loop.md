@@ -28,7 +28,7 @@ Primary system of record: GitHub Issues.
 
 - Triage target: first response within 2 business days.
 - Backlog grooming: weekly while phase 8 is open; bi-weekly after `v0.2.0` release stabilization.
-- Progress summary channel: `reports/update_program_tracking_issue.md`.
+- Progress summary channel: `reports/README.md`.
 
 ## Current Phase 8 State
 

@@ -6,8 +6,9 @@ Sample reporting outputs and workups for pilot/managed optimization runs (lightw
 
 Current update-program progress is tracked in:
 
-- `comprehensive_update_plan.md` (primary phase/step tracker)
-- `reports/update_program_tracking_issue.md` (workstream and milestone tracker)
+- `reports/README.md` (this status summary)
+- `reports/phase8_external_inputs.md` (external dependencies checklist)
+- `reports/post_v0.2.0_followup_backlog.md` (post-release backlog queue)
 
 Status as of 2026-03-04:
 
@@ -20,6 +21,7 @@ Status as of 2026-03-04:
 - Phase 8 step 72 is in release-ready state pending final tag/publish
 - Phase 8 step 73 intake/backlog scaffolding is in place; external feedback collection is active
 - Final internal release-gate rerun passed on March 4, 2026 (format/lint/links/tests/smoke)
+- Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
 Included:
 
