@@ -68,6 +68,24 @@ Note: If BoTorch is unavailable and the template config allows fallback,
 `bo_client_full` falls back to proxy mode and records the reason in
 acquisition logs.
 
+## Lifecycle and Ops Commands (All Variants)
+
+The same lifecycle/ops commands are available in each template:
+
+```bash
+python3 templates/bo_client_demo/run_bo.py cancel --project-root templates/bo_client_demo --trial-id 3
+python3 templates/bo_client_demo/run_bo.py retire --project-root templates/bo_client_demo --trial-id 4
+python3 templates/bo_client_demo/run_bo.py retire --project-root templates/bo_client_demo --stale
+python3 templates/bo_client_demo/run_bo.py heartbeat --project-root templates/bo_client_demo --trial-id 5 --heartbeat-note "still running"
+python3 templates/bo_client_demo/run_bo.py report --project-root templates/bo_client_demo --top-n 5
+python3 templates/bo_client_demo/run_bo.py validate --project-root templates/bo_client_demo
+python3 templates/bo_client_demo/run_bo.py doctor --project-root templates/bo_client_demo --json
+```
+
+Mutating commands (`suggest`, `ingest`, `cancel`, `retire`, `heartbeat`,
+`report`) use an exclusive lock with wait+timeout defaults.
+Add `--fail-fast` to fail immediately on lock contention.
+
 ## First Clean-Run Flow (Practical Starting Path)
 
 On a clean template copy (no existing state), the bundled
@@ -100,6 +118,9 @@ State and logs are configured in each template's `bo_config.json` and default to
 - `state/bo_state.json`: resumable run state (`observations`, `pending`, `next_trial_id`, `best`)
 - `state/observations.csv`: flattened observation history written after ingest
 - `state/acquisition_log.jsonl`: append-only suggestion decision trace
+- `state/event_log.jsonl`: append-only lifecycle/ops trace
+- `state/trials/trial_<id>/manifest.json`: per-trial audit manifest
+- `state/report.json` and `state/report.md`: explicit report outputs from `report`
 - `paths.ingest_schema_file` (default `../_shared/schemas/ingest_payload.schema.json`): payload structure for `ingest`
 
 Resume rules:
@@ -109,6 +130,8 @@ Resume rules:
 3. `ingest` removes the matching pending trial, appends an observation, updates `best`, and rewrites `observations.csv`.
 4. Re-running `ingest` with identical payload is a no-op success; conflicting replay is rejected with mismatch details.
 5. If the budget is exhausted, `suggest` exits cleanly with no new pending trial.
+6. If `max_pending_age_seconds` is configured/enabled, stale pending trials can
+   be auto-retired during `suggest`.
 
 ## State File Examples
 

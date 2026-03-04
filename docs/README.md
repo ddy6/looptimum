@@ -7,9 +7,10 @@ These pages document Looptimum operating patterns and rollout materials.
 
 Included files:
 
-- `integration-guide.md`: end-to-end `suggest -> evaluate -> ingest` integration workflow
-- `operational-semantics.md`: idempotency, pending semantics, resume behavior,
-  and crash recovery expectations
+- `integration-guide.md`: end-to-end `suggest -> evaluate -> ingest` integration
+  workflow plus lifecycle/ops command usage
+- `operational-semantics.md`: idempotency, pending semantics, lifecycle
+  controls, locking, resume behavior, and crash recovery expectations
 - `search-space.md`: supported parameter types, constraints framing, and
   multi-objective boundaries
 - `decision-trace.md`: acquisition log schema and decision metadata guidance

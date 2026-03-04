@@ -4,7 +4,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 
 ## Files
 
-- `run_bo.py`: `suggest`, `ingest`, `status`, `demo`
+- `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
+  `heartbeat`, `report`, `validate`, `doctor`
 - `bo_config.json`: budget, surrogate/acquisition, seed, paths
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
@@ -20,6 +21,10 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 - Legacy `.yaml`/`.yml` files still load with deprecation warnings; full YAML
   parsing requires `pip install "looptimum[yaml]"`.
 - This demo variant intentionally leaves out BoTorch.
+- Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
+  wait+timeout behavior and optional `--fail-fast`.
+- Runtime artifacts include `state/event_log.jsonl` and per-trial manifests in
+  `state/trials/trial_<id>/manifest.json`.
 
 ## Example Payloads
 

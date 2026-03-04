@@ -33,6 +33,9 @@ Template runs commonly produce local files such as:
 - `state/bo_state.json`
 - `state/observations.csv`
 - `state/acquisition_log.jsonl`
+- `state/event_log.jsonl`
+- `state/trials/trial_<id>/manifest.json`
+- `state/report.json` / `state/report.md` (when report generation is run)
 
 These files are intended to remain on the client machine unless explicitly shared.
 
@@ -97,8 +100,10 @@ The templates support local auditability through persistent state and logs.
 Examples:
 
 - acquisition decision logging (`acquisition_log.jsonl`)
+- lifecycle/operations logging (`event_log.jsonl`)
 - resumable run state (`bo_state.json`)
 - flattened observation history (`observations.csv`)
+- per-trial manifests (`state/trials/trial_<id>/manifest.json`)
 
 This supports:
 

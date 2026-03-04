@@ -4,7 +4,9 @@ This guide explains how to connect your evaluation system to the optimization
 templates in this repository using the file-backed
 `suggest -> evaluate -> ingest` contract.
 
-The Looptimum CLI exposes a stable `suggest` / `ingest` / `status` / `demo` workflow across template variants.
+The Looptimum CLI exposes a stable command contract across template variants:
+`suggest`, `ingest`, `status`, `demo`, lifecycle controls (`cancel`, `retire`,
+`heartbeat`), and support ops (`report`, `validate`, `doctor`).
 
 It is designed for expensive black-box objectives such as simulations,
 calibrations, pipeline tuning, and process optimization.
@@ -141,11 +143,34 @@ If valid:
 - observation is appended
 - best-so-far is updated
 - `state/observations.csv` is rewritten
+- per-trial manifest is updated under `state/trials/trial_<id>/manifest.json`
+- lifecycle events are appended to `state/event_log.jsonl`
 
 Schema path note:
 
 - canonical config key is `paths.ingest_schema_file`
 - legacy `paths.result_schema_file` is still accepted with a deprecation warning
+
+## Lifecycle and Runtime Ops
+
+Runtime control commands used during long-running integrations:
+
+- `cancel --trial-id <id>`: operator-cancel pending trial and record a terminal
+  `killed` observation (`objective: null`).
+- `retire --trial-id <id>`: retire a pending trial with an explicit reason.
+- `retire --stale [--max-age-seconds]`: retire pending trials beyond stale age
+  threshold.
+- `heartbeat --trial-id <id>`: update pending liveness metadata.
+- `report`: write `state/report.json` and `state/report.md`.
+- `validate [--strict]`: run config/schema/state checks (`--strict` makes warnings fatal).
+- `doctor [--json]`: print environment/backend/state diagnostics.
+
+Operational notes:
+
+- Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
+  wait+timeout default behavior.
+- Use `--fail-fast` on mutating commands when your automation should fail
+  immediately under lock contention.
 
 ## Minimal Working Integration (Recommended Path)
 
@@ -276,6 +301,9 @@ Default state files:
 - `state/bo_state.json`
 - `state/observations.csv`
 - `state/acquisition_log.jsonl`
+- `state/event_log.jsonl`
+- `state/trials/trial_<id>/manifest.json`
+- `state/report.json` and `state/report.md` (written when `report` is run)
 
 Behavior:
 
@@ -284,6 +312,8 @@ Behavior:
 - duplicate ingest with identical payload is accepted as explicit no-op
 - duplicate ingest with conflicting fields is rejected with diff details
 - if the budget is exhausted, `suggest` exits cleanly without creating a new pending trial
+- stale pending trials can be retired automatically during `suggest` (when
+  `max_pending_age_seconds` is configured/enabled)
 
 See:
 
@@ -310,7 +340,8 @@ Recommended reproducibility checklist:
 1. Keep config, parameter space, and objective schema versioned for each pilot.
 2. Capture evaluator seed policy (fixed/derived/randomized) in intake notes.
 3. Record runtime dependency versions before starting a campaign.
-4. Preserve `bo_state.json` and `acquisition_log.jsonl` as canonical run traces.
+4. Preserve `bo_state.json` as canonical run state and keep
+   `acquisition_log.jsonl` + `event_log.jsonl` for decision/lifecycle audit.
 
 ## Noisy Objectives and Repeated Evaluations
 
@@ -340,6 +371,12 @@ To scale in a cluster environment:
 
 Once stable, you can build a client-side scheduler wrapper that manages
 multiple pending suggestions carefully.
+
+Important concurrency rule:
+
+- run only one mutating controller process per state path at a time; evaluators
+  can execute remotely/in parallel, but state mutation should flow through the
+  locked CLI commands.
 
 ## When Not To Use This (Trust-Building Scope Boundaries)
 

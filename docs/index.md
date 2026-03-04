@@ -44,7 +44,8 @@ Repository paths used during integration:
 
 ## Scope and Operating Model
 
-The optimization loop is local-first and file-backed (`suggest -> evaluate -> ingest`).
+The optimization loop is local-first and file-backed (`suggest -> evaluate -> ingest`),
+with lifecycle/ops controls for pending management and diagnostics.
 It does not require hosted orchestration and works in restricted/offline environments.
 
 Integration note:

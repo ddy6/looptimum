@@ -5,7 +5,8 @@ surrogate backend, and restartable JSON state.
 
 ## Files
 
-- `run_bo.py`: driver for `suggest`, `ingest`, `status`, and `demo`.
+- `run_bo.py`: driver for `suggest`, `ingest`, `status`, `demo`, `cancel`,
+  `retire`, `heartbeat`, `report`, `validate`, and `doctor`.
 - `bo_config.json`: run budget, surrogate/acquisition choices, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
 - `objective_schema.json`: objective direction and failure policy.
@@ -24,8 +25,12 @@ surrogate backend, and restartable JSON state.
   parsing requires `pip install "looptimum[yaml]"`.
 - State persists in `state/bo_state.json` and can be resumed between runs
   (no hidden service state).
+- Mutating commands use an exclusive lock file (`state/.looptimum.lock`);
+  default behavior waits with timeout and supports `--fail-fast`.
 - `ingest` validates payload structure via `paths.ingest_schema_file` and
   validates the primary objective value.
+- Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
+  `state/trials/trial_<id>/manifest.json`, and explicit `report` outputs.
 
 ## Surrogate Selection
 
@@ -41,6 +46,7 @@ No CLI changes are needed when switching backend.
 - Random candidate generation is seeded from config/state.
 - State and trial IDs are resumable via `state/bo_state.json`.
 - Acquisition decisions are logged in `state/acquisition_log.jsonl`.
+- Lifecycle and ops events are logged in `state/event_log.jsonl`.
 
 ## Example Payloads
 

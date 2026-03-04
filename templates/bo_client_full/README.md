@@ -9,7 +9,8 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 
 ## Files
 
-- `run_bo.py`: `suggest`, `ingest`, `status`, `demo`
+- `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
+  `heartbeat`, `report`, `validate`, `doctor`
 - `bo_config.json`: includes `feature_flags.enable_botorch_gp`
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
@@ -32,6 +33,10 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
 - Legacy `.yaml`/`.yml` files still load with deprecation warnings; full YAML
   parsing requires `pip install "looptimum[yaml]"`.
 - Acquisition logs record selected backend and fallback reason when applicable.
+- Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
+  wait+timeout behavior and optional `--fail-fast`.
+- Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
+  `state/trials/trial_<id>/manifest.json`, and explicit report outputs.
 
 ## Example Payloads
 

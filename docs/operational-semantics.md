@@ -26,16 +26,22 @@ Schema path compatibility:
 |---|---|---|
 | `state/bo_state.json` | Source of truth for pending trials, observations, best-so-far, and next trial id | Authoritative |
 | `state/acquisition_log.jsonl` | Append-only decision log for each suggestion | Audit trail, not authoritative state |
+| `state/event_log.jsonl` | Append-only lifecycle/ops log (locks, heartbeat, retire/cancel, report) | Audit trail, not authoritative state |
+| `state/trials/trial_<id>/manifest.json` | Per-trial audit manifest and artifact pointers | Derived from authoritative state/payloads |
 | `state/observations.csv` | Flattened export of observations | Derived artifact |
+| `state/report.json` / `state/report.md` | Explicit generated report outputs | Derived artifact |
 
 Operational rule: when files disagree, treat `state/bo_state.json` as canonical.
 
 ## Supported Topology
 
 - Supported topology today: one controller process writes state.
+- Mutating commands enforce an exclusive file lock (`state/.looptimum.lock`) with
+  wait+timeout semantics by default.
 - Evaluators can run in separate environments, but should not mutate state
   files directly.
-- Multi-writer coordination is not guaranteed in current templates.
+- Do not run multiple controllers intentionally against the same state path;
+  lock contention is treated as an operational error surface.
 
 ## Command Semantics
 
@@ -45,30 +51,38 @@ Operational rule: when files disagree, treat `state/bo_state.json` as canonical.
 
 1. Load config, parameter space, objective schema, and state.
 2. Initialize `state.meta.seed` from config if unset.
-3. Check budget using `observations + pending`.
-4. Generate candidate parameters and decision metadata.
-5. Append a pending trial and increment `next_trial_id`.
-6. Append one JSON line to `acquisition_log.jsonl`.
-7. Persist updated state with atomic temp-file replace.
-8. Print suggestion JSON.
+3. Acquire exclusive lock for mutation.
+4. Optionally auto-retire stale pending trials (based on `max_pending_age_seconds`).
+5. Check budget using `observations + pending`.
+6. Generate candidate parameters and decision metadata.
+7. Append a pending trial and increment `next_trial_id`.
+8. Write/update trial manifest for pending trial.
+9. Append one JSON line to `acquisition_log.jsonl`.
+10. Append lifecycle events to `event_log.jsonl`.
+11. Persist updated state with atomic write.
+12. Print suggestion JSON.
 
 Important implications:
 
 - `suggest` is not idempotent; repeated calls usually produce new pending trials.
 - If budget is exhausted, no pending trial is created.
+- Automatic stale retirement is conservative and age-based; it records terminal
+  `killed` observations with a stale-retire reason.
 
 ### `ingest`
 
 `ingest` performs these steps:
 
 1. Load config, objective schema, ingest schema, and state.
-2. Validate payload shape and normalize status/objective fields.
-3. Match `trial_id` to pending trials or evaluate duplicate replay behavior.
-4. Require payload `params` to exactly match pending suggestion params.
-5. Remove pending trial and append observation.
-6. Recompute `best` using only `status == "ok"` observations.
-7. Persist state with atomic temp-file replace.
-8. Rewrite `observations.csv` from full observation history.
+2. Acquire exclusive lock for mutation.
+3. Validate payload shape and normalize status/objective fields.
+4. Match `trial_id` to pending trials or evaluate duplicate replay behavior.
+5. Require payload `params` to exactly match pending suggestion params.
+6. Remove pending trial and append observation.
+7. Merge optional heartbeat metadata fields if provided.
+8. Recompute `best` using only `status == "ok"` observations.
+9. Persist state and rewrite `observations.csv` using atomic writes.
+10. Write/update per-trial manifest and append lifecycle events.
 
 Status handling:
 
@@ -98,17 +112,54 @@ Compatibility path (v0.2.x):
 - `pending`
 - `next_trial_id`
 - `best`
+- `stale_pending`
+- `observations_by_status`
+- `paths` (state/log/artifact locations)
 
 It does not mutate state.
+
+### `cancel` and `retire`
+
+- `cancel --trial-id <id>`: removes a pending trial and records terminal
+  observation status `killed` with terminal reason (default `canceled`).
+- `retire --trial-id <id>`: same terminal behavior with operator-selected reason.
+- `retire --stale [--max-age-seconds]`: retire pending trials older than the
+  configured/explicit age threshold.
+
+### `heartbeat`
+
+- `heartbeat --trial-id <id>` updates pending liveness metadata:
+  `last_heartbeat_at`, `heartbeat_count`, optional note/meta.
+- `ingest` also accepts optional heartbeat fields in payload for compatibility
+  with evaluator-side metadata pipelines.
+
+### `report`
+
+- `report` is explicit (not auto-on-ingest).
+- It writes `state/report.json` and `state/report.md` atomically.
+
+### `validate`
+
+- `validate` checks config/schema/state consistency and basic corruption.
+- Hard failures return non-zero exit.
+- Warnings are informational with exit 0 unless `--strict`.
+
+### `doctor`
+
+- `doctor` prints environment/backend/state diagnostics.
+- `doctor --json` emits machine-readable diagnostics for tooling/CI.
 
 ## Pending Trial Semantics
 
 - Pending is created only by `suggest`.
 - Pending is resolved by successful `ingest`.
+- Pending can be terminally resolved via `cancel`/`retire`.
 - Pending entries are counted toward budget.
 - Multiple pending entries can exist if `suggest` is called repeatedly before
   ingesting results.
-- No built-in stale pending expiry exists yet.
+- Built-in stale handling exists:
+  - automatic stale retirement in `suggest` (when `max_pending_age_seconds` is configured/enabled)
+  - explicit stale retirement via `retire --stale`
 
 ## Duplicate Ingest and Idempotency
 
@@ -118,6 +169,14 @@ It does not mutate state.
 | Replay of identical payload after resolution | Accepted as explicit no-op (`No-op: trial_id=<id> already ingested with identical payload.`) |
 | Replay of conflicting payload after resolution | Rejected with field-level diff details |
 | Replay for unknown non-pending/non-observed trial | Rejected (`trial_id <id> is not pending`) |
+
+## Locking Semantics
+
+- Mutating commands use an exclusive lock file (`state/.looptimum.lock`).
+- Default behavior waits for lock with timeout; `--fail-fast` switches to
+  immediate failure on contention.
+- Read-oriented commands (`status`, `validate`, `doctor`) do not require
+  exclusive lock.
 
 ## Resume and Crash Recovery
 
@@ -129,6 +188,10 @@ Recovery model:
 - `observations.csv` can be regenerated from canonical observations in state.
 - `acquisition_log.jsonl` may contain events not represented in state if a
   crash happens after log append but before state save.
+- `event_log.jsonl` provides additional lifecycle trace context but is not
+  authoritative state.
+- Per-trial manifests in `state/trials/` are audit helpers and can be rebuilt
+  from canonical state + payload history.
 
 Pragmatic recovery playbook:
 

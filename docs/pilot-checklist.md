@@ -46,6 +46,8 @@ Before batch pilot execution, run a one-trial preflight:
    - `state/bo_state.json`
    - `state/observations.csv`
    - `state/acquisition_log.jsonl`
+   - `state/event_log.jsonl`
+   - `state/trials/trial_<id>/manifest.json` for the preflight trial
 
 Do not scale pilot volume before this passes.
 
@@ -90,6 +92,7 @@ Agree in advance:
 - Retry policy for transient failures
 - Operator workflow when ingest fails validation
 - Escalation path when pending trials become stale
+- Lifecycle command policy (`cancel`, `retire`, `retire --stale`, `heartbeat`)
 
 This avoids ad hoc policy changes mid-pilot.
 
@@ -99,12 +102,14 @@ Minimum expected pilot artifacts:
 
 - Best-known parameter set and objective value
 - Top trial summary with status breakdown
-- `bo_state.json`, `observations.csv`, `acquisition_log.jsonl`
+- `bo_state.json`, `observations.csv`, `acquisition_log.jsonl`, `event_log.jsonl`
+- Trial audit manifests under `state/trials/`
 - Brief decision log interpretation (warmup, surrogate phase, anomalies)
 - Recommended next-step parameter/budget adjustments
 
 Optional:
 
+- Generated `report.json` / `report.md`
 - Pilot readout report in Markdown/JSON/slides
 - Proposed productionization checklist
 

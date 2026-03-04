@@ -31,7 +31,7 @@ what to test next.
 
 | Component | Typical Location | Responsibility |
 |---|---|---|
-| Looptimum controller | Local machine, CI runner, or client host | `suggest`, `ingest`, `status`, local state |
+| Looptimum controller | Local machine, CI runner, or client host | `suggest`, `ingest`, `status`, lifecycle + ops commands, local state |
 | Evaluator | Your runtime (script, cluster job, lab workflow, API) | Execute one trial from suggested params |
 | State and logs | Local files under template `state/` | Resume, audit trail, best-so-far tracking |
 
@@ -144,6 +144,9 @@ Each suggestion includes:
 - `pending`
 - `next_trial_id`
 - `best`
+- `stale_pending`
+- `observations_by_status`
+- `paths`
 
 Best ranking rule:
 
@@ -156,6 +159,9 @@ Best ranking rule:
 - `state/bo_state.json`: source of truth for observations/pending/best.
 - `state/observations.csv`: flattened observation export.
 - `state/acquisition_log.jsonl`: append-only decision trace.
+- `state/event_log.jsonl`: append-only lifecycle/operations trace.
+- `state/trials/trial_<id>/manifest.json`: per-trial audit manifest.
+- `state/report.json` and `state/report.md`: explicit report outputs from `report`.
 
 ### Compatibility Notes
 
@@ -170,6 +176,15 @@ Best ranking rule:
 - Identical replay of an already ingested trial: explicit no-op success.
 - Conflicting replay for an already ingested trial: rejected with field-level
   diff details.
+
+### Runtime Ops Commands
+
+- `cancel --trial-id <id>`: operator-cancel a pending trial (recorded as terminal `killed` observation with reason).
+- `retire --trial-id <id>` or `retire --stale`: retire pending trials manually or by age policy.
+- `heartbeat --trial-id <id>`: update liveness metadata for long-running pending trials.
+- `report`: generate `state/report.json` + `state/report.md`.
+- `validate [--strict]`: sanity-check config/state; warnings are non-fatal unless `--strict`.
+- `doctor [--json]`: print environment/backend/state diagnostics.
 
 ## Templates (Choose Your Starting Level)
 

@@ -11,6 +11,12 @@ Decision traces are written as JSON Lines:
 
 Each line corresponds to one `suggest` event.
 
+Related runtime log:
+
+- `state/event_log.jsonl` tracks lifecycle/ops events (`cancel`, `retire`,
+  `heartbeat`, lock events, report generation) and is intentionally separate
+  from acquisition decision records.
+
 ## Record Shape
 
 Each log line has the same top-level structure:
