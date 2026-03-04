@@ -156,6 +156,37 @@ def test_non_ok_allows_null_objective_with_optional_penalty(template_copy) -> No
     assert state["best"] is None
 
 
+def test_non_ok_penalty_does_not_affect_best_ranking(template_copy) -> None:
+    first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    ok_payload = {
+        "trial_id": first["trial_id"],
+        "params": first["params"],
+        "objectives": {"loss": 0.1},
+        "status": "ok",
+    }
+    first_path = template_copy / "examples" / "_ingest_ok_for_best.json"
+    first_path.write_text(json.dumps(ok_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(first_path))
+
+    second = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    failed_payload = {
+        "trial_id": second["trial_id"],
+        "params": second["params"],
+        "objectives": {"loss": None},
+        "status": "timeout",
+        # Intentionally very good value for minimize to ensure it is ignored for ranking.
+        "penalty_objective": -1.0e9,
+    }
+    second_path = template_copy / "examples" / "_ingest_timeout_ignored_for_best.json"
+    second_path.write_text(json.dumps(failed_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(second_path))
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert len(state["observations"]) == 2
+    assert state["best"]["trial_id"] == first["trial_id"]
+    assert state["best"]["objective_value"] == 0.1
+
+
 def test_non_ok_sentinel_objective_is_accepted_with_deprecation(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {

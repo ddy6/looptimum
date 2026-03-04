@@ -154,6 +154,43 @@ def test_non_ok_timeout_null_objective_is_accepted(template_copy: Path) -> None:
     assert obs["status"] == "timeout"
     assert obs["objectives"]["loss"] is None
     assert obs["penalty_objective"] == 1234.0
+    assert state["best"] is None
+
+
+def test_non_ok_penalty_does_not_affect_best_ranking(template_copy: Path) -> None:
+    s1 = run_cmd(template_copy, "suggest")
+    suggestion1 = json.loads(
+        "\n".join(line for line in s1.stdout.strip().splitlines() if line.strip())[:-1]
+    )
+    ok_payload = {
+        "trial_id": suggestion1["trial_id"],
+        "params": suggestion1["params"],
+        "objectives": {"loss": 0.1},
+        "status": "ok",
+    }
+    p1 = template_copy / "examples" / "_best_ok_result.json"
+    p1.write_text(json.dumps(ok_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(p1))
+
+    s2 = run_cmd(template_copy, "suggest")
+    suggestion2 = json.loads(
+        "\n".join(line for line in s2.stdout.strip().splitlines() if line.strip())[:-1]
+    )
+    failed_payload = {
+        "trial_id": suggestion2["trial_id"],
+        "params": suggestion2["params"],
+        "objectives": {"loss": None},
+        "status": "timeout",
+        "penalty_objective": -1.0e9,
+    }
+    p2 = template_copy / "examples" / "_best_timeout_result.json"
+    p2.write_text(json.dumps(failed_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(p2))
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert len(state["observations"]) == 2
+    assert state["best"]["trial_id"] == suggestion1["trial_id"]
+    assert state["best"]["objective_value"] == 0.1
 
 
 def test_demo_runs(template_copy: Path) -> None:

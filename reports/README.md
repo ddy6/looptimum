@@ -11,8 +11,8 @@ Current update-program progress is tracked in:
 
 Status as of 2026-03-04:
 
-- Phases 0-3 complete
-- Phase 4 in progress (steps 35-42 complete, step 43 pending)
+- Phases 0-4 complete
+- Phase 5 is next active scope (step 44 onward)
 
 Included:
 

@@ -136,7 +136,7 @@ Each suggestion includes:
 
 ### `ingest` Optional Fields
 
-- `penalty_objective` (number, only for non-`ok` statuses)
+- `penalty_objective` (number, only for non-`ok` statuses; reporting/compatibility only)
 
 ### `status` Headline Fields
 
@@ -144,6 +144,12 @@ Each suggestion includes:
 - `pending`
 - `next_trial_id`
 - `best`
+
+Best ranking rule:
+
+- `best` is computed only from `status: "ok"` observations and their primary
+  objective values.
+- `penalty_objective` is never used to rank `best`.
 
 ### Local State Files
 

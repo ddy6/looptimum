@@ -80,6 +80,8 @@ Primary objective handling:
 - `status == "ok"`: primary objective must be numeric and finite.
 - non-`ok` status: primary objective is normalized to `null`.
 - optional `penalty_objective` is accepted for non-`ok` statuses.
+- `best` is computed only from `status == "ok"` primary objective values;
+  `penalty_objective` is not used for ranking.
 
 Compatibility path (v0.2.x):
 

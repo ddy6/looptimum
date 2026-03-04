@@ -229,6 +229,8 @@ can continue and the failure is recorded.
 - Set primary objective to `null`
 - Optionally include `penalty_objective` when numeric penalty ranking/reporting
   is useful
+- `penalty_objective` is not used for best-trial ranking; `best` is computed
+  from `status: "ok"` primary objective values only
 
 Compatibility note (v0.2.x line):
 
