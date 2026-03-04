@@ -15,8 +15,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install quality dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Check formatting
+        run: python -m ruff format --check .
+
+      - name: Run lint checks
+        run: python -m ruff check .
+
+      - name: Validate internal markdown links
+        run: python scripts/check_internal_links.py
+
+      - name: Syntax check critical scripts
+        run: |
+          python -m py_compile \
+            client_harness_template/run_one_eval.py \
+            meshing_example/run_optuna_meshing.py \
+            scripts/check_internal_links.py \
+            templates/bo_client/run_bo.py \
+            templates/bo_client_demo/run_bo.py \
+            templates/bo_client_full/run_bo.py
+
   test:
     name: Unit Tests (py${{ matrix.python-version }})
+    needs: quality
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,12 +77,3 @@ jobs:
 
       - name: Run test suite
         run: python -m pytest -q templates client_harness_template/tests
-
-      - name: Syntax check critical scripts
-        run: |
-          python -m py_compile \
-            client_harness_template/run_one_eval.py \
-            meshing_example/run_optuna_meshing.py \
-            templates/bo_client/run_bo.py \
-            templates/bo_client_demo/run_bo.py \
-            templates/bo_client_full/run_bo.py
