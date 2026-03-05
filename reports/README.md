@@ -10,7 +10,7 @@ Current update-program progress is tracked in:
 - `reports/phase8_external_inputs.md` (external dependencies checklist)
 - `reports/post_v0.2.0_followup_backlog.md` (post-release backlog queue)
 
-Status as of 2026-03-04:
+Status as of 2026-03-05:
 
 - Phases 0-7 complete
 - Phase 7 validation baseline passed (`python3 scripts/check_internal_links.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `127 passed, 1 skipped`)
@@ -18,8 +18,9 @@ Status as of 2026-03-04:
 - Phase 6 follow-on hardening shipped (deterministic golden-log regeneration + golden artifact contract tests)
 - Phase 7 closed with contract-critical parity tests across demo/default/full template tiers
 - Phase 8 steps 69-71 are complete (`CHANGELOG.md`, stability guarantees, smoke automation + CI guardrail)
-- Phase 8 step 72 is in release-ready state pending final tag/publish
-- Phase 8 step 73 intake/backlog scaffolding is in place; external feedback collection is active
+- Phase 8 step 72 is complete (`v0.2.0` tag pushed, release published, upstream CI green on `main` and tag)
+- Phase 8 step 73 is complete (first external intake issue filed and triaged/closed: `https://github.com/ddy6/looptimum/issues/1`)
+- Phase 8 external dependencies checklist is fully resolved (`reports/phase8_external_inputs.md`)
 - Final internal release-gate rerun passed on March 4, 2026 (format/lint/links/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
