@@ -11,6 +11,7 @@ import argparse
 import importlib.util
 import json
 import math
+import re
 import sys
 import warnings
 from pathlib import Path
@@ -18,9 +19,11 @@ from typing import Any
 
 DEFAULT_FAILURE_PENALTY_MINIMIZE = 1e12
 DEFAULT_FAILURE_PENALTY_MAXIMIZE = -1e12
+DEFAULT_SCHEMA_VERSION = "0.3.0"
 CANONICAL_STATUSES = {"ok", "failed", "killed", "timeout"}
 SUCCESS_ALIAS = "success"
 _MISSING = object()
+_SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 
 
 def _warn_deprecation(message: str) -> None:
@@ -136,6 +139,17 @@ def _normalize_status(raw_status: Any) -> str:
     return normalized
 
 
+def _normalize_schema_version(raw_schema_version: Any) -> str:
+    if raw_schema_version is None:
+        return DEFAULT_SCHEMA_VERSION
+    if not isinstance(raw_schema_version, str):
+        raise ValueError("schema_version must be a semver string")
+    normalized = raw_schema_version.strip()
+    if _SCHEMA_VERSION_PATTERN.fullmatch(normalized) is None:
+        raise ValueError("schema_version must match semver '<major>.<minor>.<patch>'")
+    return normalized
+
+
 def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dict[str, Any]:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return {"status": "ok", "objective": _require_finite_number(value, field_name="objective")}
@@ -212,10 +226,12 @@ def build_failed_payload(
     suggestion: dict[str, Any],
     objective_name: str,
     penalty_value: float,
+    schema_version: str,
 ) -> dict[str, Any]:
     if not math.isfinite(penalty_value):
         raise ValueError("failure penalty_objective must be finite")
     return {
+        "schema_version": schema_version,
         "trial_id": int(suggestion["trial_id"]),
         "params": suggestion["params"],
         "objectives": {objective_name: None},
@@ -319,12 +335,14 @@ def main() -> None:
 
     suggestion = _load_json_or_suggest_stdout(suggestion_path)
     _require_suggestion_shape(suggestion)
+    schema_version = _normalize_schema_version(suggestion.get("schema_version"))
 
     try:
         objective_module = _load_objective_module(objective_module_path)
         eval_output = objective_module.evaluate(dict(suggestion["params"]))
         normalized = _normalize_eval_output(eval_output, default_failure_penalty=failure_penalty)
         result = {
+            "schema_version": schema_version,
             "trial_id": int(suggestion["trial_id"]),
             "params": suggestion["params"],
             "objectives": {objective_name: normalized["objective"]},
@@ -339,7 +357,7 @@ def main() -> None:
             f"[run_one_eval] objective evaluation failed; writing status=failed payload: {exc}",
             file=sys.stderr,
         )
-        result = build_failed_payload(suggestion, objective_name, failure_penalty)
+        result = build_failed_payload(suggestion, objective_name, failure_penalty, schema_version)
 
     _write_json(result_path, result)
     if args.print_result:

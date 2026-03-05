@@ -58,7 +58,12 @@ resolve_lock_timeout_seconds = _RUNTIME.resolve_lock_timeout_seconds
 resolve_max_pending_age_seconds = _RUNTIME.resolve_max_pending_age_seconds
 resolve_runtime_paths = _RUNTIME.resolve_runtime_paths
 save_trial_manifest = _RUNTIME.save_trial_manifest
+state_for_persist = _RUNTIME.state_for_persist
+state_schema_upgrade_pending = _RUNTIME.state_schema_upgrade_pending
+state_schema_version = _RUNTIME.state_schema_version
+normalize_state_schema_version = _RUNTIME.normalize_state_schema_version
 trial_dir = _RUNTIME.trial_dir
+STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
 
 
 def load_cfg(path: Path) -> dict:
@@ -69,19 +74,23 @@ def load_cfg(path: Path) -> dict:
 
 
 def load_state(path: Path) -> dict:
+    state: dict
     if path.exists():
-        return load_cfg(path)
-    return {
-        "meta": {"created_at": time.time(), "seed": None},
-        "observations": [],
-        "pending": [],
-        "next_trial_id": 1,
-        "best": None,
-    }
+        state = load_cfg(path)
+    else:
+        state = {
+            "schema_version": STATE_SCHEMA_VERSION,
+            "meta": {"created_at": time.time(), "seed": None},
+            "observations": [],
+            "pending": [],
+            "next_trial_id": 1,
+            "best": None,
+        }
+    return normalize_state_schema_version(state, state_path=path)
 
 
 def save_state(path: Path, state: dict) -> None:
-    atomic_write_json(path, state, indent=2)
+    atomic_write_json(path, state_for_persist(state), indent=2)
 
 
 def write_obs_csv(path: Path, rows: list[dict]) -> None:
@@ -383,6 +392,7 @@ def _status_payload(
         )
 
     return {
+        "schema_version": state_schema_version(state),
         "observations": len(state["observations"]),
         "pending": len(state["pending"]),
         "next_trial_id": state["next_trial_id"],
@@ -484,6 +494,7 @@ def _build_report_payload(
     failure_rate = (non_ok / total_observations) if total_observations else 0.0
 
     report = {
+        "schema_version": state_schema_version(state),
         "generated_at": time.time(),
         "objective": {
             "name": objective_name,
@@ -557,7 +568,7 @@ def _validate_state_hard_checks(
 ) -> list[str]:
     errors: list[str] = []
 
-    required_keys = ("meta", "observations", "pending", "next_trial_id", "best")
+    required_keys = ("schema_version", "meta", "observations", "pending", "next_trial_id", "best")
     for key in required_keys:
         if key not in state:
             errors.append(f"missing required state key: {key}")
@@ -918,6 +929,8 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 if stale_observations:
                     update_best(state, objective)
                     _save_state_and_rows(paths, state)
+                elif state_schema_upgrade_pending(state):
+                    save_state(paths["state_file"], state)
                 print("No suggestion generated: budget exhausted.")
                 return
 
@@ -925,7 +938,12 @@ def cmd_suggest(args: argparse.Namespace) -> None:
             rng = random.Random(seed)
             cand, decision = propose(rng, state, cfg, params, obj_cfg, seed)
             trial_id = int(state["next_trial_id"])
-            suggestion = {"trial_id": trial_id, "params": cand, "suggested_at": time.time()}
+            suggestion = {
+                "schema_version": state_schema_version(state),
+                "trial_id": trial_id,
+                "params": cand,
+                "suggested_at": time.time(),
+            }
 
             suggestion_schema, _ = load_schema_from_paths(
                 root,
@@ -1494,6 +1512,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             gp_dependency_available = False
 
     payload = {
+        "schema_version": state_schema_version(state),
         "generated_at": time.time(),
         "python_version": sys.version.split()[0],
         "python_executable": sys.executable,
@@ -1513,6 +1532,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         return
 
     print("Looptimum Doctor")
+    print(f"- schema_version: {payload['schema_version']}")
     print(f"- python_version: {payload['python_version']}")
     print(f"- python_executable: {payload['python_executable']}")
     print(f"- platform: {payload['platform']}")

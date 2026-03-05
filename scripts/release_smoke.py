@@ -107,7 +107,15 @@ def _status_payload(raw: str, *, context: str) -> dict[str, Any]:
     payload = json.loads(raw)
     _require_keys(
         payload,
-        ["observations", "pending", "next_trial_id", "best", "stale_pending", "paths"],
+        [
+            "schema_version",
+            "observations",
+            "pending",
+            "next_trial_id",
+            "best",
+            "stale_pending",
+            "paths",
+        ],
         context=context,
     )
     return payload
@@ -216,6 +224,11 @@ def _smoke_ops_flow(project_root: Path) -> None:
             cwd=REPO_ROOT,
         )
     )
+    _require_keys(
+        suggestion_1,
+        ["schema_version", "trial_id", "params", "suggested_at"],
+        context=f"{project_root.name} first suggestion",
+    )
     trial_1 = int(suggestion_1["trial_id"])
     _run(
         [
@@ -256,6 +269,11 @@ def _smoke_ops_flow(project_root: Path) -> None:
             ],
             cwd=REPO_ROOT,
         )
+    )
+    _require_keys(
+        suggestion_2,
+        ["schema_version", "trial_id", "params", "suggested_at"],
+        context=f"{project_root.name} second suggestion",
     )
     trial_2 = int(suggestion_2["trial_id"])
     _run(

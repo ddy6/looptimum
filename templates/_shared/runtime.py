@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
+import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
@@ -16,6 +18,12 @@ except ModuleNotFoundError:  # pragma: no cover - non-POSIX environments only.
 DEFAULT_LOCK_TIMEOUT_SECONDS = 45.0
 DEFAULT_MAX_PENDING_AGE_SECONDS = 86400.0
 _ATOMIC_FAIL_BASENAME_ENV = "LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME"
+STATE_SCHEMA_VERSION = "0.3.0"
+STATE_SCHEMA_SERIES = (0, 3)
+STATE_MIGRATION_DOC_RELATIVE_PATH = "docs/migrations/v0.2.x-to-v0.3.0.md"
+_STATE_SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+_STATE_SCHEMA_UPGRADE_FLAG = "_looptimum_schema_upgrade_pending"
+_WARNED_LEGACY_STATE_KEYS: set[str] = set()
 
 DEFAULT_PATHS = {
     "state_file": "state/bo_state.json",
@@ -27,6 +35,84 @@ DEFAULT_PATHS = {
     "report_json_file": "state/report.json",
     "report_md_file": "state/report.md",
 }
+
+
+def _parse_semver(value: Any, *, field_name: str) -> tuple[int, int, int]:
+    if not isinstance(value, str):
+        raise ValueError(
+            f"{field_name} must be a semver string (for example '{STATE_SCHEMA_VERSION}')"
+        )
+    raw = value.strip()
+    match = _STATE_SCHEMA_VERSION_PATTERN.fullmatch(raw)
+    if match is None:
+        raise ValueError(
+            f"{field_name} must match semver '<major>.<minor>.<patch>', got: {value!r}"
+        )
+    return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+
+def _warn_legacy_state_once(state_path: Path, *, legacy_version: str | None) -> None:
+    key = f"{state_path.resolve()}::{legacy_version or '<missing>'}"
+    if key in _WARNED_LEGACY_STATE_KEYS:
+        return
+    _WARNED_LEGACY_STATE_KEYS.add(key)
+    version_label = (
+        "missing schema_version field"
+        if legacy_version is None
+        else f"schema_version={legacy_version!r}"
+    )
+    warnings.warn(
+        "LEGACY STATE SCHEMA DETECTED: "
+        f"{state_path} has {version_label}. Upgrading in-memory to schema_version={STATE_SCHEMA_VERSION!r} "
+        "and persisting on the next mutating command. "
+        f"Migration notes: {STATE_MIGRATION_DOC_RELATIVE_PATH}",
+        UserWarning,
+        stacklevel=3,
+    )
+
+
+def normalize_state_schema_version(state: dict[str, Any], *, state_path: Path) -> dict[str, Any]:
+    raw_version = state.get("schema_version")
+    if raw_version is None:
+        state["schema_version"] = STATE_SCHEMA_VERSION
+        state[_STATE_SCHEMA_UPGRADE_FLAG] = True
+        _warn_legacy_state_once(state_path, legacy_version=None)
+        return state
+
+    major, minor, patch = _parse_semver(raw_version, field_name="state.schema_version")
+    normalized = f"{major}.{minor}.{patch}"
+    if (major, minor) == STATE_SCHEMA_SERIES:
+        state["schema_version"] = normalized
+        return state
+
+    # Legacy v0.2.x compatibility path: upgrade in-memory and persist on next mutation.
+    if (major, minor) == (0, 2):
+        state["schema_version"] = STATE_SCHEMA_VERSION
+        state[_STATE_SCHEMA_UPGRADE_FLAG] = True
+        _warn_legacy_state_once(state_path, legacy_version=normalized)
+        return state
+
+    raise ValueError(
+        f"Unsupported state.schema_version '{normalized}'. "
+        f"This runtime supports only {STATE_SCHEMA_SERIES[0]}.{STATE_SCHEMA_SERIES[1]}.x state versions. "
+        f"See migration notes: {STATE_MIGRATION_DOC_RELATIVE_PATH}"
+    )
+
+
+def state_schema_upgrade_pending(state: dict[str, Any]) -> bool:
+    return bool(state.get(_STATE_SCHEMA_UPGRADE_FLAG))
+
+
+def state_for_persist(state: dict[str, Any]) -> dict[str, Any]:
+    payload = dict(state)
+    payload.pop(_STATE_SCHEMA_UPGRADE_FLAG, None)
+    return payload
+
+
+def state_schema_version(state: dict[str, Any]) -> str:
+    raw_version = state.get("schema_version", STATE_SCHEMA_VERSION)
+    major, minor, patch = _parse_semver(raw_version, field_name="state.schema_version")
+    return f"{major}.{minor}.{patch}"
 
 
 def _as_positive_float(value: Any, *, field_name: str) -> float:

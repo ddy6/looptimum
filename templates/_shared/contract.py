@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import warnings
 from pathlib import Path
 from typing import Any
@@ -93,6 +94,17 @@ def validate_against_schema(
             received=value,
             trial_id=trial_id,
         )
+
+    if isinstance(value, str) and "pattern" in schema:
+        pattern = str(schema["pattern"])
+        if re.fullmatch(pattern, value) is None:
+            raise _validation_error(
+                source_path=source_path,
+                field_path=field_path,
+                expected=f"string matching pattern /{pattern}/",
+                received=value,
+                trial_id=trial_id,
+            )
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         if "minimum" in schema and float(value) < float(schema["minimum"]):

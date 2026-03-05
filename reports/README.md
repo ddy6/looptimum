@@ -23,6 +23,7 @@ Status as of 2026-03-05:
 - Phase 8 step 73 is complete (first external intake issue filed and triaged/closed: `https://github.com/ddy6/looptimum/issues/1`)
 - Phase 8 external dependencies checklist is fully resolved (`reports/phase8_external_inputs.md`)
 - Phase 2 algorithm-transparency docs are complete (`docs/how-it-works.md` + cross-links)
+- Phase 3 schema/migration decisions are locked in `v0.3.0` plan docs; implementation next
 - `v0.2.2` patch release captures Phase 2 documentation completion and dev/plan tracker alignment
 - Final internal release-gate rerun passed on March 4, 2026 (format/lint/links/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
