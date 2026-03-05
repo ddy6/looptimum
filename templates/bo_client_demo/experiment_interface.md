@@ -6,6 +6,7 @@
 
 ```json
 {
+  "schema_version": "0.3.0",
   "trial_id": 3,
   "params": {"x1": 0.31, "x2": 0.72},
   "suggested_at": 1738886400.0
@@ -20,6 +21,7 @@ The external runner must write one JSON payload per completed trial:
 
 ```json
 {
+  "schema_version": "0.3.0",
   "trial_id": 3,
   "params": {"x1": 0.31, "x2": 0.72},
   "objectives": {"loss": 0.1182},

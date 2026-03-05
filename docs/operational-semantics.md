@@ -24,7 +24,7 @@ Schema path compatibility:
 
 | File | Role | Authority Level |
 |---|---|---|
-| `state/bo_state.json` | Source of truth for pending trials, observations, best-so-far, and next trial id | Authoritative |
+| `state/bo_state.json` | Source of truth for `schema_version`, pending trials, observations, best-so-far, and next trial id | Authoritative |
 | `state/acquisition_log.jsonl` | Append-only decision log for each suggestion | Audit trail, not authoritative state |
 | `state/event_log.jsonl` | Append-only lifecycle/ops log (locks, heartbeat, retire/cancel, report) | Audit trail, not authoritative state |
 | `state/trials/trial_<id>/manifest.json` | Per-trial audit manifest and artifact pointers | Derived from authoritative state/payloads |
@@ -32,6 +32,14 @@ Schema path compatibility:
 | `state/report.json` / `state/report.md` | Explicit generated report outputs | Derived artifact |
 
 Operational rule: when files disagree, treat `state/bo_state.json` as canonical.
+
+State schema versioning rule:
+
+- `state.schema_version` is required for `v0.3.0` state artifacts and follows
+  semver string format.
+- legacy `v0.2.x` (or missing-version) state is upgraded in-memory and persisted
+  on the next mutating command, with a loud warning and migration pointer.
+- earlier `v0.3.x` state versions load transparently in `v0.3.x`.
 
 ## Supported Topology
 
@@ -112,6 +120,7 @@ Compatibility path (v0.2.x):
 - `pending`
 - `next_trial_id`
 - `best`
+- `schema_version`
 - `stale_pending`
 - `observations_by_status`
 - `paths` (state/log/artifact locations)

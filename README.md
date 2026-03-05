@@ -6,7 +6,7 @@ Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and one scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable patch release: `v0.2.2`.
+Current stable patch release: `v0.2.3`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -148,6 +148,7 @@ expanded stub in
 
 Each suggestion includes:
 
+- `schema_version` (semver string, emitted by runtime)
 - `trial_id`
 - `params`
 - `suggested_at`
@@ -163,10 +164,12 @@ Each suggestion includes:
 
 ### `ingest` Optional Fields
 
+- `schema_version` (semver string, optional in schema and emitted by harness/runtime flows)
 - `penalty_objective` (number, only for non-`ok` statuses; reporting/compatibility only)
 
 ### `status` Headline Fields
 
+- `schema_version`
 - `observations`
 - `pending`
 - `next_trial_id`
@@ -183,7 +186,8 @@ Best ranking rule:
 
 ### Local State Files
 
-- `state/bo_state.json`: source of truth for observations/pending/best.
+- `state/bo_state.json`: source of truth for observations/pending/best and
+  required `schema_version`.
 - `state/observations.csv`: flattened observation export.
 - `state/acquisition_log.jsonl`: append-only decision trace.
 - `state/event_log.jsonl`: append-only lifecycle/operations trace.
@@ -197,6 +201,12 @@ Best ranking rule:
   `v0.2.x`, normalized to `objective: null` + `penalty_objective`, and emit a
   deprecation warning.
 - Sentinel primary-objective compatibility is planned for removal in `v0.3.0`.
+- `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
+  to `0.3.0` and persists on next mutating command.
+- Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
+- Migration policy/specs:
+  [`docs/migrations/README.md`](docs/migrations/README.md),
+  [`docs/migrations/v0.2.x-to-v0.3.0.md`](docs/migrations/v0.2.x-to-v0.3.0.md).
 
 ### Stability Promise (`v0.2.x`)
 
@@ -205,7 +215,7 @@ Best ranking rule:
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
   example `0.2 -> 0.3`) and require migration notes.
-- Current patch tag in this line: `v0.2.2` (see `CHANGELOG.md`).
+- Current patch tag in this line: `v0.2.3` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior

@@ -76,6 +76,7 @@ python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_c
 
 This emits a suggestion containing:
 
+- `schema_version`
 - `trial_id`
 - `params`
 - `suggested_at`
@@ -163,6 +164,7 @@ Minimum payload shape:
 
 ```json
 {
+  "schema_version": "0.3.0",
   "trial_id": 3,
   "params": {"x1": 0.31, "x2": 0.72},
   "objectives": {"loss": 0.1182},
@@ -174,6 +176,7 @@ Requirements:
 
 - `trial_id` must match the pending suggestion
 - `params` must exactly match the pending suggestion
+- `schema_version` should be forwarded from `suggest` output
 - status must be one of `ok`, `failed`, `killed`, `timeout`
 - for `status: ok`, primary objective must be numeric and finite
 - for non-`ok` statuses, primary objective should be `null`
@@ -358,6 +361,7 @@ Default state files:
 Behavior:
 
 - `suggest` creates a pending trial and increments `next_trial_id`
+- `state/bo_state.json` includes schema semver in `schema_version`
 - `ingest` consumes a matching pending trial
 - duplicate ingest with identical payload is accepted as explicit no-op
 - duplicate ingest with conflicting fields is rejected with diff details

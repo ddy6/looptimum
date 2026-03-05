@@ -2,7 +2,7 @@
 
 This document defines what is stable in the `v0.2.x` line, what may change,
 and how breaking changes will be introduced.
-Current patch tag in this line: `v0.2.2`.
+Current patch tag in this line: `v0.2.3`.
 
 ## Scope
 
@@ -26,6 +26,20 @@ Within `v0.2.x`:
 3. Core state files remain append-compatible and resumable:
    `state/bo_state.json`, `state/observations.csv`,
    `state/acquisition_log.jsonl`, `state/event_log.jsonl`.
+
+## `v0.3.x` State Compatibility Policy
+
+This policy is now locked for the upcoming `v0.3.0` line:
+
+1. `state/bo_state.json` includes required `schema_version` with semver string
+   format (`<major>.<minor>.<patch>`), for example `"0.3.0"`.
+2. Any earlier `v0.3.x` state must load transparently in `v0.3.x`.
+3. Warn-only deprecations are allowed, but load failures are not allowed for
+   earlier `v0.3.x` state versions.
+4. Legacy `v0.2.x` states (or missing `schema_version`) are upgraded in-memory
+   and persisted on the next mutating command, with a loud warning.
+5. Canonical compatibility fixtures live under
+   `tests/fixtures/state_versions/`.
 
 ## Breaking-Change Policy
 
@@ -76,5 +90,8 @@ This policy does not guarantee:
 - Release notes and migration details are tracked in `CHANGELOG.md`.
 - Contract and operational behavior references:
   `docs/operational-semantics.md`, `docs/integration-guide.md`.
+- Migration policy and concrete specs:
+  `docs/migrations/README.md`,
+  `docs/migrations/v0.2.x-to-v0.3.0.md`.
 - Feedback and compatibility reports should be filed as GitHub Issues (primary
   source of truth).

@@ -144,7 +144,8 @@ python3 templates/bo_client_demo/run_bo.py ingest \
 
 State and logs are configured in each template's `bo_config.json` and default to:
 
-- `state/bo_state.json`: resumable run state (`observations`, `pending`, `next_trial_id`, `best`)
+- `state/bo_state.json`: resumable run state
+  (`schema_version`, `observations`, `pending`, `next_trial_id`, `best`)
 - `state/observations.csv`: flattened observation history written after ingest
 - `state/acquisition_log.jsonl`: append-only suggestion decision trace
 - `state/event_log.jsonl`: append-only lifecycle/ops trace

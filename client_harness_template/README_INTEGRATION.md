@@ -21,6 +21,7 @@ The optimization harness (`run_bo.py`) is file-backed:
 
 Input comes from `run_bo.py suggest` and must preserve:
 
+- `schema_version` (semver string)
 - `trial_id`
 - `params` (exact values, no rounding/reformatting)
 
@@ -28,6 +29,7 @@ Example:
 
 ```json
 {
+  "schema_version": "0.3.0",
   "trial_id": 3,
   "params": {
     "x1": 0.31,
@@ -48,6 +50,7 @@ Minimum compatible payload:
 
 ```json
 {
+  "schema_version": "0.3.0",
   "trial_id": 3,
   "params": {
     "x1": 0.31,

@@ -5,6 +5,40 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.3] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 3 contract/schema
+hardening and migration readiness.
+
+### Added
+
+- Migration documentation set:
+  `docs/migrations/README.md`,
+  `docs/migrations/template.md`,
+  `docs/migrations/v0.2.x-to-v0.3.0.md`.
+- Canonical state-version fixture set for compatibility testing:
+  `tests/fixtures/state_versions/`.
+- Cross-template state-version compatibility and upgrade-path tests:
+  `templates/tests/test_state_versions.py`.
+
+### Changed
+
+- Runtime payloads now emit `schema_version` in `suggest`, `status`, `doctor`,
+  and `report`.
+- Authoritative state handling now normalizes and validates
+  `state.schema_version` with semver format and explicit series compatibility.
+- Legacy `v0.2.x` (or missing-version) state is auto-upgraded in-memory and
+  persisted on the next mutating command with a loud migration warning.
+- Shared suggestion/ingest schema files and template compatibility copies now
+  include optional `schema_version` contract fields.
+- Integration docs and examples now reflect schema-versioned payload/state
+  artifacts.
+
+### Notes
+
+- This patch line release preserves existing `v0.2.x` public CLI contract
+  semantics while adding transition-safe schema-version metadata.
+
 ## [0.2.2] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 2 transparency docs and
