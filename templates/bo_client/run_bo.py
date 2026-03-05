@@ -245,6 +245,7 @@ def _ensure_pending_manifest(
         manifest["heartbeat_note"] = pending_entry["heartbeat_note"]
     if "heartbeat_meta" in pending_entry:
         manifest["heartbeat_meta"] = pending_entry["heartbeat_meta"]
+    manifest["artifact_path"] = None
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
         artifacts = {}
@@ -280,11 +281,18 @@ def _ensure_terminal_manifest(
         manifest["heartbeat_note"] = observation["heartbeat_note"]
     if "heartbeat_meta" in observation:
         manifest["heartbeat_meta"] = observation["heartbeat_meta"]
+
+    artifact_path = observation.get("artifact_path")
+    if artifact_path is not None and not isinstance(artifact_path, str):
+        artifact_path = None
+
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
         artifacts = {}
     if payload_copy_path is not None:
-        artifacts["ingest_payload"] = _relative_path(root, payload_copy_path)
+        artifact_path = _relative_path(root, payload_copy_path)
+        artifacts["ingest_payload"] = artifact_path
+    manifest["artifact_path"] = artifact_path
     manifest["artifacts"] = artifacts
     manifest["updated_at"] = now
     save_trial_manifest(paths["trials_dir"], trial_id, manifest)
@@ -306,6 +314,8 @@ def _observation_rows(state: dict) -> list[dict]:
             row["terminal_reason"] = obs["terminal_reason"]
         if "last_heartbeat_at" in obs:
             row["last_heartbeat_at"] = obs["last_heartbeat_at"]
+        if "artifact_path" in obs:
+            row["artifact_path"] = obs["artifact_path"]
         rows.append(row)
     return rows
 
@@ -328,6 +338,8 @@ def _new_terminal_observation(
         "objectives": {str(objective_name): None},
         "status": "killed",
         "terminal_reason": terminal_reason,
+        "penalty_objective": None,
+        "artifact_path": None,
         "suggested_at": pending.get("suggested_at"),
         "completed_at": now,
     }
@@ -472,9 +484,28 @@ def _build_report_payload(
                 "status": obs.get("status"),
                 "objective_value": float(obs["objectives"][objective_name]),
                 "penalty_objective": obs.get("penalty_objective"),
+                "suggested_at": obs.get("suggested_at"),
                 "completed_at": obs.get("completed_at"),
+                "artifact_path": obs.get("artifact_path"),
                 "params": obs.get("params"),
                 "terminal_reason": obs.get("terminal_reason"),
+            }
+        )
+
+    terminal_trials = []
+    for obs in sorted(observations, key=lambda row: int(row.get("trial_id", 0))):
+        status = str(obs.get("status", ""))
+        if status not in {"failed", "killed", "timeout"}:
+            continue
+        terminal_trials.append(
+            {
+                "trial_id": int(obs["trial_id"]),
+                "status": status,
+                "terminal_reason": obs.get("terminal_reason"),
+                "suggested_at": obs.get("suggested_at"),
+                "completed_at": obs.get("completed_at"),
+                "penalty_objective": obs.get("penalty_objective"),
+                "artifact_path": obs.get("artifact_path"),
             }
         )
 
@@ -485,7 +516,11 @@ def _build_report_payload(
                 "trial_id": int(obs["trial_id"]),
                 "status": obs.get("status"),
                 "objective_value": obs.get("objectives", {}).get(objective_name),
+                "terminal_reason": obs.get("terminal_reason"),
+                "penalty_objective": obs.get("penalty_objective"),
+                "suggested_at": obs.get("suggested_at"),
                 "completed_at": obs.get("completed_at"),
+                "artifact_path": obs.get("artifact_path"),
             }
         )
 
@@ -509,6 +544,7 @@ def _build_report_payload(
         "best": state.get("best"),
         "best_params": _best_params_from_state(state),
         "top_trials": top_trials,
+        "terminal_trials": terminal_trials,
         "objective_trace": objective_trace,
         "runtime_summary": _runtime_summary(observations),
     }
@@ -842,6 +878,46 @@ def _validate_trial_manifests_hard(trials_dir: Path) -> list[str]:
         if status is not None and status not in {"pending", "ok", "failed", "killed", "timeout"}:
             errors.append(f"manifest status is invalid: {manifest_path} (status={status!r})")
 
+        for key in ("status", "terminal_reason", "suggested_at", "artifact_path"):
+            if key not in manifest:
+                errors.append(f"manifest missing required field '{key}': {manifest_path}")
+
+        suggested_at = manifest.get("suggested_at")
+        if suggested_at is not None and (
+            not isinstance(suggested_at, (int, float))
+            or isinstance(suggested_at, bool)
+            or not math.isfinite(float(suggested_at))
+        ):
+            errors.append(
+                f"manifest suggested_at must be finite number or null: {manifest_path} "
+                f"(suggested_at={suggested_at!r})"
+            )
+
+        artifact_path = manifest.get("artifact_path")
+        if artifact_path is not None and not isinstance(artifact_path, str):
+            errors.append(
+                f"manifest artifact_path must be string or null: {manifest_path} "
+                f"(artifact_path={artifact_path!r})"
+            )
+
+        if status in {"ok", "failed", "killed", "timeout"}:
+            if "completed_at" not in manifest:
+                errors.append(f"manifest missing required field 'completed_at': {manifest_path}")
+            completed_at = manifest.get("completed_at")
+            if not isinstance(completed_at, (int, float)) or isinstance(completed_at, bool):
+                errors.append(
+                    f"manifest completed_at must be finite number for terminal status: "
+                    f"{manifest_path} (completed_at={completed_at!r})"
+                )
+            elif not math.isfinite(float(completed_at)):
+                errors.append(
+                    f"manifest completed_at must be finite number for terminal status: "
+                    f"{manifest_path} (completed_at={completed_at!r})"
+                )
+
+        if status in {"failed", "killed", "timeout"} and "penalty_objective" not in manifest:
+            errors.append(f"manifest missing required field 'penalty_objective': {manifest_path}")
+
     return errors
 
 
@@ -1076,11 +1152,13 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 "params": payload["params"],
                 "objectives": payload["objectives"],
                 "status": payload["status"],
+                "artifact_path": None,
                 "suggested_at": pending_entry.get("suggested_at"),
                 "completed_at": now,
             }
-            if "penalty_objective" in payload:
-                observation["penalty_objective"] = payload["penalty_objective"]
+            if payload["status"] != "ok":
+                observation["terminal_reason"] = payload.get("terminal_reason")
+                observation["penalty_objective"] = payload.get("penalty_objective")
 
             if "heartbeat_count" in pending_entry:
                 observation["heartbeat_count"] = pending_entry["heartbeat_count"]
@@ -1097,6 +1175,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
             payload_copy_path = trial_dir(paths["trials_dir"], trial_id) / "ingest_payload.json"
             atomic_write_json(payload_copy_path, payload, indent=2)
+            observation["artifact_path"] = _relative_path(root, payload_copy_path)
             _ensure_terminal_manifest(
                 root,
                 paths,

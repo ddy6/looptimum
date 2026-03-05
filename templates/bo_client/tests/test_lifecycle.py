@@ -37,6 +37,12 @@ def test_cancel_moves_pending_to_killed_observation_and_manifest(template_copy) 
     manifest = _read_manifest(template_copy, 1)
     assert manifest["status"] == "killed"
     assert manifest["terminal_reason"] == "canceled"
+    assert isinstance(manifest["suggested_at"], float)
+    assert isinstance(manifest["completed_at"], float)
+    assert "penalty_objective" in manifest
+    assert manifest["penalty_objective"] is None
+    assert "artifact_path" in manifest
+    assert manifest["artifact_path"] is None
 
     events = _read_events(template_copy)
     assert any(e["event"] == "trial_canceled" and e["trial_id"] == 1 for e in events)
@@ -134,7 +140,13 @@ def test_ingest_writes_trial_manifest_and_payload_copy(template_copy) -> None:
     manifest = _read_manifest(template_copy, suggestion["trial_id"])
     assert manifest["status"] == "ok"
     assert manifest["objective_value"] == 0.123
+    assert "penalty_objective" in manifest
+    assert manifest["penalty_objective"] is None
+    assert isinstance(manifest["suggested_at"], float)
+    assert isinstance(manifest["completed_at"], float)
+    assert "artifact_path" in manifest
     artifact_rel = manifest["artifacts"]["ingest_payload"]
+    assert manifest["artifact_path"] == artifact_rel
     artifact_abs = template_copy / artifact_rel
     assert artifact_abs.exists()
 

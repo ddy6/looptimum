@@ -73,7 +73,39 @@ def test_report_generates_json_and_markdown(template_copy) -> None:
     assert report["counts"]["observations"] == 1
     assert report["best"]["trial_id"] == suggestion["trial_id"]
     assert report["top_trials"][0]["trial_id"] == suggestion["trial_id"]
+    assert isinstance(report["top_trials"][0]["suggested_at"], float)
+    assert isinstance(report["top_trials"][0]["completed_at"], float)
+    assert isinstance(report["top_trials"][0]["artifact_path"], str)
+    assert report["terminal_trials"] == []
+    assert report["objective_trace"][0]["artifact_path"] == report["top_trials"][0]["artifact_path"]
     assert "Looptimum Report" in report_md.read_text(encoding="utf-8")
+
+
+def test_report_carries_traceability_for_failed_or_ejected_trials(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "timeout",
+        "penalty_objective": 1234.0,
+    }
+    path = template_copy / "examples" / "_report_timeout_result.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    run_cmd(template_copy, "report", "--top-n", "3")
+    report = json.loads((template_copy / "state" / "report.json").read_text(encoding="utf-8"))
+
+    assert len(report["terminal_trials"]) == 1
+    terminal = report["terminal_trials"][0]
+    assert terminal["trial_id"] == suggestion["trial_id"]
+    assert terminal["status"] == "timeout"
+    assert terminal["terminal_reason"] is None
+    assert isinstance(terminal["suggested_at"], float)
+    assert isinstance(terminal["completed_at"], float)
+    assert terminal["penalty_objective"] == 1234.0
+    assert isinstance(terminal["artifact_path"], str)
 
 
 def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy) -> None:
@@ -211,6 +243,30 @@ def test_validate_hard_failure_for_missing_trial_manifest(template_copy) -> None
     assert "missing manifest for trial directory:" in out.stdout
 
 
+def test_validate_hard_failure_for_manifest_missing_traceability_field(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.21},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_manifest_traceability.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    manifest_path = (
+        template_copy / "state" / "trials" / f"trial_{suggestion['trial_id']}" / "manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("artifact_path", None)
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "manifest missing required field 'artifact_path'" in out.stdout
+
+
 def test_doctor_json_reports_backend_and_status(template_copy) -> None:
     out = run_cmd(template_copy, "doctor", "--json")
     payload = json.loads(out.stdout)
@@ -247,6 +303,8 @@ def test_ingest_atomic_write_injection_preserves_last_good_state(
 
     monkeypatch.delenv("LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME", raising=False)
     run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+    replay = run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+    assert "No-op:" in replay.stdout
     status = json.loads(run_cmd(template_copy, "status").stdout)
     assert status["observations"] == 1
     assert status["pending"] == 0
