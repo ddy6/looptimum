@@ -22,6 +22,7 @@ For full command sequences and resume behavior:
 
 - [Integration Guide](./integration-guide.md)
 - [Operational Semantics](./operational-semantics.md)
+- [How It Works](./how-it-works.md)
 - [Stability Guarantees](./stability-guarantees.md)
 - [Feedback Loop](./feedback-loop.md)
 - [Search Space Contract](./search-space.md)
