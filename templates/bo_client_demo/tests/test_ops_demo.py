@@ -112,7 +112,38 @@ def test_report_generates_json_and_markdown(template_copy: Path) -> None:
     report = json.loads(report_json.read_text(encoding="utf-8"))
     assert report["counts"]["observations"] == 1
     assert report["best"]["trial_id"] == suggestion["trial_id"]
+    assert isinstance(report["top_trials"][0]["suggested_at"], float)
+    assert isinstance(report["top_trials"][0]["completed_at"], float)
+    assert isinstance(report["top_trials"][0]["artifact_path"], str)
+    assert report["terminal_trials"] == []
     assert "Looptimum Report" in report_md.read_text(encoding="utf-8")
+
+
+def test_report_includes_terminal_traceability_fields_for_timeout_trial(
+    template_copy: Path,
+) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "timeout",
+        "penalty_objective": 4321.0,
+    }
+    path = template_copy / "examples" / "_report_timeout_result.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    run_cmd(template_copy, "report", "--top-n", "3")
+    report = json.loads((template_copy / "state" / "report.json").read_text(encoding="utf-8"))
+    assert len(report["terminal_trials"]) == 1
+    terminal = report["terminal_trials"][0]
+    assert terminal["trial_id"] == suggestion["trial_id"]
+    assert terminal["status"] == "timeout"
+    assert terminal["penalty_objective"] == 4321.0
+    assert isinstance(terminal["suggested_at"], float)
+    assert isinstance(terminal["completed_at"], float)
+    assert isinstance(terminal["artifact_path"], str)
 
 
 def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy: Path) -> None:
@@ -280,6 +311,8 @@ def test_ingest_atomic_write_injection_preserves_last_good_state(
 
     monkeypatch.delenv("LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME", raising=False)
     run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+    replay = run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+    assert "No-op:" in replay.stdout
     status = json.loads(run_cmd(template_copy, "status").stdout)
     assert status["observations"] == 1
     assert status["pending"] == 0
