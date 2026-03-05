@@ -5,6 +5,30 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.2] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 2 transparency docs and
+planning/status alignment.
+
+### Added
+
+- `docs/how-it-works.md` covering backend-by-template behavior, acquisition
+  policy, noise handling guidance, constraints posture, known pathologies, and
+  determinism boundaries.
+
+### Changed
+
+- README first-screen algorithm summary now links directly to
+  `docs/how-it-works.md`.
+- Search-space and FAQ guidance now include explicit hard-constraint posture
+  and default noisy-objective policy.
+- Dev/plan tracking docs updated to reflect Phase 2 completion and
+  `v0.2.2` as current patch baseline.
+
+### Notes
+
+- No runtime contract or CLI behavior changes in this patch release.
+
 ## [0.2.1] - 2026-03-04
 
 Patch release for the `v0.2.x` line focused on final closeout reporting,

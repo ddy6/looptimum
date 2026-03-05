@@ -3,11 +3,11 @@
 Date: 2026-03-04
 Target: `v0.2.0`
 Scope: Phase 8 steps 69-72 (pre-tag readiness + closeout confirmation)
-Note: historical audit for `v0.2.0`; current patch release tag is `v0.2.1`.
+Note: historical audit for `v0.2.0`; current patch release tag is `v0.2.2`.
 
 ## Release Artifacts
 
-- `CHANGELOG.md` present with `0.2.0` release entry and `0.2.1` patch follow-up entry.
+- `CHANGELOG.md` present with `0.2.0` release entry and `0.2.1`/`0.2.2` patch follow-up entries.
 - Stability guarantees published in:
   - `README.md` (short promise)
   - `docs/stability-guarantees.md` (full policy)

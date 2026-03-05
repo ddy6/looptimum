@@ -2,7 +2,7 @@
 
 This document defines what is stable in the `v0.2.x` line, what may change,
 and how breaking changes will be introduced.
-Current patch tag in this line: `v0.2.1`.
+Current patch tag in this line: `v0.2.2`.
 
 ## Scope
 

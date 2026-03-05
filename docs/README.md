@@ -15,7 +15,7 @@ Included files:
   exploration/exploitation policy, constraints posture, and determinism boundaries
 - `stability-guarantees.md`: public compatibility guarantees, deprecation
   policy, and breaking-change rules for `v0.2.x` (current patch:
-  `v0.2.1`)
+  `v0.2.2`)
 - `feedback-loop.md`: post-release feedback intake, issue-triage workflow,
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and

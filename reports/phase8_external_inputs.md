@@ -3,7 +3,7 @@
 Date: 2026-03-05
 Scope: External dependencies required for full completion of phase 8 steps 72-73.
 Note: this is a historical closeout record for `v0.2.0`; current patch release
-in the same line is `v0.2.1`.
+in the same line is `v0.2.2`.
 
 ## Resolution Record
 

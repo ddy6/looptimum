@@ -12,7 +12,7 @@ Current update-program progress is tracked in:
 
 Status as of 2026-03-05:
 
-- Current stable patch release tag: `v0.2.1`
+- Current stable patch release tag: `v0.2.2`
 - Phases 0-7 complete
 - Phase 7 validation baseline passed (`python3 scripts/check_internal_links.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `127 passed, 1 skipped`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
@@ -22,7 +22,8 @@ Status as of 2026-03-05:
 - Phase 8 step 72 is complete (`v0.2.0` tag pushed, release published, upstream CI green on `main` and tag)
 - Phase 8 step 73 is complete (first external intake issue filed and triaged/closed: `https://github.com/ddy6/looptimum/issues/1`)
 - Phase 8 external dependencies checklist is fully resolved (`reports/phase8_external_inputs.md`)
-- `v0.2.1` patch release captures phase-8 closeout evidence/doc consistency updates
+- Phase 2 algorithm-transparency docs are complete (`docs/how-it-works.md` + cross-links)
+- `v0.2.2` patch release captures Phase 2 documentation completion and dev/plan tracker alignment
 - Final internal release-gate rerun passed on March 4, 2026 (format/lint/links/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
