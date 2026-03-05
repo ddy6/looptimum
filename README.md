@@ -285,7 +285,7 @@ Expanded gallery with equal mainstream/specialized coverage is in
 If you have an expensive tuning problem, start with `intake.md` and open an
 issue describing your use case.
 For first-impression and adoption feedback, use the GitHub Issues template at
-`.github/ISSUE_TEMPLATE/first_impression_feedback.yml` (Issues are the primary
+`.github/ISSUE_TEMPLATE/first-impressions.yml` (Issues are the primary
 feedback source of truth).
 
 ## Deeper Docs

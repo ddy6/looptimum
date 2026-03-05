@@ -7,28 +7,52 @@ This document defines the post-`v0.2.0` feedback intake and backlog workflow.
 Primary system of record: GitHub Issues.
 
 - First-impression intake template:
-  `.github/ISSUE_TEMPLATE/first_impression_feedback.yml`
+  `.github/ISSUE_TEMPLATE/first-impressions.yml`
 - Optional community Q&A channel: GitHub Discussions (secondary only)
 
 ## Triage Workflow
 
 1. Intake: collect feedback through GitHub Issues using the first-impression template.
-2. Labeling: apply at least one area label (`docs`, `contract`, `runtime`, `tests`, `release`) and one priority label (`p0`, `p1`, `p2`).
-3. Milestone mapping: assign to milestone `post-v0.2.0-followups` when actionable.
-4. Backlog sync: mirror accepted work into `reports/post_v0.2.0_followup_backlog.md`.
-5. Closure: link merged PRs back to the originating issue for traceability.
+2. Labeling: apply `first-impression` plus one category label (`docs`, `bug`, `question`, `enhancement`).
+3. Triage decision (required): every new issue gets exactly one of:
+   - label + next-step request for missing repro details,
+   - label + linked fix (commit/PR),
+   - close with short reason + pointer to docs/alternative path.
+4. Milestone mapping: assign to milestone `post-v0.2.0-followups` when actionable.
+5. Backlog sync: mirror accepted work into `reports/post_v0.2.0_followup_backlog.md`.
+6. Closure: link merged PRs back to the originating issue for traceability.
+
+## Label Baseline (GitHub UI)
+
+- `first-impression`
+- `docs`
+- `bug`
+- `question`
+- `enhancement`
 
 ## Severity Guidelines
 
-- `p0`: trust or contract blockers that can cause failed integrations or unsafe assumptions.
-- `p1`: meaningful onboarding friction or workflow pain with practical workarounds.
-- `p2`: polish and ergonomics improvements that improve conversion or maintainability.
+- `bug`: behavior is incorrect, broken, or regressed.
+- `docs`: expected path is unclear or missing from docs.
+- `question`: clarification is needed before deciding action.
+- `enhancement`: useful change that does not fix a defect.
 
 ## Review Cadence
 
 - Triage target: first response within 2 business days.
 - Backlog grooming: weekly while phase 8 is open; bi-weekly after `v0.2.0` release stabilization.
 - Progress summary channel: `reports/README.md`.
+
+## Scope and Close Policy
+
+- Close as out-of-scope when requests expand beyond the current product scope:
+  resumable Bayesian optimization harness + workflow.
+- Convert "where do I start?" confusion into `docs` issues first when behavior is otherwise correct.
+
+## Security Routing
+
+- If a report is potentially sensitive, do not continue triage in public Issues.
+- Redirect reporters to `SECURITY.MD` and continue via the security disclosure path.
 
 ## Current Phase 8 State
 

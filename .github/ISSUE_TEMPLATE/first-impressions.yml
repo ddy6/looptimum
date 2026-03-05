@@ -1,0 +1,56 @@
+name: First Impressions
+description: Capture first-run friction and onboarding clarity for Looptimum.
+title: "[first-impression] <short summary>"
+labels:
+  - first-impression
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Looptimum.
+        Use this form to report first-impression friction during setup, docs review, or first run.
+
+  - type: textarea
+    id: what_tried
+    attributes:
+      label: What you tried (commands / steps)
+      description: Share the exact sequence you followed.
+      placeholder: "Example: cloned repo, created venv, ran quickstart script, then ran release smoke."
+    validations:
+      required: true
+
+  - type: textarea
+    id: where_stuck
+    attributes:
+      label: Where you got stuck (exact error/output)
+      description: Include exact command output and any stack trace.
+      placeholder: "Paste the command and the exact output/error."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_vs_actual
+    attributes:
+      label: Expected vs actual behavior
+      description: Describe what you expected and what happened instead.
+      placeholder: "Expected: quickstart succeeds in one command. Actual: missing dependency error."
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment (OS, Python version, CI context)
+      description: Include local OS/runtime and whether this was local or CI.
+      placeholder: "macOS 15, Python 3.12.2, local shell (not CI)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: thirty_second_pitch
+    attributes:
+      label: If you had 30 seconds, what do you think this repo does?
+      description: Helps us measure first-screen clarity.
+      placeholder: "Your best one-sentence summary."
+    validations:
+      required: true
