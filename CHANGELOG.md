@@ -5,6 +5,30 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.1] - 2026-03-04
+
+Patch release for the `v0.2.x` line focused on final closeout reporting,
+feedback-intake hardening, and documentation consistency.
+
+### Added
+
+- First-impressions GitHub Issue template:
+  `.github/ISSUE_TEMPLATE/first-impressions.yml`.
+
+### Changed
+
+- Feedback intake policy and triage workflow documentation:
+  `docs/feedback-loop.md`.
+- Top-level README feedback template reference updated to
+  `.github/ISSUE_TEMPLATE/first-impressions.yml`.
+- Phase-8 closeout tracking reports updated with executed external dependency
+  evidence:
+  `reports/README.md`, `reports/phase8_external_inputs.md`.
+
+### Notes
+
+- No contract or runtime-behavior changes in this patch release.
+
 ## [0.2.0] - 2026-03-04
 
 This release packages the end-to-end 2026 update program (phases 1-8) into a

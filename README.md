@@ -6,6 +6,7 @@ Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and one scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
+Current stable patch release: `v0.2.1`.
 
 ## If You've Ever Said...
 
@@ -197,6 +198,7 @@ Best ranking rule:
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
   example `0.2 -> 0.3`) and require migration notes.
+- Current patch tag in this line: `v0.2.1` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior

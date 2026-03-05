@@ -1,6 +1,7 @@
 # Feedback Loop
 
-This document defines the post-`v0.2.0` feedback intake and backlog workflow.
+This document defines the post-`v0.2.x` feedback intake and backlog workflow
+(initiated in `v0.2.0`, current patch: `v0.2.1`).
 
 ## Source of Truth
 
@@ -40,7 +41,7 @@ Primary system of record: GitHub Issues.
 ## Review Cadence
 
 - Triage target: first response within 2 business days.
-- Backlog grooming: weekly while phase 8 is open; bi-weekly after `v0.2.0` release stabilization.
+- Backlog grooming: weekly during active post-release intake; bi-weekly after stabilization.
 - Progress summary channel: `reports/README.md`.
 
 ## Scope and Close Policy
@@ -57,8 +58,10 @@ Primary system of record: GitHub Issues.
 ## Current Phase 8 State
 
 - Feedback-loop scaffolding is complete.
-- Final phase 8 completion still requires external submissions and maintainer
-  triage decisions.
+- External first-impression intake has been validated with a real issue
+  (`https://github.com/ddy6/looptimum/issues/1`).
+- Maintainer triage flow has been executed on incoming external feedback.
+- Phase 8 closeout is complete.
 - External dependency checklist: `reports/phase8_external_inputs.md`.
 
 ## Initial Backlog Seed

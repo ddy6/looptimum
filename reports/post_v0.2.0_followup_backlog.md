@@ -1,7 +1,9 @@
 # Post-v0.2.0 Follow-Up Backlog
 
 Date opened: 2026-03-04
-Scope: Phase 8 step 73 follow-up queue seeded from current repo review and pending external feedback.
+Last updated: 2026-03-05
+Scope: Phase 8 step 73 follow-up queue seeded from current repo review and validated by initial external feedback.
+Current release context: active backlog for the `v0.2.x` line (`v0.2.1` current).
 
 ## Workflow
 
@@ -25,4 +27,4 @@ Append rows below after triage from `first-impression` GitHub issues.
 
 | Date | Issue | Priority | Theme | Action |
 |---|---|---|---|---|
-| TBD | TBD | TBD | TBD | TBD |
+| 2026-03-05 | https://github.com/ddy6/looptimum/issues/1 | P2 | First-impression intake validation | Triaged and closed with policy-conformant maintainer decision |

@@ -2,11 +2,12 @@
 
 Date: 2026-03-04
 Target: `v0.2.0`
-Scope: Phase 8 steps 69-72 (pre-tag readiness)
+Scope: Phase 8 steps 69-72 (pre-tag readiness + closeout confirmation)
+Note: historical audit for `v0.2.0`; current patch release tag is `v0.2.1`.
 
 ## Release Artifacts
 
-- `CHANGELOG.md` present with `0.2.0` entry and migration notes.
+- `CHANGELOG.md` present with `0.2.0` release entry and `0.2.1` patch follow-up entry.
 - Stability guarantees published in:
   - `README.md` (short promise)
   - `docs/stability-guarantees.md` (full policy)
@@ -40,11 +41,19 @@ Observed result summary:
 - Step 69: complete
 - Step 70: complete
 - Step 71: complete
-- Step 72: release-ready pending final tag/publish execution
+- Step 72: complete
 
-## Final Release Commands (Operator)
+## Closeout Confirmation (2026-03-05)
 
-Run from a clean main-branch checkout after CI green:
+- Annotated tag `v0.2.0` created/pushed from `main`.
+- GitHub Release for `v0.2.0` published from `CHANGELOG.md`.
+- Upstream CI confirmed green on `main` and `v0.2.0` tag refs.
+- Evidence of external feedback intake + triage recorded:
+  `https://github.com/ddy6/looptimum/issues/1`
+
+## Final Release Commands (Operator Reference)
+
+From a clean main-branch checkout after CI green:
 
 ```bash
 git tag -a v0.2.0 -m "Looptimum v0.2.0"

@@ -12,7 +12,8 @@ Included files:
 - `operational-semantics.md`: idempotency, pending semantics, lifecycle
   controls, locking, resume behavior, and crash recovery expectations
 - `stability-guarantees.md`: public compatibility guarantees, deprecation
-  policy, and breaking-change rules for `v0.2.x`
+  policy, and breaking-change rules for `v0.2.x` (current patch:
+  `v0.2.1`)
 - `feedback-loop.md`: post-release feedback intake, issue-triage workflow,
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and
