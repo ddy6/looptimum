@@ -1,8 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "IngestPayload",
-  "description": "Deprecated compatibility alias for ingest_payload.schema.json. Scheduled for removal in v0.4.0.",
-  "x-deprecated-alias-for": "ingest_payload.schema.json",
   "type": "object",
   "required": ["trial_id", "params", "objectives"],
   "properties": {

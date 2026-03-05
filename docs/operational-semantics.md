@@ -24,6 +24,9 @@ Schema path compatibility:
 - canonical config key: `paths.ingest_schema_file`
 - legacy key still accepted: `paths.result_schema_file` (deprecated warning;
   scheduled removal in `v0.4.0`)
+- deprecated local schema filename alias still accepted when explicitly set:
+  `schemas/result_payload.schema.json` -> `schemas/ingest_payload.schema.json`
+  (scheduled removal in `v0.4.0`)
 
 ## Core Files and Authority
 

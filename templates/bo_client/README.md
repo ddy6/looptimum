@@ -12,7 +12,9 @@ surrogate backend, and restartable JSON state.
 - `objective_schema.json`: objective direction and failure policy.
 - `experiment_interface.md`: async experiment I/O contract.
 - `examples/`: sample success/failure result payloads and runnable command sequence.
-- `schemas/`: compatibility copy of ingest schema (canonical schemas live under `templates/_shared/schemas/`).
+- `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
+  `search_space`, `suggestion_payload`) plus deprecated alias
+  `result_payload.schema.json` (scheduled removal: `v0.4.0`).
 - `scripts/`: synthetic objective helper.
 - `surrogate_proxy.py`: proxy backend scoring.
 - `surrogate_gp.py`: BoTorch/GPyTorch backend scoring.

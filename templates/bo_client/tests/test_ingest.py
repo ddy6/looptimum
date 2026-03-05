@@ -45,6 +45,27 @@ def test_ingest_accepts_legacy_result_schema_key_with_deprecation(template_copy)
     assert "removed in v0.4.0" in out.stderr
 
 
+def test_ingest_accepts_result_payload_schema_alias_with_deprecation(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["paths"]["ingest_schema_file"] = "schemas/result_payload.schema.json"
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    result = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.05},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_ingest_alias_schema_file.json"
+    path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
+    assert "Deprecated ingest schema filename 'result_payload.schema.json'" in out.stderr
+    assert "removed in v0.4.0" in out.stderr
+
+
 def test_ingest_rejects_schema_violation(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     bad = {

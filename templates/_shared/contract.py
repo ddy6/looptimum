@@ -14,6 +14,8 @@ _MISSING = object()
 _YAML_COMPAT_MODE_ENV = "LOOPTIMUM_YAML_COMPAT_MODE"
 _YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
 _YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
+_RESULT_SCHEMA_ALIAS = "result_payload.schema.json"
+_INGEST_SCHEMA_CANONICAL = "ingest_payload.schema.json"
 
 
 def _render_value(value: Any) -> str:
@@ -321,6 +323,12 @@ def load_schema_from_paths(
             "Compatibility alias will be removed in v0.4.0."
         )
     schema_path = (project_root / str(rel)).resolve()
+    if key == "ingest_schema_file" and schema_path.name == _RESULT_SCHEMA_ALIAS:
+        _warn_deprecation(
+            f"Deprecated ingest schema filename '{_RESULT_SCHEMA_ALIAS}' in use; "
+            f"rename to '{_INGEST_SCHEMA_CANONICAL}'. Compatibility alias will be removed in "
+            "v0.4.0."
+        )
     schema = load_data_file(schema_path)
     if not isinstance(schema, dict):
         raise ValueError(f"Schema file must contain a JSON/YAML object: {schema_path}")

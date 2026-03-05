@@ -14,7 +14,9 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 - `bo_config.json`: includes `feature_flags.enable_botorch_gp`
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
-- `schemas/`: compatibility copy of ingest schema (canonical schemas live under `templates/_shared/schemas/`)
+- `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
+  `search_space`, `suggestion_payload`) plus deprecated alias
+  `result_payload.schema.json` (scheduled removal: `v0.4.0`)
 - `experiment_interface.md`: async I/O contract
 - `examples/`: sample success/failure result payloads and run script
 - `tests/`: `pytest` suite for CLI/state behavior

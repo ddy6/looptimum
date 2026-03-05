@@ -22,7 +22,13 @@ Canonical shared contract components live under:
 - `templates/_shared/contract.py`
 - `templates/_shared/schemas/`
 
-Template-local `schemas/` directories are compatibility copies for standalone use.
+Template-local `schemas/` directories are compatibility copies for standalone
+use:
+
+- canonical: `ingest_payload.schema.json`, `search_space.schema.json`,
+  `suggestion_payload.schema.json`
+- temporary compatibility alias: `result_payload.schema.json`
+  (scheduled removal: `v0.4.0`)
 
 To vendor shared contract helpers/schemas into a standalone template copy:
 

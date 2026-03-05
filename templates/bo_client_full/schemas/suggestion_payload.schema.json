@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SuggestionPayload",
+  "type": "object",
+  "required": ["trial_id", "params", "suggested_at"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "trial_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "type": "object"
+    },
+    "suggested_at": {
+      "type": "number"
+    }
+  }
+}
