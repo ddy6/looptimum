@@ -50,6 +50,7 @@ meshing_example/meshopt_output/
 # Development planning archives (local-only, intentionally untracked)
 dev_archive/
 v0.3.0-updates.md
+v0.3.0-implementation-plan.md
 plan_to_publishable.md
 devPlan.md
 next_steps.md
