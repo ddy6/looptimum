@@ -5,6 +5,40 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.4] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 4 template/config
+consistency completion.
+
+### Added
+
+- Explicit template matrix sections documenting feature parity, backend
+  differences, and intended use:
+  `README.md`, `docs/integration-guide.md`.
+- Canonical template-local shared schema assets in each template:
+  `schemas/ingest_payload.schema.json`,
+  `schemas/search_space.schema.json`,
+  `schemas/suggestion_payload.schema.json`.
+- Compatibility asset parity test coverage:
+  `templates/tests/test_template_schema_assets.py`.
+
+### Changed
+
+- YAML contract loading is now explicit compatibility mode via
+  `LOOPTIMUM_YAML_COMPAT_MODE=1` (optional allowlist:
+  `LOOPTIMUM_YAML_COMPAT_ALLOWLIST`) with deprecation/removal target messaging.
+- Legacy `paths.result_schema_file` compatibility remains warn-only in `v0.3.x`
+  transition flow and now includes removal target (`v0.4.0`) in warnings.
+- Template-local `result_payload.schema.json` is now a documented compatibility
+  alias aligned to canonical ingest schema content (scheduled removal: `v0.4.0`).
+- Quickstart/docs now emphasize the canonical JSON happy path and note that the
+  default clean flow runs without compatibility warnings.
+
+### Notes
+
+- This patch release preserves the `v0.2.x` no-breaking-change contract while
+  reducing template/config convention drift and deprecation noise.
+
 ## [0.2.3] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 3 contract/schema

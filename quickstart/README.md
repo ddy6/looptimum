@@ -21,6 +21,11 @@ python3 --version
 
 Parameter types currently supported by the public templates: `float`, `int`.
 
+Quickstart noise policy:
+
+- The commands in this guide use canonical JSON contract files/keys and should
+  run without compatibility/deprecation warnings on a clean template copy.
+
 ## Variant Commands (Repo-Root Single Commands)
 
 ### `templates/bo_client_demo` (proxy-only, easiest path)

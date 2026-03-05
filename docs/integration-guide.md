@@ -64,6 +64,20 @@ the public template.
 - proxy fallback path
 - optional `--enable-botorch-gp` flag
 
+### Template Matrix (Feature Parity + Intended Use)
+
+| Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
+|---|---|---|---|---|
+| `templates/bo_client_demo` | Fastest path for contract validation and onboarding | `rbf_proxy` | none | full parity |
+| `templates/bo_client` | Recommended baseline for most production integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
+| `templates/bo_client_full` | Same contract surface with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp`) | full parity |
+
+Parity scope:
+
+- Commands: `suggest`, `ingest`, `status`, `demo`
+- Lifecycle ops: `cancel`, `retire`, `heartbeat`
+- Support ops: `report`, `validate`, `doctor`
+
 ## Core Contract: `suggest -> evaluate -> ingest`
 
 ### 1. Generate a Suggestion

@@ -1,6 +1,6 @@
 [project]
 name = "looptimum"
-version = "0.2.3"
+version = "0.2.4"
 description = "File-backed optimization loop templates for suggest/ingest workflows."
 requires-python = ">=3.11"
 dependencies = []

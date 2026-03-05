@@ -6,7 +6,7 @@ Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and one scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable patch release: `v0.2.3`.
+Current stable patch release: `v0.2.4`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -97,6 +97,11 @@ Key fields:
 - `pending`
 - `next_trial_id`
 - `best`
+
+Quickstart note:
+
+- The default template files and commands above use canonical JSON contract
+  paths and run without compatibility/deprecation warnings on a clean copy.
 
 For full command sets and resume behavior, see `quickstart/README.md`.
 For the dedicated tiny end-to-end objective walkthrough, see
@@ -215,7 +220,7 @@ Best ranking rule:
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
   example `0.2 -> 0.3`) and require migration notes.
-- Current patch tag in this line: `v0.2.3` (see `CHANGELOG.md`).
+- Current patch tag in this line: `v0.2.4` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior
@@ -235,23 +240,16 @@ Best ranking rule:
 
 ## Templates (Choose Your Starting Level)
 
-### Demo (dependency-light)
+### Template Matrix (Feature Parity + Intended Use)
 
-- Directory: `templates/bo_client_demo`
-- Backend: proxy (`rbf_proxy`)
-- Best for: quick validation of contract and workflow
+| Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
+|---|---|---|---|---|
+| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `validate`, `doctor`) |
+| `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
+| `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) | full parity |
 
-### Default (recommended baseline)
-
-- Directory: `templates/bo_client`
-- Backends: proxy by default, optional GP backend by config
-- Best for: most client integrations
-
-### Full (feature-flag GP path)
-
-- Directory: `templates/bo_client_full`
-- Backends: proxy + optional BoTorch GP via flag
-- Best for: same public contract with optional advanced backend behavior
+All template variants use the same canonical JSON contract file conventions and
+the same state/log artifact model under `state/`.
 
 ## Examples and Case Studies
 
