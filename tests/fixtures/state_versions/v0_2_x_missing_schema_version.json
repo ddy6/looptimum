@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "created_at": 1700000000.0,
+    "seed": 17
+  },
+  "observations": [],
+  "pending": [],
+  "next_trial_id": 1,
+  "best": null
+}
