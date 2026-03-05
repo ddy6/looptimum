@@ -36,6 +36,16 @@ Typical flow:
 3. your system writes a result JSON
 4. `ingest` updates local state
 
+## Where is the algorithm behavior documented clearly?
+
+Use `docs/how-it-works.md` as the primary reference for:
+
+- backend behavior by template
+- exploration/exploitation policy
+- noisy-objective defaults
+- constraints posture and known pathologies
+- deterministic vs nondeterministic boundaries
+
 ## Can this run fully offline / air-gapped?
 
 Yes. The optimization templates and client harness template are designed to support fully local/offline execution.
@@ -130,7 +140,9 @@ Then choose a simple policy:
 - repeated measurement + average
 - repeated measurement + robust summary
 
-Consistency matters more than cleverness here. See `docs/integration-guide.md` for implementation guidance.
+Recommended default: median-of-3 repeats with a re-eval budget policy (for
+example repeat only for top-N or near-tie candidates). See
+`docs/how-it-works.md` and `docs/integration-guide.md`.
 
 ## How reproducible are runs?
 

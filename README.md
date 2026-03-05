@@ -12,7 +12,8 @@ and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
 keeps state and decision trace local, which fits restricted and client-controlled
 environments. The usage model stays simple (`suggest -> evaluate -> ingest`);
-see `docs/how-it-works.md` for algorithm behavior and tuning consequences.
+see [`docs/how-it-works.md`](docs/how-it-works.md) for algorithm behavior and
+tuning consequences.
 
 ## If You've Ever Said...
 

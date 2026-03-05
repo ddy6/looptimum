@@ -62,15 +62,20 @@ Recommended approach today:
 
 Native hard-constraint solving is not currently built into default templates.
 
+Hard callout:
+
+- No native hard-constraint solver in `v0.2.x`/`v0.3.0`; use bounds + penalty + failure policy.
+
 Current integration pattern:
 
 1. Keep bounds as first-line constraints.
-2. Detect invalid combinations in evaluator/runtime.
-3. Return a failure payload with clear status and policy-aligned objective
+2. Use scalar penalties for soft constraints and tradeoff pressure.
+3. Detect invalid/non-evaluable combinations in evaluator/runtime.
+4. Return a failure payload with clear status and policy-aligned objective
    representation.
-4. Use scalar penalties (when needed) in your objective design.
 
 This keeps behavior explicit and auditable for pilot workflows.
+See `docs/how-it-works.md` for pathologies and deterministic-boundary guidance.
 
 ## Multi-Objective Handling
 
