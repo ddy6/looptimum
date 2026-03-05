@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -9,11 +10,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN_ONE_EVAL = REPO_ROOT / "client_harness_template" / "run_one_eval.py"
 
 
-def _run_cmd(*args: str, expect_ok: bool = True) -> subprocess.CompletedProcess[str]:
+def _run_cmd(
+    *args: str, expect_ok: bool = True, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    run_env = dict(os.environ)
+    if env:
+        run_env.update(env)
     out = subprocess.run(
         [sys.executable, str(RUN_ONE_EVAL), *args],
         capture_output=True,
         text=True,
+        env=run_env,
     )
     if expect_ok and out.returncode != 0:
         raise AssertionError(
@@ -184,6 +191,28 @@ def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> Non
     assert payload["objectives"] == {"score": 0.123}
 
 
+def test_yaml_objective_schema_requires_compat_mode(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_ok.py"
+    schema = tmp_path / "objective_schema.yaml"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_ok_objective(objective)
+    _write_objective_schema(schema, name="score", direction="maximize")
+
+    out = _run_cmd(
+        str(suggestion),
+        str(result),
+        "--objective-module",
+        str(objective),
+        "--objective-schema",
+        str(schema),
+        expect_ok=False,
+    )
+    assert out.returncode != 0
+    assert "YAML compatibility mode is disabled" in out.stderr
+
+
 def test_legacy_yaml_objective_schema_is_supported_with_deprecation(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_ok.py"
@@ -200,8 +229,9 @@ def test_legacy_yaml_objective_schema_is_supported_with_deprecation(tmp_path: Pa
         str(objective),
         "--objective-schema",
         str(schema),
+        env={"LOOPTIMUM_YAML_COMPAT_MODE": "1"},
     )
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "ok"
     assert payload["objectives"] == {"score": 0.123}
-    assert "Deprecated objective schema extension" in out.stderr
+    assert "YAML compatibility mode used for objective_schema.yaml" in out.stderr

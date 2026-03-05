@@ -12,13 +12,18 @@ Canonical contract files are JSON:
 - `objective_schema.json`
 
 Legacy `.yaml`/`.yml` contract files are still accepted for compatibility, but
-emit deprecation warnings. Full YAML parsing requires installing YAML extras
-(`pip install ".[yaml]"` or `pip install "looptimum[yaml]"`).
+require compatibility mode:
+set `LOOPTIMUM_YAML_COMPAT_MODE=1` (optionally constrain file names via
+`LOOPTIMUM_YAML_COMPAT_ALLOWLIST`).
+YAML usage emits deprecation warnings and is scheduled for removal in `v0.4.0`.
+Full YAML parsing requires installing YAML extras (`pip install ".[yaml]"` or
+`pip install "looptimum[yaml]"`).
 
 Schema path compatibility:
 
 - canonical config key: `paths.ingest_schema_file`
-- legacy key still accepted: `paths.result_schema_file` (deprecated warning)
+- legacy key still accepted: `paths.result_schema_file` (deprecated warning;
+  scheduled removal in `v0.4.0`)
 
 ## Core Files and Authority
 

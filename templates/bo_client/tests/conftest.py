@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -10,10 +11,16 @@ import pytest
 
 
 def run_cmd(
-    project_root: Path, *args: str, expect_ok: bool = True
+    project_root: Path,
+    *args: str,
+    expect_ok: bool = True,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     cmd = [sys.executable, "run_bo.py", *args]
-    out = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True)
+    run_env = dict(os.environ)
+    if env:
+        run_env.update(env)
+    out = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, env=run_env)
     if expect_ok and out.returncode != 0:
         raise AssertionError(
             f"Command failed: {' '.join(cmd)}\nSTDOUT:\n{out.stdout}\nSTDERR:\n{out.stderr}"

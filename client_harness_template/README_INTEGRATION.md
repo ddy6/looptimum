@@ -104,7 +104,10 @@ The optimization harness objective direction is defined in
 `objective_schema.json` (for example, `loss` + `minimize`).
 
 `run_one_eval.py --objective-schema` prefers `.json`. Legacy
-`.yaml`/`.yml` objective schema files are still accepted with deprecation warnings.
+`.yaml`/`.yml` objective schema files require compatibility mode:
+set `LOOPTIMUM_YAML_COMPAT_MODE=1` (optionally constrain file names via
+`LOOPTIMUM_YAML_COMPAT_ALLOWLIST`).
+YAML usage emits a deprecation warning and is scheduled for removal in `v0.4.0`.
 
 Your integration must return the raw scalar in the same direction convention
 expected by the harness.

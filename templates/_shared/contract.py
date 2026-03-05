@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import warnings
 from pathlib import Path
@@ -10,6 +11,9 @@ from typing import Any
 CANONICAL_STATUSES = {"ok", "failed", "killed", "timeout"}
 SUCCESS_ALIAS = "success"
 _MISSING = object()
+_YAML_COMPAT_MODE_ENV = "LOOPTIMUM_YAML_COMPAT_MODE"
+_YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
+_YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
 
 
 def _render_value(value: Any) -> str:
@@ -23,6 +27,41 @@ def _render_value(value: Any) -> str:
 
 def _warn_deprecation(message: str) -> None:
     warnings.warn(message, UserWarning, stacklevel=2)
+
+
+def _yaml_compat_mode_enabled() -> bool:
+    raw = os.environ.get(_YAML_COMPAT_MODE_ENV, "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _yaml_allowlist_entries() -> set[str] | None:
+    raw = os.environ.get(_YAML_COMPAT_ALLOWLIST_ENV, "").strip()
+    if not raw:
+        return None
+    return {entry.strip().lower() for entry in raw.split(",") if entry.strip()}
+
+
+def _require_yaml_compat_mode(path: Path) -> None:
+    if not _yaml_compat_mode_enabled():
+        raise ValueError(
+            f"YAML compatibility mode is disabled for {path}. "
+            f"Use .json files (primary path), or set {_YAML_COMPAT_MODE_ENV}=1 "
+            f"for migration compatibility."
+        )
+
+    allowlist = _yaml_allowlist_entries()
+    if allowlist is None:
+        return
+
+    name = path.name.lower()
+    stem = path.stem.lower()
+    if "*" in allowlist or name in allowlist or stem in allowlist:
+        return
+    raise ValueError(
+        f"YAML compatibility allowlist blocked {path.name}. "
+        f"Add '{name}' or '{stem}' to {_YAML_COMPAT_ALLOWLIST_ENV} (comma-separated), "
+        "or use '*' to allow all YAML files."
+    )
 
 
 def _validation_error(
@@ -199,6 +238,12 @@ def load_data_file(path: Path) -> Any:
             raise ValueError(f"Failed to parse JSON file {path}: {exc}") from exc
 
     if suffix in {".yaml", ".yml"}:
+        _require_yaml_compat_mode(path)
+        _warn_deprecation(
+            f"YAML compatibility mode used for {path.name}. "
+            f"JSON is the primary path; YAML compatibility is scheduled for removal in "
+            f"{_YAML_COMPAT_REMOVAL_TARGET}."
+        )
         try:
             import yaml  # type: ignore
         except ModuleNotFoundError:
@@ -211,8 +256,10 @@ def load_data_file(path: Path) -> Any:
                     f'`pip install ".[yaml]"` (or `pip install "looptimum[yaml]"`).'
                 ) from exc
             _warn_deprecation(
-                f"Deprecated config extension: {path.name}. Parsed as JSON compatibility fallback. "
-                "Rename to .json. Full YAML requires `.[yaml]` / `looptimum[yaml]`."
+                f"Parsed {path.name} via JSON compatibility fallback. "
+                f"Rename to .json. YAML compatibility is scheduled for removal in "
+                f"{_YAML_COMPAT_REMOVAL_TARGET}; full YAML parsing requires `.[yaml]` / "
+                "`looptimum[yaml]`."
             )
             return parsed
 
@@ -247,7 +294,8 @@ def load_contract_document(project_root: Path, stem: str) -> tuple[Any, Path]:
     path, is_legacy = resolve_contract_path(project_root, stem)
     if is_legacy:
         _warn_deprecation(
-            f"Deprecated config extension in use: {path.name}. Rename to {stem}.json."
+            f"Deprecated config extension in use: {path.name}. Rename to {stem}.json. "
+            f"YAML compatibility is scheduled for removal in {_YAML_COMPAT_REMOVAL_TARGET}."
         )
     return load_data_file(path), path
 
@@ -268,7 +316,10 @@ def load_schema_from_paths(
     if rel is None:
         rel = default_rel
     if used_legacy_key and legacy_key is not None:
-        _warn_deprecation(f"Deprecated config path key '{legacy_key}' used; rename to '{key}'.")
+        _warn_deprecation(
+            f"Deprecated config path key '{legacy_key}' used; rename to '{key}'. "
+            "Compatibility alias will be removed in v0.4.0."
+        )
     schema_path = (project_root / str(rel)).resolve()
     schema = load_data_file(schema_path)
     if not isinstance(schema, dict):

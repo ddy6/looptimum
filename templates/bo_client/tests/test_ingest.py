@@ -42,6 +42,7 @@ def test_ingest_accepts_legacy_result_schema_key_with_deprecation(template_copy)
 
     out = run_cmd(template_copy, "ingest", "--results-file", str(path))
     assert "Deprecated config path key 'result_schema_file'" in out.stderr
+    assert "removed in v0.4.0" in out.stderr
 
 
 def test_ingest_rejects_schema_violation(template_copy) -> None:

@@ -18,8 +18,11 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 ## Notes
 
 - JSON (`.json`) is the canonical contract format.
-- Legacy `.yaml`/`.yml` files still load with deprecation warnings; full YAML
-  parsing requires `pip install "looptimum[yaml]"`.
+- Legacy `.yaml`/`.yml` files require compatibility mode:
+  `LOOPTIMUM_YAML_COMPAT_MODE=1` (optional allowlist via
+  `LOOPTIMUM_YAML_COMPAT_ALLOWLIST`).
+- YAML usage emits deprecation warnings and is scheduled for removal in
+  `v0.4.0`; full YAML parsing requires `pip install "looptimum[yaml]"`.
 - This demo variant intentionally leaves out BoTorch.
 - Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
   wait+timeout behavior and optional `--fail-fast`.

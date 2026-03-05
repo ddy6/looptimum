@@ -203,6 +203,7 @@ Schema path note:
 
 - canonical config key is `paths.ingest_schema_file`
 - legacy `paths.result_schema_file` is still accepted with a deprecation warning
+  and is scheduled for removal in `v0.4.0`
 
 ## Lifecycle and Runtime Ops
 
@@ -282,8 +283,9 @@ Use `intake.md` to capture this precisely.
 Objective direction is configured in `objective_schema.json` in your chosen template.
 
 For `client_harness_template/run_one_eval.py --objective-schema`, `.json` is
-preferred; legacy `.yaml`/`.yml` objective schema files are accepted with
-deprecation warnings.
+preferred; legacy `.yaml`/`.yml` objective schema files require compatibility
+mode (`LOOPTIMUM_YAML_COMPAT_MODE=1`, optional allowlist via
+`LOOPTIMUM_YAML_COMPAT_ALLOWLIST`) and emit deprecation warnings.
 
 Examples:
 
