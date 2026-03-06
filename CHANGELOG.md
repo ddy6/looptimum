@@ -5,6 +5,35 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.9] - 2026-03-06
+
+Patch release for the `v0.2.x` line focused on Phase 9 documentation trust
+pass and public-doc consistency guardrails.
+
+### Added
+
+- Spec-style quick reference for contract semantics and state artifacts:
+  `docs/quick-reference.md`.
+- Opinionated mainstream ETL/pipeline scenario quickstart:
+  `quickstart/etl-pipeline-knob-tuning.md`.
+- Lightweight public docs consistency checker:
+  `scripts/check_docs_consistency.py`.
+- Phase 9 asset guard tests:
+  `client_harness_template/tests/test_phase9_assets.py`.
+
+### Changed
+
+- README now includes CI + latest-release trust badges and explicit trust-anchor
+  links for key product claims.
+- CI quality gate now enforces public-doc consistency and scopes markdown-link
+  checks to public docs (`README.md`, `docs/`, `quickstart/`).
+- Contributor validation flow now includes public docs consistency checks.
+
+### Notes
+
+- This patch release preserves the `v0.2.x` no-breaking-change contract while
+  improving documentation auditability and reducing public-doc drift risk.
+
 ## [0.2.8] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 8 evidence anchors and

@@ -2,6 +2,12 @@
 
 Sample reporting outputs and workups for pilot/managed optimization runs (lightweight but practical).
 
+Scope note:
+
+- `reports/` is maintainer/internal support material and not part of the
+  public-facing documentation baseline for integration trust checks.
+- Public docs consistency scope is `README.md`, `docs/`, and `quickstart/`.
+
 ## Program Status Pointer
 
 Current update-program progress is tracked in:
@@ -10,11 +16,11 @@ Current update-program progress is tracked in:
 - `reports/phase8_external_inputs.md` (external dependencies checklist)
 - `reports/post_v0.2.0_followup_backlog.md` (post-release backlog queue)
 
-Status as of 2026-03-05:
+Status as of 2026-03-06:
 
-- Current stable patch release tag: `v0.2.8`
-- Phases 0-8 complete
-- Phase 8 validation baseline passed (`python3 scripts/check_internal_links.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `164 passed, 1 skipped`)
+- Current stable patch release tag: `v0.2.9`
+- Phases 0-9 complete
+- Phase 9 validation baseline passed (`python3 scripts/check_internal_links.py --paths README.md docs quickstart`; `python3 scripts/check_docs_consistency.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `168 passed, 1 skipped`; `python3 scripts/release_smoke.py`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
 - Phase 6 follow-on hardening shipped (deterministic golden-log regeneration + golden artifact contract tests)
 - Phase 7 closed with contract-critical parity tests across demo/default/full template tiers
@@ -29,8 +35,10 @@ Status as of 2026-03-05:
 - Phase 6 enterprise readiness/type-safety hardening is complete (`v0.2.6`)
 - Phase 7 CI/CD playbook and reproducible-operations baseline is complete (`v0.2.7`)
 - Phase 8 evidence anchors and benchmark credibility pass are complete (`v0.2.8`)
-- `v0.2.8` patch release captures benchmark runner/summary/case-study assets, benchmark sanity CI checks, and README evidence wiring
-- Final internal release-gate rerun passed on March 5, 2026 (format/lint/typecheck/links/playbook-sync/benchmark-sanity/tests/smoke)
+- Phase 9 documentation trust pass is complete (`v0.2.9`)
+- `v0.2.9` patch release captures trust badges, spec quick-reference,
+  ETL/pipeline quickstart scenario, and public-doc consistency CI checks
+- Final internal release-gate rerun passed on March 6, 2026 (format/lint/typecheck/public-doc-links/docs-consistency/playbook-sync/benchmark-sanity/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
 Included:
