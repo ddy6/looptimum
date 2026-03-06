@@ -241,6 +241,8 @@ Operational notes:
   immediately under lock contention.
 - For prescriptive interruption handling and "what to run next" flows, use
   `docs/recovery-playbook.md`.
+- For platform-agnostic CI persistence/parallelism policy (with GitHub examples),
+  use `docs/ci-knob-tuning.md`.
 
 ## Minimal Working Integration (Recommended Path)
 

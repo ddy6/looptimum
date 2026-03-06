@@ -313,6 +313,7 @@ feedback source of truth).
 - `docs/integration-guide.md`
 - `docs/operational-semantics.md`
 - `docs/recovery-playbook.md`
+- `docs/ci-knob-tuning.md`
 - `docs/stability-guarantees.md`
 - `docs/type-safety.md`
 - `docs/feedback-loop.md`

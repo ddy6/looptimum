@@ -26,6 +26,7 @@ For full command sequences and resume behavior:
 - [Recovery Playbook](./recovery-playbook.md)
 - [How It Works](./how-it-works.md)
 - [Type Safety](./type-safety.md)
+- [CI Knob Tuning](./ci-knob-tuning.md)
 - [Stability Guarantees](./stability-guarantees.md)
 - [Migrations](./migrations/README.md)
 - [Feedback Loop](./feedback-loop.md)
