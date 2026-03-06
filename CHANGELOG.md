@@ -5,6 +5,34 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.7] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 7 CI/CD playbook and
+reproducible operations.
+
+### Added
+
+- Platform-agnostic CI tuning playbook with GitHub Actions examples:
+  `docs/ci-knob-tuning.md`.
+- Lightweight docs-sync validator for CI playbook drift:
+  `scripts/check_ci_playbook_sync.py`.
+- Phase 7 asset guard tests:
+  `client_harness_template/tests/test_phase7_assets.py`.
+
+### Changed
+
+- CI quality gates now include CI playbook sync validation:
+  `.github/workflows/ci.yml`.
+- Contributor validation workflow now includes CI playbook sync check:
+  `CONTRIBUTING.md`.
+- Quickstart/integration/docs index references now include the CI tuning
+  playbook entry points.
+
+### Notes
+
+- This patch release preserves the `v0.2.x` no-breaking-change contract while
+  adding reproducible CI runbook guidance and docs-rot guardrails.
+
 ## [0.2.6] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 6 enterprise readiness

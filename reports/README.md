@@ -12,7 +12,7 @@ Current update-program progress is tracked in:
 
 Status as of 2026-03-05:
 
-- Current stable patch release tag: `v0.2.6`
+- Current stable patch release tag: `v0.2.7`
 - Phases 0-7 complete
 - Phase 7 validation baseline passed (`python3 scripts/check_internal_links.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `127 passed, 1 skipped`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
@@ -27,7 +27,8 @@ Status as of 2026-03-05:
 - Phase 4 template/config consistency cleanup is complete (`v0.2.4`)
 - Phase 5 reliability/failure-handling and teardown semantics are complete (`v0.2.5`)
 - Phase 6 enterprise readiness/type-safety hardening is complete (`v0.2.6`)
-- `v0.2.6` patch release captures mypy gate rollout, canonical-runtime typing upgrades, and policy docs
+- Phase 7 CI/CD playbook and reproducible-operations baseline is complete (`v0.2.7`)
+- `v0.2.7` patch release captures CI tuning runbook publication, playbook-sync CI checks, and Phase 7 asset guard tests
 - Final internal release-gate rerun passed on March 4, 2026 (format/lint/links/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
