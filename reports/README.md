@@ -18,9 +18,9 @@ Current update-program progress is tracked in:
 
 Status as of 2026-03-06:
 
-- Current stable patch release tag: `v0.2.9`
-- Phases 0-9 complete
-- Phase 9 validation baseline passed (`python3 scripts/check_internal_links.py --paths README.md docs quickstart`; `python3 scripts/check_docs_consistency.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `168 passed, 1 skipped`; `python3 scripts/release_smoke.py`)
+- Current stable release tag: `v0.3.0`
+- Phases 0-10 complete
+- Phase 10 validation baseline passed (`python3 scripts/check_internal_links.py --paths README.md docs quickstart`; `python3 scripts/check_docs_consistency.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `168 passed, 1 skipped`; `python3 scripts/release_smoke.py`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
 - Phase 6 follow-on hardening shipped (deterministic golden-log regeneration + golden artifact contract tests)
 - Phase 7 closed with contract-critical parity tests across demo/default/full template tiers
@@ -36,10 +36,11 @@ Status as of 2026-03-06:
 - Phase 7 CI/CD playbook and reproducible-operations baseline is complete (`v0.2.7`)
 - Phase 8 evidence anchors and benchmark credibility pass are complete (`v0.2.8`)
 - Phase 9 documentation trust pass is complete (`v0.2.9`)
-- Phase 10 release readiness/publication is in progress (`v0.3.0`)
-- Phase 10 readiness validation bundle is currently green (see `reports/v0.3.0_release_readiness.md`)
-- `v0.2.9` patch release captures trust badges, spec quick-reference,
+- Phase 10 release readiness/publication is complete (`v0.3.0`)
+- `v0.2.9` patch release closeout captured trust badges, spec quick-reference,
   ETL/pipeline quickstart scenario, and public-doc consistency CI checks
+- `v0.3.0` release packages the compatibility-forward line cut with final
+  readiness/sign-off artifacts and no removal-only migration burden
 - Final internal release-gate rerun passed on March 6, 2026 (format/lint/typecheck/public-doc-links/docs-consistency/playbook-sync/benchmark-sanity/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
 

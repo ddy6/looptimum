@@ -334,12 +334,12 @@ can continue and the failure is recorded.
 - `penalty_objective` is not used for best-trial ranking; `best` is computed
   from `status: "ok"` primary objective values only
 
-Compatibility note (v0.2.x line):
+Compatibility note (legacy `v0.2.x` payloads):
 
 - Legacy sentinel payloads for non-`ok` statuses are still accepted and
   normalized to `objective: null` + `penalty_objective`.
 - Ingest emits a deprecation warning for this path.
-- Sentinel primary objective compatibility is planned for removal in `v0.3.0`.
+- Sentinel primary objective compatibility is planned for removal in `v0.4.0`.
 
 ### Common Failure Modes
 

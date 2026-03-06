@@ -1,8 +1,8 @@
 # Stability Guarantees
 
-This document defines what is stable in the `v0.2.x` line, what may change,
-and how breaking changes will be introduced.
-Current patch tag in this line: `v0.2.9`.
+This document defines what is stable in the `v0.3.x` line, what may change,
+and how breaking changes are introduced.
+Current patch tag in this line: `v0.3.0`.
 
 ## Scope
 
@@ -14,9 +14,9 @@ integration consumers:
 - Payload schemas and ingest status vocabulary
 - Core state-file compatibility for resumable file-backed runs
 
-## `v0.2.x` Stability Promise
+## `v0.3.x` Stability Promise
 
-Within `v0.2.x`:
+Within `v0.3.x`:
 
 1. No breaking changes to command names and required flags for:
    `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
@@ -29,7 +29,7 @@ Within `v0.2.x`:
 
 ## `v0.3.x` State Compatibility Policy
 
-This policy is now locked for the upcoming `v0.3.0` line:
+This policy is active for the `v0.3.x` line:
 
 1. `state/bo_state.json` includes required `schema_version` with semver string
    format (`<major>.<minor>.<patch>`), for example `"0.3.0"`.
@@ -44,7 +44,7 @@ This policy is now locked for the upcoming `v0.3.0` line:
 ## Breaking-Change Policy
 
 Breaking changes are allowed only on `0.x` major-line increments
-(for example `0.2` -> `0.3`), and each such change must include:
+(for example `0.3` -> `0.4`), and each such change must include:
 
 1. Explicit migration notes in `CHANGELOG.md`.
 2. Documentation updates in integration and operational docs.
@@ -54,7 +54,7 @@ No breaking changes are allowed within a `0.x` minor line.
 
 ## Deprecation Policy
 
-When behavior is deprecated in `v0.2.x`:
+When behavior is deprecated in `v0.3.x`:
 
 1. The compatibility path remains functional through the line.
 2. A warning is emitted where practical.
@@ -65,11 +65,11 @@ Current deprecations:
 - `success` status alias is normalized to `ok`.
 - Legacy non-`ok` + numeric primary objective is normalized to
   `objective: null` plus `penalty_objective`.
-- Sentinel primary-objective compatibility is planned for removal in `v0.3.0`.
+- Sentinel primary-objective compatibility is planned for removal in `v0.4.0`.
 
 ## What May Change Without a Breaking Bump
 
-The following may evolve in `v0.2.x` without being treated as breaking:
+The following may evolve in `v0.3.x` without being treated as breaking:
 
 - Internal surrogate/proxy implementation details and tuning heuristics.
 - Additional optional fields in status/report/log payloads.

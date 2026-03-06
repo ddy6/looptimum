@@ -118,7 +118,7 @@ Compatibility path (v0.2.x):
 - Legacy non-`ok` payloads with numeric primary objective are still accepted.
 - They are normalized to `objective: null` plus `penalty_objective`.
 - A deprecation warning is emitted; sentinel primary objective support is planned
-  for removal in `v0.3.0`.
+  for removal in `v0.4.0`.
 
 ### `status`
 

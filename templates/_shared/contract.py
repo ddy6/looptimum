@@ -482,7 +482,7 @@ def _normalize_primary_objective(
             f"Deprecated failure objective payload for trial_id={trial_id}: "
             f"status='{status}' with numeric primary objective. "
             "Use primary objective null and optional penalty_objective. "
-            "Sentinel support is planned for removal in v0.3.0."
+            "Sentinel support is planned for removal in v0.4.0."
         )
     return normalized_objectives, normalized_penalty
 

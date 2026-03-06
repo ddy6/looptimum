@@ -9,7 +9,7 @@ Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and one scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable patch release: `v0.2.9`.
+Current stable release: `v0.3.0`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -260,10 +260,10 @@ Best ranking rule:
 ### Compatibility Notes
 
 - `success` is accepted as a deprecated alias and normalized to `ok`.
-- Legacy non-`ok` payloads with numeric primary objective are accepted in
-  `v0.2.x`, normalized to `objective: null` + `penalty_objective`, and emit a
-  deprecation warning.
-- Sentinel primary-objective compatibility is planned for removal in `v0.3.0`.
+- Legacy `v0.2.x` non-`ok` payloads with numeric primary objective are
+  accepted in `v0.3.x`, normalized to
+  `objective: null` + `penalty_objective`, and emit a deprecation warning.
+- Sentinel primary-objective compatibility is planned for removal in `v0.4.0`.
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
   to `0.3.0` and persists on next mutating command.
 - Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
@@ -271,14 +271,14 @@ Best ranking rule:
   [`docs/migrations/README.md`](docs/migrations/README.md),
   [`docs/migrations/v0.2.x-to-v0.3.0.md`](docs/migrations/v0.2.x-to-v0.3.0.md).
 
-### Stability Promise (`v0.2.x`)
+### Stability Promise (`v0.3.x`)
 
-- No breaking changes within the `v0.2.x` line for CLI command names/required
+- No breaking changes within the `v0.3.x` line for CLI command names/required
   flags, ingest required fields/status vocabulary, and core state-file
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
-  example `0.2 -> 0.3`) and require migration notes.
-- Current patch tag in this line: `v0.2.9` (see `CHANGELOG.md`).
+  example `0.3 -> 0.4`) and require migration notes.
+- Current patch tag in this line: `v0.3.0` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior

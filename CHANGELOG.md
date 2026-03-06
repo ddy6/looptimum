@@ -5,6 +5,45 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.3.0] - 2026-03-06
+
+Compatibility-forward line cut that closes out the `v0.2.9` patch cycle and
+establishes the `v0.3.x` baseline.
+
+### Added
+
+- Final release-readiness and operator sign-off artifacts:
+  `reports/v0.3.0_release_readiness.md`,
+  `reports/v0.3.0_release_candidate_checklist.md`.
+
+### Changed
+
+- Project release baseline now targets `0.3.0` in package metadata and public
+  docs.
+- Stability policy docs now describe active guarantees for the `v0.3.x` line.
+- Runtime sentinel-deprecation messaging now points to `v0.4.0` removal target
+  (compatibility retained in `v0.3.0`).
+
+### Deprecated
+
+- `success` ingest status alias remains supported but deprecated in favor of
+  `ok`.
+- Legacy non-`ok` numeric primary-objective sentinel payloads remain
+  compatibility-only and warn.
+- Legacy `paths.result_schema_file` and YAML compatibility-mode paths remain
+  warn-only compatibility behavior with documented `v0.4.0` removal target.
+
+### Compatibility Notes
+
+- `state.schema_version` is required for `v0.3.0` state artifacts.
+- Legacy `v0.2.x` (or missing-version) state auto-upgrades in-memory and
+  persists on next mutating command.
+- Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
+
+### Migration
+
+- Canonical migration spec: `docs/migrations/v0.2.x-to-v0.3.0.md`.
+
 ## [0.2.9] - 2026-03-06
 
 Patch release for the `v0.2.x` line focused on Phase 9 documentation trust
