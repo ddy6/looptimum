@@ -1,0 +1,99 @@
+# Quick Reference
+
+Use this page as the spec-style contract summary for day-to-day integration,
+automation wiring, and runbook checks.
+
+## Public Command Surface (`v0.2.x`)
+
+Stable command names and required flag posture are documented in
+[`stability-guarantees.md`](./stability-guarantees.md).
+
+- core loop: `suggest`, `ingest`, `status`, `demo`
+- lifecycle ops: `cancel`, `retire`, `heartbeat`
+- support ops: `report`, `validate`, `doctor`
+
+## Core Loop Contract
+
+1. `suggest`: emits one trial proposal (`trial_id`, `params`, `suggested_at`,
+   `schema_version`) and records pending state.
+2. evaluator: runs externally using `params`; Looptimum does not execute your
+   workload.
+3. `ingest`: validates trial identity and payload shape, then clears pending
+   and appends observation.
+4. `status`: reports run headline state (`observations`, `pending`, `best`,
+   `next_trial_id`, and related metadata).
+
+## `suggest` Output (Canonical Fields)
+
+- `schema_version`: semver string emitted by runtime
+- `trial_id`: unique integer identifier in run scope
+- `params`: exact parameter payload for external evaluation
+- `suggested_at`: suggestion timestamp
+
+## `ingest` Payload Contract
+
+Required:
+
+- `trial_id`: must match a currently pending trial
+- `params`: must exactly match suggested params
+- `objectives`: primary objective map by configured objective name
+- `status`: `ok`, `failed`, `killed`, or `timeout`
+
+Rules:
+
+- `status: ok` requires numeric finite primary objective.
+- non-`ok` status requires primary objective `null`.
+- optional `penalty_objective` is allowed for non-`ok` outcomes.
+
+Optional compatibility fields:
+
+- `schema_version` (emitted by runtime; optional in ingest schema)
+
+## Result and Failure Semantics
+
+- `best` ranking uses only `status: "ok"` observations.
+- `penalty_objective` is never used for `best` ranking.
+- identical duplicate ingest replay is accepted as explicit no-op success.
+- conflicting duplicate ingest replay is rejected with mismatch details.
+
+## State and Artifact Definitions
+
+Default file-backed artifacts under each template's `state/` path:
+
+- `bo_state.json`: authoritative resumable state (`schema_version`,
+  observations, pending, best, counters)
+- `observations.csv`: flattened observation export
+- `acquisition_log.jsonl`: append-only suggestion-decision trace
+- `event_log.jsonl`: append-only lifecycle/ops trace
+- `trials/trial_<id>/manifest.json`: per-trial manifest/audit record
+- `report.json` and `report.md`: explicit `report` command outputs
+
+## Concurrency and Recovery
+
+- one controller/writer per state path is required; multi-controller writes to
+  the same state path are unsupported.
+- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`) run under
+  exclusive file lock semantics.
+- stale pending handling can be automated via configured age policy or manual
+  `retire`.
+- interruption recovery runbook:
+  [`recovery-playbook.md`](./recovery-playbook.md).
+
+## Compatibility and Migration
+
+- `v0.2.x` state without `schema_version` (or with `0.2.x`) is upgraded
+  in-memory and persisted on the next mutating command.
+- earlier `v0.3.x` state is required to load transparently in `v0.3.x`.
+- deprecation and compatibility policy:
+  [`stability-guarantees.md`](./stability-guarantees.md).
+- migration docs index and specs:
+  [`migrations/README.md`](./migrations/README.md).
+
+## Reproducibility and Trust Anchors
+
+- algorithm behavior and determinism boundaries:
+  [`how-it-works.md`](./how-it-works.md).
+- benchmark evidence and reproducibility protocol:
+  [`../benchmarks/README.md`](../benchmarks/README.md).
+- CI and operational runbook policy:
+  [`ci-knob-tuning.md`](./ci-knob-tuning.md).

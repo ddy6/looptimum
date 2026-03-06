@@ -1,5 +1,8 @@
 # Looptimum
 
+[![CI](https://github.com/ddy6/looptimum/actions/workflows/ci.yml/badge.svg)](https://github.com/ddy6/looptimum/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/ddy6/looptimum?display_name=tag)](https://github.com/ddy6/looptimum/releases)
+
 Fewer expensive experiments. Faster convergence.
 
 Looptimum is a file-backed optimization loop for tuning parameters when each
@@ -14,6 +17,8 @@ keeps state and decision trace local, which fits restricted and client-controlle
 environments. The usage model stays simple (`suggest -> evaluate -> ingest`);
 see [`docs/how-it-works.md`](docs/how-it-works.md) for algorithm behavior and
 tuning consequences.
+For a spec-style contract summary, use
+[`docs/quick-reference.md`](docs/quick-reference.md).
 
 ## If You've Ever Said...
 

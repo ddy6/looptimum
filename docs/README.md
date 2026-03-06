@@ -7,6 +7,8 @@ These pages document Looptimum operating patterns and rollout materials.
 
 Included files:
 
+- `quick-reference.md`: spec-style contract quick reference (inputs/outputs,
+  failure semantics, state definitions, compatibility posture)
 - `integration-guide.md`: end-to-end `suggest -> evaluate -> ingest` integration
   workflow plus lifecycle/ops command usage
 - `operational-semantics.md`: idempotency, pending semantics, lifecycle

@@ -21,6 +21,7 @@ For full command sequences and resume behavior:
 
 ## Core Documentation
 
+- [Quick Reference](./quick-reference.md)
 - [Integration Guide](./integration-guide.md)
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
