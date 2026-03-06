@@ -37,6 +37,7 @@ Status as of 2026-03-06:
 - Phase 8 evidence anchors and benchmark credibility pass are complete (`v0.2.8`)
 - Phase 9 documentation trust pass is complete (`v0.2.9`)
 - Phase 10 release readiness/publication is in progress (`v0.3.0`)
+- Phase 10 readiness validation bundle is currently green (see `reports/v0.3.0_release_readiness.md`)
 - `v0.2.9` patch release captures trust badges, spec quick-reference,
   ETL/pipeline quickstart scenario, and public-doc consistency CI checks
 - Final internal release-gate rerun passed on March 6, 2026 (format/lint/typecheck/public-doc-links/docs-consistency/playbook-sync/benchmark-sanity/tests/smoke)
