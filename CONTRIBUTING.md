@@ -32,6 +32,27 @@ python3 -m pre_commit install
 python3 -m pre_commit run --all-files
 ```
 
+## Type Checking
+
+Run the canonical type-check gate:
+
+```bash
+python3 -m mypy
+```
+
+Current enforced scope is intentionally narrow and canonical-first:
+
+- `templates/_shared/*.py`
+- `templates/bo_client/run_bo.py`
+- `client_harness_template/run_one_eval.py`
+
+`Any` policy:
+
+- allowed only at explicit boundaries (JSON/file I/O, optional YAML paths, or
+  weakly typed external library boundaries)
+- otherwise avoid `Any`; use `TypedDict`/`Protocol`/dataclasses where practical
+- if `Any` is unavoidable, keep it narrow and include a TODO for tightening
+
 ## Testing
 
 Run canonical tests from repo root:
@@ -53,6 +74,7 @@ Run this full pre-push/pre-PR validation flow from repo root:
 ```bash
 python3 -m ruff format --check .
 python3 -m ruff check .
+python3 -m mypy
 python3 -m pytest -q templates client_harness_template/tests
 python3 scripts/check_internal_links.py
 python3 templates/bo_client/run_bo.py validate --project-root templates/bo_client

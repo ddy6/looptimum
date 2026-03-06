@@ -247,7 +247,7 @@ def load_data_file(path: Path) -> Any:
             f"{_YAML_COMPAT_REMOVAL_TARGET}."
         )
         try:
-            import yaml  # type: ignore
+            import yaml
         except ModuleNotFoundError:
             # Legacy compatibility: old .yaml files were JSON syntax in this repo.
             try:

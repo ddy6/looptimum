@@ -87,7 +87,7 @@ def _load_data_file(path: Path) -> Any:
             f"{_YAML_COMPAT_REMOVAL_TARGET}."
         )
         try:
-            import yaml  # type: ignore
+            import yaml
         except ModuleNotFoundError:
             try:
                 parsed = json.loads(text)

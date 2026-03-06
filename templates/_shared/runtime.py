@@ -7,10 +7,14 @@ import time
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Iterator
 
+fcntl: ModuleType | None
 try:
-    import fcntl
+    import fcntl as _fcntl
+
+    fcntl = _fcntl
 except ModuleNotFoundError:  # pragma: no cover - non-POSIX environments only.
     fcntl = None
 

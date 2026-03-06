@@ -25,6 +25,7 @@ For full command sequences and resume behavior:
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
 - [How It Works](./how-it-works.md)
+- [Type Safety](./type-safety.md)
 - [Stability Guarantees](./stability-guarantees.md)
 - [Migrations](./migrations/README.md)
 - [Feedback Loop](./feedback-loop.md)

@@ -314,6 +314,7 @@ feedback source of truth).
 - `docs/operational-semantics.md`
 - `docs/recovery-playbook.md`
 - `docs/stability-guarantees.md`
+- `docs/type-safety.md`
 - `docs/feedback-loop.md`
 - `docs/search-space.md`
 - `docs/decision-trace.md`

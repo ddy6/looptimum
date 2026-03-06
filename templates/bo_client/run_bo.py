@@ -1583,12 +1583,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     backend = str(cfg.get("surrogate", {}).get("type", "rbf_proxy")).lower()
     gp_dependency_available = None
     if backend == "gp":
-        try:
-            import sklearn  # noqa: F401
-
-            gp_dependency_available = True
-        except Exception:
-            gp_dependency_available = False
+        gp_dependency_available = importlib.util.find_spec("sklearn") is not None
 
     payload = {
         "schema_version": state_schema_version(state),
