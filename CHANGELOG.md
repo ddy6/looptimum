@@ -5,6 +5,36 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.8] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 8 evidence anchors and
+performance-credibility assets.
+
+### Added
+
+- Canonical benchmark/evidence suite and golden artifacts:
+  `benchmarks/run_trial_efficiency_benchmark.py`,
+  `benchmarks/summary.json`,
+  `benchmarks/case_study.md`,
+  `benchmarks/README.md`.
+- Lightweight benchmark-sanity checker and CI integration:
+  `scripts/check_benchmark_sanity.py`,
+  `.github/workflows/ci.yml`.
+- Benchmark/evidence asset contract tests:
+  `client_harness_template/tests/test_phase8_assets.py`.
+
+### Changed
+
+- Top-level README now includes an explicit Evidence section and rerun command
+  wiring to benchmark artifacts.
+- Contributor and docs index references now include benchmark sanity and
+  evidence-entry points (`CONTRIBUTING.md`, `docs/index.md`, `docs/README.md`).
+
+### Notes
+
+- This patch release preserves the `v0.2.x` no-breaking-change contract while
+  adding reproducible evidence anchors for optimization trust checks.
+
 ## [0.2.7] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 7 CI/CD playbook and

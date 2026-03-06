@@ -12,9 +12,9 @@ Current update-program progress is tracked in:
 
 Status as of 2026-03-05:
 
-- Current stable patch release tag: `v0.2.7`
-- Phases 0-7 complete
-- Phase 7 validation baseline passed (`python3 scripts/check_internal_links.py`; `python3 scripts/check_ci_playbook_sync.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `159 passed, 1 skipped`)
+- Current stable patch release tag: `v0.2.8`
+- Phases 0-8 complete
+- Phase 8 validation baseline passed (`python3 scripts/check_internal_links.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `164 passed, 1 skipped`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
 - Phase 6 follow-on hardening shipped (deterministic golden-log regeneration + golden artifact contract tests)
 - Phase 7 closed with contract-critical parity tests across demo/default/full template tiers
@@ -28,8 +28,9 @@ Status as of 2026-03-05:
 - Phase 5 reliability/failure-handling and teardown semantics are complete (`v0.2.5`)
 - Phase 6 enterprise readiness/type-safety hardening is complete (`v0.2.6`)
 - Phase 7 CI/CD playbook and reproducible-operations baseline is complete (`v0.2.7`)
-- `v0.2.7` patch release captures CI tuning runbook publication, playbook-sync CI checks, and Phase 7 asset guard tests
-- Final internal release-gate rerun passed on March 5, 2026 (format/lint/typecheck/links/playbook-sync/tests/smoke)
+- Phase 8 evidence anchors and benchmark credibility pass are complete (`v0.2.8`)
+- `v0.2.8` patch release captures benchmark runner/summary/case-study assets, benchmark sanity CI checks, and README evidence wiring
+- Final internal release-gate rerun passed on March 5, 2026 (format/lint/typecheck/links/playbook-sync/benchmark-sanity/tests/smoke)
 - Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
 Included:
