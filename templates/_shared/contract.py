@@ -16,6 +16,7 @@ _YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
 _YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
 _RESULT_SCHEMA_ALIAS = "result_payload.schema.json"
 _INGEST_SCHEMA_CANONICAL = "ingest_payload.schema.json"
+JSONDict = dict[str, Any]
 
 
 def _render_value(value: Any) -> str:
@@ -104,7 +105,7 @@ def _is_type(value: Any, expected: str) -> bool:
 
 def validate_against_schema(
     value: Any,
-    schema: dict,
+    schema: JSONDict,
     *,
     source_path: Path,
     field_path: str = "$",
@@ -304,12 +305,12 @@ def load_contract_document(project_root: Path, stem: str) -> tuple[Any, Path]:
 
 def load_schema_from_paths(
     project_root: Path,
-    paths_cfg: dict,
+    paths_cfg: JSONDict,
     *,
     key: str,
     default_rel: str,
     legacy_key: str | None = None,
-) -> tuple[dict, Path]:
+) -> tuple[JSONDict, Path]:
     used_legacy_key = False
     rel = paths_cfg.get(key)
     if rel is None and legacy_key is not None and legacy_key in paths_cfg:
@@ -406,13 +407,13 @@ def normalize_status(
 
 def _normalize_primary_objective(
     *,
-    payload: dict,
+    payload: JSONDict,
     objective_name: str,
     status: str,
     source_path: Path,
     trial_id: int | None,
     emit_transition_warnings: bool,
-) -> tuple[dict, float | None]:
+) -> tuple[JSONDict, float | None]:
     objectives = payload.get("objectives")
     if not isinstance(objectives, dict):
         raise _validation_error(
@@ -487,8 +488,8 @@ def _normalize_primary_objective(
 
 
 def normalize_ingest_payload(
-    payload: dict, *, objective_name: str, source_path: Path
-) -> tuple[dict, int]:
+    payload: JSONDict, *, objective_name: str, source_path: Path
+) -> tuple[JSONDict, int]:
     trial_id = _require_int(
         payload.get("trial_id"), source_path=source_path, field_path="$.trial_id"
     )
@@ -527,7 +528,7 @@ def normalize_ingest_payload(
     return normalized, trial_id
 
 
-def build_observation_contract(observation: dict, *, objective_name: str) -> dict:
+def build_observation_contract(observation: JSONDict, *, objective_name: str) -> JSONDict:
     trial_id = int(observation["trial_id"])
     status = str(observation.get("status", "ok")).strip().lower()
     if status == SUCCESS_ALIAS:
@@ -591,7 +592,7 @@ def _diff_records(path: str, left: Any, right: Any, out: list[str]) -> None:
         )
 
 
-def diff_contract_records(expected: dict, received: dict) -> list[str]:
+def diff_contract_records(expected: JSONDict, received: JSONDict) -> list[str]:
     out: list[str] = []
     _diff_records("$", expected, received, out)
     return out

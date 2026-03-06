@@ -26,6 +26,10 @@ Current emphasis:
 - boundary shape mismatches for payload/state dictionaries
 - path/file boundary typing
 - dead/incorrect type-ignore cleanup
+- explicit generic/container typing (`disallow_any_generics`)
+- fully typed function signatures in gated modules (`disallow_untyped_defs`)
+- no implicit module re-export leakage (`no_implicit_reexport`)
+- no implicit `Any` returns from typed functions (`warn_return_any`)
 
 Strictness will ratchet tighter after the canonical scope is stable and green.
 

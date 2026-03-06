@@ -16,6 +16,7 @@ import re
 import sys
 import warnings
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 DEFAULT_FAILURE_PENALTY_MINIMIZE = 1e12
@@ -149,7 +150,7 @@ def _require_suggestion_shape(suggestion: dict[str, Any]) -> None:
         raise ValueError("suggestion trial_id must be an integer >= 1")
 
 
-def _load_objective_module(path: Path):
+def _load_objective_module(path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location("client_objective", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Failed to load objective module from {path}")

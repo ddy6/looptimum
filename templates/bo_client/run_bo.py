@@ -14,15 +14,18 @@ import sys
 import time
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from types import ModuleType
+from typing import Any, cast
 
 from surrogate_gp import propose_with_gp
 from surrogate_proxy import propose_with_proxy
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent
+JSONDict = dict[str, Any]
+PathMap = dict[str, Path]
 
 
-def _load_shared_module(module_name: str, filename: str):
+def _load_shared_module(module_name: str, filename: str) -> ModuleType:
     module_path = _TEMPLATE_DIR.parent / "_shared" / filename
     if not module_path.exists():
         raise ModuleNotFoundError(
@@ -66,15 +69,15 @@ trial_dir = _RUNTIME.trial_dir
 STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
 
 
-def load_cfg(path: Path) -> dict:
+def load_cfg(path: Path) -> JSONDict:
     data = load_data_file(path)
     if not isinstance(data, dict):
         raise ValueError(f"Config/state file must contain an object: {path}")
     return data
 
 
-def load_state(path: Path) -> dict:
-    state: dict
+def load_state(path: Path) -> JSONDict:
+    state: JSONDict
     if path.exists():
         state = load_cfg(path)
     else:
@@ -86,14 +89,14 @@ def load_state(path: Path) -> dict:
             "next_trial_id": 1,
             "best": None,
         }
-    return normalize_state_schema_version(state, state_path=path)
+    return cast(JSONDict, normalize_state_schema_version(state, state_path=path))
 
 
-def save_state(path: Path, state: dict) -> None:
+def save_state(path: Path, state: JSONDict) -> None:
     atomic_write_json(path, state_for_persist(state), indent=2)
 
 
-def write_obs_csv(path: Path, rows: list[dict]) -> None:
+def write_obs_csv(path: Path, rows: list[JSONDict]) -> None:
     if not rows:
         atomic_write_text(path, "")
         return
@@ -105,15 +108,22 @@ def write_obs_csv(path: Path, rows: list[dict]) -> None:
     atomic_write_text(path, buffer.getvalue())
 
 
-def norm_space(space_cfg: dict) -> list[dict]:
+def norm_space(space_cfg: JSONDict) -> list[JSONDict]:
     params = space_cfg.get("parameters", [])
     if not params:
         raise ValueError("parameter_space.json must define 'parameters'")
-    return params
+    if not isinstance(params, list):
+        raise ValueError("parameter_space.parameters must be a list")
+    out: list[JSONDict] = []
+    for idx, param in enumerate(params):
+        if not isinstance(param, dict):
+            raise ValueError(f"parameter_space.parameters[{idx}] must be an object")
+        out.append(param)
+    return out
 
 
-def random_point(rng: random.Random, params: list[dict]) -> dict:
-    out: dict = {}
+def random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
+    out: JSONDict = {}
     for p in params:
         lo, hi = p["bounds"]
         if p["type"] == "float":
@@ -126,8 +136,13 @@ def random_point(rng: random.Random, params: list[dict]) -> dict:
 
 
 def propose(
-    rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_cfg: dict, seed: int
-) -> tuple[dict, dict]:
+    rng: random.Random,
+    state: JSONDict,
+    cfg: JSONDict,
+    params: list[JSONDict],
+    obj_cfg: JSONDict,
+    seed: int,
+) -> tuple[JSONDict, JSONDict]:
     obs = state["observations"]
     objective = obj_cfg["primary_objective"]
     if len(obs) < int(cfg["initial_random_trials"]):
@@ -146,7 +161,7 @@ def propose(
     raise ValueError(f"Unsupported surrogate.type '{backend}'. Supported values: rbf_proxy | gp")
 
 
-def update_best(state: dict, objective: dict) -> None:
+def update_best(state: JSONDict, objective: JSONDict) -> None:
     ok = [r for r in state["observations"] if str(r.get("status", "ok")) == "ok"]
     if not ok:
         state["best"] = None
@@ -162,11 +177,11 @@ def update_best(state: dict, objective: dict) -> None:
     }
 
 
-def _runtime_paths(root: Path, cfg: dict) -> dict[str, Path]:
+def _runtime_paths(root: Path, cfg: JSONDict) -> PathMap:
     raw = cfg.get("paths", {})
     if not isinstance(raw, dict):
         raise ValueError("bo_config.paths must be an object")
-    return resolve_runtime_paths(root, raw)
+    return cast(PathMap, resolve_runtime_paths(root, raw))
 
 
 def _relative_path(root: Path, path: Path) -> str:
@@ -176,7 +191,7 @@ def _relative_path(root: Path, path: Path) -> str:
         return str(path)
 
 
-def _append_event(paths: dict[str, Path], event: str, **fields: Any) -> None:
+def _append_event(paths: PathMap, event: str, **fields: Any) -> None:
     payload = {"event": event, "timestamp": time.time()}
     payload.update(fields)
     append_jsonl(paths["event_log_file"], payload)
@@ -191,7 +206,7 @@ def _require_finite_number(value: Any, *, field_name: str, trial_id: int) -> flo
     return out
 
 
-def _load_heartbeat_fields(payload: dict, trial_id: int) -> dict[str, Any]:
+def _load_heartbeat_fields(payload: JSONDict, trial_id: int) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if "heartbeat_at" in payload:
         out["last_heartbeat_at"] = _require_finite_number(
@@ -210,22 +225,22 @@ def _load_heartbeat_fields(payload: dict, trial_id: int) -> dict[str, Any]:
     return out
 
 
-def _pending_index(state: dict, trial_id: int) -> int | None:
+def _pending_index(state: JSONDict, trial_id: int) -> int | None:
     for idx, pending in enumerate(state["pending"]):
         if int(pending["trial_id"]) == trial_id:
             return idx
     return None
 
 
-def _pop_pending(state: dict, trial_id: int) -> dict | None:
+def _pop_pending(state: JSONDict, trial_id: int) -> JSONDict | None:
     idx = _pending_index(state, trial_id)
     if idx is None:
         return None
-    return state["pending"].pop(idx)
+    return cast(JSONDict, state["pending"].pop(idx))
 
 
 def _ensure_pending_manifest(
-    paths: dict[str, Path], pending_entry: dict, *, objective_name: str, now: float
+    paths: PathMap, pending_entry: JSONDict, *, objective_name: str, now: float
 ) -> None:
     trial_id = int(pending_entry["trial_id"])
     manifest = load_trial_manifest(paths["trials_dir"], trial_id)
@@ -256,8 +271,8 @@ def _ensure_pending_manifest(
 
 def _ensure_terminal_manifest(
     root: Path,
-    paths: dict[str, Path],
-    observation: dict,
+    paths: PathMap,
+    observation: JSONDict,
     *,
     objective_name: str,
     payload_copy_path: Path | None,
@@ -298,7 +313,7 @@ def _ensure_terminal_manifest(
     save_trial_manifest(paths["trials_dir"], trial_id, manifest)
 
 
-def _observation_rows(state: dict) -> list[dict]:
+def _observation_rows(state: JSONDict) -> list[JSONDict]:
     rows = []
     for obs in state["observations"]:
         row = {
@@ -320,18 +335,18 @@ def _observation_rows(state: dict) -> list[dict]:
     return rows
 
 
-def _save_state_and_rows(paths: dict[str, Path], state: dict) -> None:
+def _save_state_and_rows(paths: PathMap, state: JSONDict) -> None:
     save_state(paths["state_file"], state)
     write_obs_csv(paths["observations_csv"], _observation_rows(state))
 
 
 def _new_terminal_observation(
-    pending: dict,
+    pending: JSONDict,
     *,
     objective_name: str,
     terminal_reason: str,
     now: float,
-) -> dict:
+) -> JSONDict:
     observation = {
         "trial_id": int(pending["trial_id"]),
         "params": pending["params"],
@@ -355,19 +370,19 @@ def _new_terminal_observation(
 
 
 def _retire_stale_pending(
-    state: dict,
+    state: JSONDict,
     *,
     objective_name: str,
     max_pending_age_seconds: float,
     now: float,
     reason: str,
-) -> list[dict]:
+) -> list[JSONDict]:
     stale_ids = [
         int(pending["trial_id"])
         for pending in state["pending"]
         if pending_age_seconds(pending, now=now) > max_pending_age_seconds
     ]
-    observations: list[dict] = []
+    observations: list[JSONDict] = []
     for trial_id in stale_ids:
         pending = _pop_pending(state, trial_id)
         if pending is None:
@@ -383,7 +398,7 @@ def _retire_stale_pending(
     return observations
 
 
-def _status_counts(observations: list[dict]) -> dict[str, int]:
+def _status_counts(observations: list[JSONDict]) -> dict[str, int]:
     counts = {"ok": 0, "failed": 0, "killed": 0, "timeout": 0}
     for obs in observations:
         status = str(obs.get("status", "")).lower()
@@ -392,8 +407,8 @@ def _status_counts(observations: list[dict]) -> dict[str, int]:
 
 
 def _status_payload(
-    root: Path, state: dict, paths: dict[str, Path], max_pending_age: float | None
-) -> dict:
+    root: Path, state: JSONDict, paths: PathMap, max_pending_age: float | None
+) -> JSONDict:
     now = time.time()
     stale_pending = 0
     if max_pending_age is not None:
@@ -423,7 +438,7 @@ def _status_payload(
     }
 
 
-def _best_params_from_state(state: dict) -> dict | None:
+def _best_params_from_state(state: JSONDict) -> JSONDict | None:
     best = state.get("best")
     if not isinstance(best, dict):
         return None
@@ -435,7 +450,7 @@ def _best_params_from_state(state: dict) -> dict | None:
     return None
 
 
-def _runtime_summary(observations: list[dict]) -> dict | None:
+def _runtime_summary(observations: list[JSONDict]) -> JSONDict | None:
     runtimes = [
         float(obs["runtime_seconds"])
         for obs in observations
@@ -457,10 +472,10 @@ def _runtime_summary(observations: list[dict]) -> dict | None:
 
 def _build_report_payload(
     *,
-    state: dict,
-    objective: dict,
+    state: JSONDict,
+    objective: JSONDict,
     top_n: int,
-) -> dict:
+) -> JSONDict:
     objective_name = str(objective["name"])
     objective_direction = str(objective["direction"])
     observations = list(state.get("observations", []))
@@ -551,7 +566,7 @@ def _build_report_payload(
     return report
 
 
-def _render_report_markdown(report: dict) -> str:
+def _render_report_markdown(report: JSONDict) -> str:
     objective = report["objective"]
     counts = report["counts"]
     lines = [
@@ -600,7 +615,7 @@ def _render_report_markdown(report: dict) -> str:
 
 
 def _validate_state_hard_checks(
-    state: dict, objective_name: str, objective_direction: str
+    state: JSONDict, objective_name: str, objective_direction: str
 ) -> list[str]:
     errors: list[str] = []
 
@@ -788,8 +803,8 @@ def _validate_state_hard_checks(
 
 def _validate_state_warnings(
     *,
-    state: dict,
-    paths: dict[str, Path],
+    state: JSONDict,
+    paths: PathMap,
     max_pending_age: float | None,
 ) -> list[str]:
     warnings_out: list[str] = []
@@ -921,7 +936,7 @@ def _validate_trial_manifests_hard(trials_dir: Path) -> list[str]:
     return errors
 
 
-def _parse_heartbeat_meta(raw: str | None) -> dict | None:
+def _parse_heartbeat_meta(raw: str | None) -> JSONDict | None:
     if raw is None:
         return None
     parsed = json.loads(raw)
@@ -974,7 +989,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 state["meta"]["seed"] = int(cfg["seed"])
 
             now = time.time()
-            stale_observations: list[dict] = []
+            stale_observations: list[JSONDict] = []
             if max_pending_age is not None:
                 stale_observations = _retire_stale_pending(
                     state,
@@ -1312,7 +1327,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
                 if trial_id not in target_ids:
                     target_ids.append(trial_id)
 
-            retired: list[dict] = []
+            retired: list[JSONDict] = []
             for trial_id in target_ids:
                 pending_entry = _pop_pending(state, trial_id)
                 if pending_entry is None:
@@ -1625,12 +1640,10 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 def cmd_demo(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
 
-    def toy_loss(params: dict) -> float:
-        return (
-            (params["x1"] - 0.25) ** 2
-            + (params["x2"] - 0.75) ** 2
-            + 0.2 * math.sin(8.0 * params["x1"])
-        )
+    def toy_loss(params: JSONDict) -> float:
+        x1 = float(params["x1"])
+        x2 = float(params["x2"])
+        return (x1 - 0.25) ** 2 + (x2 - 0.75) ** 2 + 0.2 * math.sin(8.0 * x1)
 
     for _ in range(int(args.steps)):
         cfg, _ = load_contract_document(root, "bo_config")
