@@ -5,6 +5,35 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.6] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 6 enterprise readiness
+and type-safety hardening.
+
+### Added
+
+- Initial blocking `mypy` CI gate on canonical runtime scope (Python 3.12):
+  `templates/_shared/*.py`,
+  `templates/bo_client/run_bo.py`,
+  `client_harness_template/run_one_eval.py`.
+- Type-safety policy doc and contributor guidance:
+  `docs/type-safety.md`, `CONTRIBUTING.md`.
+- Dev dependency typing support for gate consistency:
+  `mypy`, `types-PyYAML`.
+
+### Changed
+
+- Canonical runtime modules now use stronger explicit typing annotations and
+  typed dynamic-boundary handling to reduce implicit-`Any` drift.
+- `mypy` configuration now enforces staged-moderate strictness rules:
+  generic/container typing, typed defs, no implicit re-export leakage, and
+  return-`Any` warnings.
+
+### Notes
+
+- This patch release preserves the `v0.2.x` no-breaking-change contract while
+  establishing a stricter, auditable typing baseline for `v0.3.0`.
+
 ## [0.2.5] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 5 reliability,
