@@ -109,6 +109,36 @@ For interruption triage and recovery actions, see
 For the dedicated tiny end-to-end objective walkthrough, see
 `examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
 
+## Evidence
+
+Evidence artifacts for optimization-credibility checks are published in
+`benchmarks/`:
+
+- benchmark runner script:
+  `benchmarks/run_trial_efficiency_benchmark.py`
+- committed compact summary (golden):
+  `benchmarks/summary.json`
+- generated compact case study (derived from summary):
+  `benchmarks/case_study.md`
+
+Canonical Phase 8 protocol in this repository:
+
+- objective: `tiny_quadratic`
+- baseline: random search
+- metric: best objective at fixed budget
+- reproducibility: 10 seeds with median + IQR reporting
+
+Re-run canonical evidence locally:
+
+```bash
+python3 benchmarks/run_trial_efficiency_benchmark.py \
+  --objective tiny_quadratic \
+  --budget 20 \
+  --seeds 17,29,41,53,67,79,97,113,131,149 \
+  --write-summary benchmarks/summary.json \
+  --write-case-study benchmarks/case_study.md
+```
+
 ## Copy/Paste Evaluator Stub (Minimal)
 
 Drop this into `client_harness_template/objective.py` to get started quickly:

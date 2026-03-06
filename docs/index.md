@@ -43,6 +43,7 @@ For full command sequences and resume behavior:
 - [Docs Examples](./examples/README.md)
 - [State Snapshot References](./examples/state_snapshots/README.md)
 - [Decision-Trace References](./examples/decision_trace/README.md)
+- [Benchmark Evidence Index](../benchmarks/README.md)
 - Tiny end-to-end loop:
   `examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py`
 

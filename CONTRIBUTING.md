@@ -78,6 +78,7 @@ python3 -m mypy
 python3 -m pytest -q templates client_harness_template/tests
 python3 scripts/check_internal_links.py
 python3 scripts/check_ci_playbook_sync.py
+python3 scripts/check_benchmark_sanity.py
 python3 templates/bo_client/run_bo.py validate --project-root templates/bo_client
 python3 templates/bo_client_demo/run_bo.py validate --project-root templates/bo_client_demo
 python3 templates/bo_client_full/run_bo.py validate --project-root templates/bo_client_full

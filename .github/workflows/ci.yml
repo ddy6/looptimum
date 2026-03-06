@@ -47,11 +47,15 @@ jobs:
       - name: Validate CI playbook sync
         run: python scripts/check_ci_playbook_sync.py
 
+      - name: Validate benchmark sanity
+        run: python scripts/check_benchmark_sanity.py
+
       - name: Syntax check critical scripts
         run: |
           python -m py_compile \
             client_harness_template/run_one_eval.py \
             meshing_example/run_optuna_meshing.py \
+            scripts/check_benchmark_sanity.py \
             scripts/check_ci_playbook_sync.py \
             scripts/check_internal_links.py \
             scripts/release_smoke.py \
