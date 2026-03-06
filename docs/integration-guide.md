@@ -11,6 +11,10 @@ The Looptimum CLI exposes a stable command contract across template variants:
 It is designed for expensive black-box objectives such as simulations,
 calibrations, pipeline tuning, and process optimization.
 
+Opinionated mainstream starting point:
+
+- [ETL/pipeline knob tuning scenario](../quickstart/etl-pipeline-knob-tuning.md)
+
 ## What You Are Integrating
 
 The Looptimum templates in `templates/` provide a restartable loop that:

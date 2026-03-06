@@ -7,6 +7,10 @@ This is the quickest path to running Looptimum templates locally.
 This quickstart uses explicit `--project-root` paths so each command is a
 single runnable line (easy copy/paste).
 
+Opinionated mainstream scenario:
+
+- [ETL/pipeline knob tuning walkthrough](./etl-pipeline-knob-tuning.md)
+
 ## Interpreter
 
 These templates run with standard `python3` for proxy/demo workflows.

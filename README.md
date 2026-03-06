@@ -20,6 +20,25 @@ tuning consequences.
 For a spec-style contract summary, use
 [`docs/quick-reference.md`](docs/quick-reference.md).
 
+## Trust Anchors
+
+Every core claim in this README has an auditable source:
+
+- contract semantics and payload/state definitions:
+  [`docs/quick-reference.md`](docs/quick-reference.md)
+- optimizer behavior, backend differences, and failure modes:
+  [`docs/how-it-works.md`](docs/how-it-works.md)
+- compatibility and breaking-change policy:
+  [`docs/stability-guarantees.md`](docs/stability-guarantees.md)
+- recovery and interruption handling:
+  [`docs/recovery-playbook.md`](docs/recovery-playbook.md)
+- CI operational policy for persistence/parallelism/robust best:
+  [`docs/ci-knob-tuning.md`](docs/ci-knob-tuning.md)
+- benchmark evidence and reproducibility artifacts:
+  [`benchmarks/README.md`](benchmarks/README.md),
+  [`benchmarks/summary.json`](benchmarks/summary.json),
+  [`benchmarks/case_study.md`](benchmarks/case_study.md)
+
 ## If You've Ever Said...
 
 - "We're wasting time on parameter sweeps and manual tuning."
@@ -109,6 +128,8 @@ Quickstart note:
   paths and run without compatibility/deprecation warnings on a clean copy.
 
 For full command sets and resume behavior, see `quickstart/README.md`.
+For an opinionated mainstream scenario, see
+[`quickstart/etl-pipeline-knob-tuning.md`](quickstart/etl-pipeline-knob-tuning.md).
 For interruption triage and recovery actions, see
 `docs/recovery-playbook.md`.
 For the dedicated tiny end-to-end objective walkthrough, see

@@ -18,6 +18,7 @@ For full command sequences and resume behavior:
 - [Integration Guide](./integration-guide.md)
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
+- [ETL/Pipeline Knob-Tuning Quickstart](../quickstart/etl-pipeline-knob-tuning.md)
 
 ## Core Documentation
 

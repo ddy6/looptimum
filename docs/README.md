@@ -45,6 +45,7 @@ Reference artifacts:
 - `examples/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`
+- `../quickstart/etl-pipeline-knob-tuning.md`
 - `../examples/toy_objectives/03_tiny_quadratic_loop/README.md`
 - `../benchmarks/README.md`
 
