@@ -44,11 +44,15 @@ jobs:
       - name: Validate internal markdown links
         run: python scripts/check_internal_links.py
 
+      - name: Validate CI playbook sync
+        run: python scripts/check_ci_playbook_sync.py
+
       - name: Syntax check critical scripts
         run: |
           python -m py_compile \
             client_harness_template/run_one_eval.py \
             meshing_example/run_optuna_meshing.py \
+            scripts/check_ci_playbook_sync.py \
             scripts/check_internal_links.py \
             scripts/release_smoke.py \
             templates/bo_client/run_bo.py \
