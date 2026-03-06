@@ -36,6 +36,7 @@ Status as of 2026-03-06:
 - Phase 7 CI/CD playbook and reproducible-operations baseline is complete (`v0.2.7`)
 - Phase 8 evidence anchors and benchmark credibility pass are complete (`v0.2.8`)
 - Phase 9 documentation trust pass is complete (`v0.2.9`)
+- Phase 10 release readiness/publication is in progress (`v0.3.0`)
 - `v0.2.9` patch release captures trust badges, spec quick-reference,
   ETL/pipeline quickstart scenario, and public-doc consistency CI checks
 - Final internal release-gate rerun passed on March 6, 2026 (format/lint/typecheck/public-doc-links/docs-consistency/playbook-sync/benchmark-sanity/tests/smoke)
@@ -48,4 +49,6 @@ Included:
 - `phase8_external_inputs.md`: explicit external dependencies required to close steps 72-73
 - `post_v0.2.0_followup_backlog.md`: follow-up backlog seeded for post-release iteration
 - `v0.2.0_release_execution_checklist.md`: operator checklist + execution record for `v0.2.0` (historical)
+- `v0.3.0_release_readiness.md`: concise gate summary + command list for final release readiness
+- `v0.3.0_release_candidate_checklist.md`: RC checklist and role-based sign-off table for `v0.3.0`
 - `sample_workup.md`: pilot-style sample workup using a toy demo run to illustrate structure, analysis, and recommendations
