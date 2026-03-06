@@ -17,11 +17,13 @@ For full command sequences and resume behavior:
 
 - [Integration Guide](./integration-guide.md)
 - [Operational Semantics](./operational-semantics.md)
+- [Recovery Playbook](./recovery-playbook.md)
 
 ## Core Documentation
 
 - [Integration Guide](./integration-guide.md)
 - [Operational Semantics](./operational-semantics.md)
+- [Recovery Playbook](./recovery-playbook.md)
 - [How It Works](./how-it-works.md)
 - [Stability Guarantees](./stability-guarantees.md)
 - [Migrations](./migrations/README.md)

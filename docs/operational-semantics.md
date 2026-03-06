@@ -210,14 +210,13 @@ Recovery model:
 - Per-trial manifests in `state/trials/` are audit helpers and can be rebuilt
   from canonical state + payload history.
 
-Pragmatic recovery playbook:
+Operator runbook pointer:
 
-1. Stop all writers.
-2. Inspect `state/bo_state.json` for pending and observations.
-3. Treat `acquisition_log.jsonl` as audit context, not source of truth.
-4. For each pending trial, either ingest a matching result or apply your
-   external failure policy.
-5. Resume with `status`, then continue `suggest -> ingest`.
+1. Use `docs/recovery-playbook.md` for prescriptive command sequences,
+   decision-tree handling (`ingest` failure, stale pending, conflicting replay),
+   and CI/local exit-code follow-up actions.
+2. Use this document as the normative contract reference when verifying expected
+   semantics during recovery.
 
 ## Reproducibility and Determinism Boundaries
 

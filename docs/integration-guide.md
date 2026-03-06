@@ -239,6 +239,8 @@ Operational notes:
   wait+timeout default behavior.
 - Use `--fail-fast` on mutating commands when your automation should fail
   immediately under lock contention.
+- For prescriptive interruption handling and "what to run next" flows, use
+  `docs/recovery-playbook.md`.
 
 ## Minimal Working Integration (Recommended Path)
 

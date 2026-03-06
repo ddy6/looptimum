@@ -5,6 +5,36 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.2.5] - 2026-03-05
+
+Patch release for the `v0.2.x` line focused on Phase 5 reliability,
+interruption handling, and operator recovery clarity.
+
+### Added
+
+- Canonical interruption/recovery acceptance coverage in
+  `templates/bo_client/tests/`:
+  stale pending resume, injected ingest write-failure retry, and duplicate
+  ingest replay after retry path.
+- Demo/full parity smoke + contract assertions for interruption traceability:
+  `templates/bo_client_demo/tests/test_ops_demo.py`,
+  `templates/bo_client_full/tests/test_ops_full.py`.
+- Dedicated operator runbook:
+  `docs/recovery-playbook.md` (decision tree + prescriptive command flows).
+
+### Changed
+
+- Trial/report traceability fields were hardened for terminal and non-`ok`
+  outcomes across template variants (`status`, `terminal_reason`,
+  terminal timestamp, `penalty_objective`, `artifact_path` contract behavior).
+- Integration/quickstart/operational docs now link to a single recovery
+  playbook for interruption and CI/local failure handling.
+
+### Notes
+
+- This patch release preserves the `v0.2.x` no-breaking-change contract while
+  improving trust in resumability and failure forensics.
+
 ## [0.2.4] - 2026-03-05
 
 Patch release for the `v0.2.x` line focused on Phase 4 template/config

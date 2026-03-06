@@ -6,7 +6,7 @@ Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and one scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable patch release: `v0.2.4`.
+Current stable patch release: `v0.2.5`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -104,6 +104,8 @@ Quickstart note:
   paths and run without compatibility/deprecation warnings on a clean copy.
 
 For full command sets and resume behavior, see `quickstart/README.md`.
+For interruption triage and recovery actions, see
+`docs/recovery-playbook.md`.
 For the dedicated tiny end-to-end objective walkthrough, see
 `examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
 
@@ -220,7 +222,7 @@ Best ranking rule:
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
   example `0.2 -> 0.3`) and require migration notes.
-- Current patch tag in this line: `v0.2.4` (see `CHANGELOG.md`).
+- Current patch tag in this line: `v0.2.5` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior
@@ -310,6 +312,7 @@ feedback source of truth).
 - `docs/how-it-works.md`
 - `docs/integration-guide.md`
 - `docs/operational-semantics.md`
+- `docs/recovery-playbook.md`
 - `docs/stability-guarantees.md`
 - `docs/feedback-loop.md`
 - `docs/search-space.md`

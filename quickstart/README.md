@@ -119,6 +119,7 @@ python3 templates/bo_client_demo/run_bo.py doctor --project-root templates/bo_cl
 Mutating commands (`suggest`, `ingest`, `cancel`, `retire`, `heartbeat`,
 `report`) use an exclusive lock with wait+timeout defaults.
 Add `--fail-fast` to fail immediately on lock contention.
+For interruption recovery/teardown decisions, use `docs/recovery-playbook.md`.
 
 ## First Clean-Run Flow (Practical Starting Path)
 
