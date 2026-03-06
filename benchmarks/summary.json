@@ -1,0 +1,136 @@
+{
+  "schema_version": "0.1.0",
+  "generated_at": 1772771701.894082,
+  "objective": {
+    "id": "tiny_quadratic",
+    "description": "Canonical deterministic pseudo-noisy quadratic objective used in the tiny loop demo.",
+    "direction": "minimize"
+  },
+  "metric": {
+    "name": "best_objective_at_fixed_budget",
+    "budget": 20,
+    "seed_count": 10,
+    "required_seed_count": 10
+  },
+  "seeds": [
+    17,
+    29,
+    41,
+    53,
+    67,
+    79,
+    97,
+    113,
+    131,
+    149
+  ],
+  "results": {
+    "looptimum": {
+      "median_best_objective": 0.03087826535241568,
+      "iqr_best_objective": 0.025311094091314084,
+      "per_seed_best_objective": [
+        0.035246812703647754,
+        0.05751890927713687,
+        0.05269194505528109,
+        0.04133996968648213,
+        0.011408679628223973,
+        0.025319746234692533,
+        0.014646442029120693,
+        0.022778783189069268,
+        0.05118683416022485,
+        0.026509718001183603
+      ]
+    },
+    "random_search": {
+      "median_best_objective": 0.015824414102022132,
+      "iqr_best_objective": 0.014706467553832949,
+      "per_seed_best_objective": [
+        0.03358154984818955,
+        0.012277246744817918,
+        0.03193107574665846,
+        -0.005462512104382785,
+        0.019371581459226347,
+        0.009368584716405618,
+        0.02477507432889379,
+        0.023874949607613438,
+        -0.006857167287916417,
+        0.011268548229746156
+      ]
+    },
+    "comparison": {
+      "median_improvement_vs_random": -0.015053851250393546,
+      "win_rate_vs_random": 0.3
+    }
+  },
+  "per_seed": [
+    {
+      "seed": 17,
+      "looptimum_best_objective": 0.035246812703647754,
+      "random_best_objective": 0.03358154984818955,
+      "delta_best_objective_vs_random": -0.001665262855458205
+    },
+    {
+      "seed": 29,
+      "looptimum_best_objective": 0.05751890927713687,
+      "random_best_objective": 0.012277246744817918,
+      "delta_best_objective_vs_random": -0.045241662532318955
+    },
+    {
+      "seed": 41,
+      "looptimum_best_objective": 0.05269194505528109,
+      "random_best_objective": 0.03193107574665846,
+      "delta_best_objective_vs_random": -0.02076086930862263
+    },
+    {
+      "seed": 53,
+      "looptimum_best_objective": 0.04133996968648213,
+      "random_best_objective": -0.005462512104382785,
+      "delta_best_objective_vs_random": -0.046802481790864915
+    },
+    {
+      "seed": 67,
+      "looptimum_best_objective": 0.011408679628223973,
+      "random_best_objective": 0.019371581459226347,
+      "delta_best_objective_vs_random": 0.007962901831002374
+    },
+    {
+      "seed": 79,
+      "looptimum_best_objective": 0.025319746234692533,
+      "random_best_objective": 0.009368584716405618,
+      "delta_best_objective_vs_random": -0.015951161518286915
+    },
+    {
+      "seed": 97,
+      "looptimum_best_objective": 0.014646442029120693,
+      "random_best_objective": 0.02477507432889379,
+      "delta_best_objective_vs_random": 0.010128632299773095
+    },
+    {
+      "seed": 113,
+      "looptimum_best_objective": 0.022778783189069268,
+      "random_best_objective": 0.023874949607613438,
+      "delta_best_objective_vs_random": 0.0010961664185441707
+    },
+    {
+      "seed": 131,
+      "looptimum_best_objective": 0.05118683416022485,
+      "random_best_objective": -0.006857167287916417,
+      "delta_best_objective_vs_random": -0.058044001448141265
+    },
+    {
+      "seed": 149,
+      "looptimum_best_objective": 0.026509718001183603,
+      "random_best_objective": 0.011268548229746156,
+      "delta_best_objective_vs_random": -0.015241169771437447
+    }
+  ],
+  "case_study_source": {
+    "best_seed": 67,
+    "best_objective": 0.011408679628223973,
+    "best_params": {
+      "x1": 0.32375334582076565,
+      "x2": 0.6200294852155447
+    },
+    "failure_rate": 0.0
+  }
+}

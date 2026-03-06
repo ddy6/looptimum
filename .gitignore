@@ -4,6 +4,7 @@
 # Python caches / bytecode
 __pycache__/
 *.py[cod]
+*.swp
 
 # Test/tool caches
 .pytest_cache/
@@ -46,6 +47,9 @@ env/
 # Local meshing example outputs
 meshopt_output/
 meshing_example/meshopt_output/
+
+# Benchmark raw artifacts (generated on demand)
+benchmarks/artifacts/
 
 # Development planning archives (local-only, intentionally untracked)
 dev_archive/
