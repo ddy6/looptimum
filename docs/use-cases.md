@@ -52,11 +52,12 @@ Why this is a fit:
 - failures and invalid outcomes need explicit tracking
 - pilot planning usually requires clear budget and deliverable alignment
 
-## Vertical 3: ML HPO Teams
+## Vertical 3: ML and Large-Model HPO Teams
 
 Typical users:
 
 - teams with expensive model training/evaluation loops
+- large-model platform teams running long training or offline evaluation jobs
 - teams without dedicated HPO platform ownership
 - teams needing repeatable optimization in restricted environments
 
@@ -65,10 +66,12 @@ Common tuning knobs:
 - learning rate, batch size, regularization strength
 - augmentation controls, early-stopping thresholds
 - runtime-cost penalties combined with quality metrics
+- routing controls and dataset-mixture weights in bounded search spaces
 
 Why this is a fit:
 
 - can wrap existing training scripts or job schedulers
+- works as an outer loop above trainer/runtime internals
 - supports local/offline execution paths
 - keeps optimization artifacts auditable for experiment review
 
@@ -84,9 +87,11 @@ workloads. Each row states what is tuned and the scalar score fed into
 | Mainstream | API latency reliability | cache TTL, concurrency limits, timeout values | `p95_latency_ms + error_rate_penalty` |
 | Mainstream | Search/recommendation calibration | relevance weights, eligibility thresholds, exploration ratio | `-relevance_metric + latency_penalty` |
 | Mainstream | Build/compile performance | compiler/linker flags, optimization levels, thread counts | `binary_runtime_ms + compile_time_penalty` |
+| Mainstream | Large-model training recipe tuning | learning rate, warmup ratio, gradient accumulation, weight decay | `validation_loss + runtime_penalty` |
 | Specialized | CFD/meshing stability | mesh density, refinement controls, solver tolerances | `runtime_minutes + instability_penalty` |
 | Specialized | Assay/protocol optimization | concentration, temperature/time windows, mixing rates | `-yield + failed_run_penalty` |
 | Specialized | Battery model calibration | diffusion coefficients, degradation factors, fit constraints | `fit_error + simulation_cost_penalty` |
+| Specialized | Mixture-of-experts routing design | experts-per-token, router temperature, capacity factor | `validation_loss + imbalance_penalty + latency_penalty` |
 | Specialized | OpenFOAM-style meshing workflow | mesh controls, relaxation settings, solver parameters | `wall_clock_time + nonconvergence_penalty` |
 
 ## Reproducibility and Determinism Boundaries

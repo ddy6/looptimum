@@ -437,6 +437,8 @@ Start simple; refine the policy after an initial pilot.
 ## Scaling to Batch / Cluster Execution (Pragmatic Path)
 
 The templates suggest one trial at a time. In practice, that is usually the safest integration surface.
+For large-model stacks, this usually means Looptimum stays outside the trainer
+and drives job-level parameter choices through `suggest -> evaluate -> ingest`.
 
 To scale in a cluster environment:
 

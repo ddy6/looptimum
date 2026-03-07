@@ -30,6 +30,7 @@ Where:
 - noisy measurements across runner/network conditions
 - clear objective scalarization and failure semantics
 - strong operational need for resumability and traceability
+- same outer-loop shape used in long-running training/evaluation jobs
 
 ## Run Sequence (Canonical)
 

@@ -19,6 +19,7 @@ Best fit:
 - simulations
 - model calibration
 - black-box hyperparameter/pipeline tuning
+- large-model training/evaluation job tuning when runs are expensive
 - process optimization
 - scheduling/resource allocation (when a scalar objective can be computed)
 - pricing/marketing experiments with expensive evaluations
@@ -223,6 +224,9 @@ Recommended path:
 - only ingest after a result is ready
 
 This reduces integration risk while preserving resumability.
+
+This same pattern is commonly used for long-running model training/evaluation
+jobs where each run can take hours or days.
 
 ## Does this store sensitive data?
 

@@ -1,7 +1,8 @@
 # Docs
 
 Public-facing documentation for integration, FAQ, security/data handling,
-use-case fit, and service packaging.
+use-case fit, and service packaging, including expensive training/evaluation
+campaigns.
 
 These pages document Looptimum operating patterns and rollout materials.
 
@@ -38,7 +39,7 @@ Included files:
 - `pricing-tiers.md`: placeholder in this release; full tier/pricing detail
   will return in the next update
 - `use-cases.md`: fit guidance for engineering/simulation, biotech/lab
-  pipelines, and ML HPO teams
+  pipelines, ML HPO teams, and large-model outer-loop tuning
 
 Reference artifacts:
 

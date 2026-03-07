@@ -61,6 +61,8 @@ Repository paths used during integration:
 The optimization loop is local-first and file-backed (`suggest -> evaluate -> ingest`),
 with lifecycle/ops controls for pending management and diagnostics.
 It does not require hosted orchestration and works in restricted/offline environments.
+This outer-loop pattern is especially useful for expensive evaluation campaigns,
+including long-running training or evaluation jobs.
 
 Integration note:
 

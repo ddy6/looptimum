@@ -79,6 +79,8 @@ what to test next.
   and benchmark-driven runtime tradeoffs.
 - ML training loops: learning rate, batch size, regularization, early-stop
   settings.
+- Large-model workflow tuning: training recipe knobs, evaluation-policy
+  settings, and runtime controls for long-running jobs.
 - Simulation and engineering workflows: solver tolerances, mesh controls,
   calibration settings.
 - Operations/process tuning: throughput vs. quality/cost tradeoffs.
@@ -185,6 +187,8 @@ expanded stub in
 ## When To Use Looptimum
 
 - Each evaluation is expensive enough that sample efficiency matters.
+- Your evaluator runs as external jobs and you want a thin outer loop above
+  training/evaluation infrastructure.
 - You can define one scalar objective (`minimize` or `maximize`).
 - You have a bounded parameter set (commonly small-to-moderate dimensional).
 - You want resumable, file-backed operation in local/offline/restricted
