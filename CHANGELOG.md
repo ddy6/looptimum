@@ -5,6 +5,29 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.3.1] - 2026-03-07
+
+Patch release for the `v0.3.x` line focused on surrogate robustness when state
+contains failed/non-`ok` observations.
+
+### Fixed
+
+- Fixed `suggest` crash on campaigns containing only failed/non-`ok`
+  observations (`float(None)` from surrogate objective casting).
+- Surrogate proposal paths in `bo_client`, `bo_client_demo`, and
+  `bo_client_full` now train/score only with usable rows
+  (`status == "ok"` with finite numeric primary objective values).
+- `suggest` now falls back to random suggestion when no usable observations are
+  available after the initial-random phase.
+- GP and BoTorch fit paths now fall back to random suggestion when usable
+  observations are below minimum fit requirements.
+
+### Added
+
+- Regression tests covering non-`ok`-only campaigns, mixed `ok`/failed state,
+  and GP/BoTorch insufficient-usable fallback behavior across template
+  variants.
+
 ## [0.3.0] - 2026-03-06
 
 Compatibility-forward line cut that closes out the `v0.2.9` patch cycle and

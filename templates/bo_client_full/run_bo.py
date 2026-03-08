@@ -175,8 +175,25 @@ def _candidate_pool(rng: random.Random, params: list[dict], n: int) -> list[dict
     return [random_point(rng, params) for _ in range(int(n))]
 
 
+def _is_usable_observation(row: dict, objective_name: str) -> bool:
+    if str(row.get("status", "ok")) != "ok":
+        return False
+    objectives = row.get("objectives")
+    if not isinstance(objectives, dict):
+        return False
+    value = objectives.get(objective_name)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    return math.isfinite(float(value))
+
+
 def propose_with_proxy(
-    rng: random.Random, state: dict, cfg: dict, params: list[dict], objective: dict
+    rng: random.Random,
+    observations: list[dict],
+    state: dict,
+    cfg: dict,
+    params: list[dict],
+    objective: dict,
 ) -> tuple[dict, dict]:
     objective_name, direction = objective["name"], objective["direction"]
     surrogate_cfg = cfg["surrogate"]
@@ -186,7 +203,7 @@ def propose_with_proxy(
     for candidate in _candidate_pool(rng, params, int(cfg["candidate_pool_size"])):
         mean, std = predict_rbf_proxy(
             candidate,
-            state["observations"],
+            observations,
             params,
             objective_name,
             float(surrogate_cfg.get("length_scale", 0.2)),
@@ -205,7 +222,12 @@ def propose_with_proxy(
 
 
 def propose_with_botorch(
-    rng: random.Random, state: dict, cfg: dict, params: list[dict], objective: dict
+    rng: random.Random,
+    observations: list[dict],
+    state: dict,
+    cfg: dict,
+    params: list[dict],
+    objective: dict,
 ) -> tuple[dict, dict]:
     import torch
     from botorch.fit import fit_gpytorch_mll
@@ -231,10 +253,8 @@ def propose_with_botorch(
             out[param["name"]] = int(round(value)) if param["type"] == "int" else float(value)
         return out
 
-    x_train = torch.tensor(
-        [normalize(obs["params"]) for obs in state["observations"]], dtype=torch.double
-    )
-    y_raw = [float(obs["objectives"][objective_name]) for obs in state["observations"]]
+    x_train = torch.tensor([normalize(obs["params"]) for obs in observations], dtype=torch.double)
+    y_raw = [float(obs["objectives"][objective_name]) for obs in observations]
     y_train = torch.tensor(
         [[-value] if direction == "maximize" else [value] for value in y_raw], dtype=torch.double
     )
@@ -280,21 +300,45 @@ def propose(
     obj_cfg: dict,
     args: argparse.Namespace,
 ) -> tuple[dict, dict]:
+    observations = state["observations"]
     objective = obj_cfg["primary_objective"]
-    if len(state["observations"]) < int(cfg["initial_random_trials"]):
+    if len(observations) < int(cfg["initial_random_trials"]):
         return random_point(rng, params), {"strategy": "initial_random", "surrogate_backend": None}
+    objective_name = str(objective["name"])
+    usable_obs = [row for row in observations if _is_usable_observation(row, objective_name)]
+    if not usable_obs:
+        return random_point(rng, params), {
+            "strategy": "initial_random",
+            "surrogate_backend": None,
+            "fallback_reason": "no_usable_observations",
+        }
 
     if use_botorch_backend(args, cfg):
+        surrogate_cfg = cfg.get("surrogate", {})
+        min_botorch_fit_observations = max(
+            2, int(surrogate_cfg.get("botorch_min_fit_observations", 2))
+        )
+        if len(usable_obs) < min_botorch_fit_observations:
+            return random_point(rng, params), {
+                "strategy": "initial_random",
+                "surrogate_backend": None,
+                "fallback_reason": (
+                    "insufficient_usable_observations_for_botorch_gp"
+                    f"({len(usable_obs)}/{min_botorch_fit_observations})"
+                ),
+            }
         try:
-            return propose_with_botorch(rng, state, cfg, params, objective)
+            return propose_with_botorch(rng, usable_obs, state, cfg, params, objective)
         except Exception as exc:
             flags = cfg.get("feature_flags", {})
             if flags.get("fallback_to_proxy_if_unavailable", True):
-                candidate, decision = propose_with_proxy(rng, state, cfg, params, objective)
+                candidate, decision = propose_with_proxy(
+                    rng, usable_obs, state, cfg, params, objective
+                )
                 decision["fallback_reason"] = str(exc)
                 return candidate, decision
             raise
-    return propose_with_proxy(rng, state, cfg, params, objective)
+    return propose_with_proxy(rng, usable_obs, state, cfg, params, objective)
 
 
 def update_best(state: dict, objective: dict) -> None:

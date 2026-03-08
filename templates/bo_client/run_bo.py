@@ -135,6 +135,18 @@ def random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
     return out
 
 
+def _is_usable_observation(row: JSONDict, objective_name: str) -> bool:
+    if str(row.get("status", "ok")) != "ok":
+        return False
+    objectives = row.get("objectives")
+    if not isinstance(objectives, dict):
+        return False
+    value = objectives.get(objective_name)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    return math.isfinite(float(value))
+
+
 def propose(
     rng: random.Random,
     state: JSONDict,
@@ -145,8 +157,16 @@ def propose(
 ) -> tuple[JSONDict, JSONDict]:
     obs = state["observations"]
     objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
     if len(obs) < int(cfg["initial_random_trials"]):
         return random_point(rng, params), {"strategy": "initial_random", "surrogate_backend": None}
+    usable_obs = [row for row in obs if _is_usable_observation(row, objective_name)]
+    if not usable_obs:
+        return random_point(rng, params), {
+            "strategy": "initial_random",
+            "surrogate_backend": None,
+            "fallback_reason": "no_usable_observations",
+        }
 
     surrogate_cfg = cfg["surrogate"]
     acq_cfg = cfg["acquisition"]
@@ -155,9 +175,21 @@ def propose(
     candidates = [random_point(rng, params) for _ in range(int(cfg["candidate_pool_size"]))]
 
     if backend == "rbf_proxy":
-        return propose_with_proxy(candidates, obs, params, objective, surrogate_cfg, acq_cfg, best)
+        return propose_with_proxy(
+            candidates, usable_obs, params, objective, surrogate_cfg, acq_cfg, best
+        )
     if backend == "gp":
-        return propose_with_gp(candidates, obs, params, objective, acq_cfg, best, seed)
+        gp_min_fit_observations = max(2, int(surrogate_cfg.get("gp_min_fit_observations", 2)))
+        if len(usable_obs) < gp_min_fit_observations:
+            return random_point(rng, params), {
+                "strategy": "initial_random",
+                "surrogate_backend": None,
+                "fallback_reason": (
+                    "insufficient_usable_observations_for_gp"
+                    f"({len(usable_obs)}/{gp_min_fit_observations})"
+                ),
+            }
+        return propose_with_gp(candidates, usable_obs, params, objective, acq_cfg, best, seed)
     raise ValueError(f"Unsupported surrogate.type '{backend}'. Supported values: rbf_proxy | gp")
 
 

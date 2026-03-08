@@ -11,6 +11,19 @@ import pytest
 from conftest import parse_suggestion, run_cmd
 
 
+def _latest_decision(template_copy: Path) -> dict:
+    lines = [
+        line
+        for line in (template_copy / "state" / "acquisition_log.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    assert lines
+    payload = json.loads(lines[-1])
+    return payload["decision"]
+
+
 def test_status_initial(template_copy) -> None:
     out = run_cmd(template_copy, "status")
     payload = json.loads(out.stdout)
@@ -57,6 +70,93 @@ def test_deterministic_first_suggestion_under_fixed_seed(template_copy, tmp_path
     second = parse_suggestion(run_cmd(second_copy, "suggest").stdout)
     assert first["trial_id"] == second["trial_id"] == 1
     assert first["params"] == second["params"]
+
+
+def test_suggest_surrogate_falls_back_with_only_non_ok_observations(template_copy) -> None:
+    cfg = json.loads((template_copy / "bo_config.json").read_text(encoding="utf-8"))
+    initial = int(cfg["initial_random_trials"])
+
+    for idx in range(initial):
+        suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+        failed_result = {
+            "trial_id": suggestion["trial_id"],
+            "params": suggestion["params"],
+            "objectives": {"loss": None},
+            "status": "timeout",
+            "penalty_objective": 1000.0 + idx,
+        }
+        path = template_copy / "examples" / "_non_ok_seed_result.json"
+        path.write_text(json.dumps(failed_result, indent=2), encoding="utf-8")
+        run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["trial_id"] == initial + 1
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "initial_random"
+    assert decision["surrogate_backend"] is None
+    assert decision["fallback_reason"] == "no_usable_observations"
+
+
+def test_suggest_surrogate_ignores_non_ok_rows_when_usable_rows_exist(template_copy) -> None:
+    cfg = json.loads((template_copy / "bo_config.json").read_text(encoding="utf-8"))
+    initial = int(cfg["initial_random_trials"])
+
+    for idx in range(max(0, initial - 1)):
+        suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+        failed_result = {
+            "trial_id": suggestion["trial_id"],
+            "params": suggestion["params"],
+            "objectives": {"loss": None},
+            "status": "timeout",
+            "penalty_objective": 2000.0 + idx,
+        }
+        path = template_copy / "examples" / "_mixed_seed_failed_result.json"
+        path.write_text(json.dumps(failed_result, indent=2), encoding="utf-8")
+        run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    final_seed_suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    ok_result = {
+        "trial_id": final_seed_suggestion["trial_id"],
+        "params": final_seed_suggestion["params"],
+        "objectives": {"loss": 0.3},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_mixed_seed_ok_result.json"
+    path.write_text(json.dumps(ok_result, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["trial_id"] == initial + 1
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+
+
+def test_gp_backend_falls_back_when_usable_observations_insufficient(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["surrogate"]["type"] = "gp"
+    cfg["surrogate"]["gp_min_fit_observations"] = 2
+    cfg["initial_random_trials"] = 1
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    result = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.4},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_gp_insufficient_seed_result.json"
+    path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    gp_suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert gp_suggestion["trial_id"] == 2
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "initial_random"
+    assert decision["surrogate_backend"] is None
+    assert decision["fallback_reason"].startswith("insufficient_usable_observations_for_gp")
 
 
 @pytest.mark.skipif(

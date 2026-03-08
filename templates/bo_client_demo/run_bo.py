@@ -167,17 +167,35 @@ def acq_score(mean: float, std: float, best: float | None, direction: str, acq: 
     raise ValueError(f"Unsupported acquisition type: {acq_type}")
 
 
+def _is_usable_observation(row: dict, objective_name: str) -> bool:
+    if str(row.get("status", "ok")) != "ok":
+        return False
+    objectives = row.get("objectives")
+    if not isinstance(objectives, dict):
+        return False
+    value = objectives.get(objective_name)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    return math.isfinite(float(value))
+
+
 def propose(
     rng: random.Random, state: dict, cfg: dict, params: list[dict], obj_cfg: dict
 ) -> tuple[dict, dict]:
     obs = state["observations"]
     objective = obj_cfg["primary_objective"]
+    objective_name = str(objective["name"])
     if len(obs) < int(cfg["initial_random_trials"]):
         return random_point(rng, params), {"strategy": "initial_random"}
+    usable_obs = [row for row in obs if _is_usable_observation(row, objective_name)]
+    if not usable_obs:
+        return random_point(rng, params), {
+            "strategy": "initial_random",
+            "fallback_reason": "no_usable_observations",
+        }
 
     surrogate_cfg = cfg["surrogate"]
     acq_cfg = cfg["acquisition"]
-    objective_name = str(objective["name"])
     direction = str(objective["direction"])
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
@@ -185,7 +203,7 @@ def propose(
         candidate = random_point(rng, params)
         mean, std = predict_rbf_proxy(
             candidate,
-            obs,
+            usable_obs,
             params,
             objective_name,
             float(surrogate_cfg.get("length_scale", 0.2)),
