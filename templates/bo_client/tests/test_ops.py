@@ -108,6 +108,69 @@ def test_report_carries_traceability_for_failed_or_ejected_trials(template_copy)
     assert isinstance(terminal["artifact_path"], str)
 
 
+def _seed_runtime_artifacts_for_reset(template_copy: Path) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.42},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_reset_seed_result.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+    run_cmd(template_copy, "report", "--top-n", "3")
+    (template_copy / "examples" / "_demo_result.json").write_text("{}", encoding="utf-8")
+
+
+def test_reset_requires_yes_in_non_interactive_mode(template_copy) -> None:
+    run_cmd(template_copy, "suggest")
+    out = run_cmd(template_copy, "reset", expect_ok=False)
+    assert out.returncode != 0
+    assert "re-run with --yes" in out.stderr
+    assert (template_copy / "state" / "bo_state.json").exists()
+
+
+def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+
+    out = run_cmd(template_copy, "reset", "--yes")
+    assert "Campaign reset completed." in out.stdout
+    assert "Archive:" in out.stdout
+    assert "Restore hint:" in out.stdout
+
+    assert not (template_copy / "state" / "bo_state.json").exists()
+    assert not (template_copy / "state" / "observations.csv").exists()
+    assert not (template_copy / "state" / "acquisition_log.jsonl").exists()
+    assert not (template_copy / "state" / ".looptimum.lock").exists()
+    assert not (template_copy / "state" / "report.json").exists()
+    assert not (template_copy / "state" / "report.md").exists()
+    assert not (template_copy / "state" / "trials").exists()
+    assert not (template_copy / "examples" / "_demo_result.json").exists()
+
+    event_log = template_copy / "state" / "event_log.jsonl"
+    assert event_log.exists()
+    lines = event_log.read_text(encoding="utf-8").splitlines()
+    assert any('"event": "campaign_reset"' in line for line in lines)
+
+    archives_root = template_copy / "state" / "reset_archives"
+    archives = sorted(path for path in archives_root.iterdir() if path.is_dir())
+    assert len(archives) == 1
+    archive_dir = archives[0]
+    assert (archive_dir / "state" / "bo_state.json").exists()
+    assert (archive_dir / "state" / "trials").exists()
+    assert (archive_dir / "examples" / "_demo_result.json").exists()
+
+
+def test_reset_no_archive_skips_archive_creation(template_copy) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+
+    out = run_cmd(template_copy, "reset", "--yes", "--no-archive")
+    assert "Campaign reset completed." in out.stdout
+    assert "Archive: disabled" in out.stdout
+    assert not (template_copy / "state" / "reset_archives").exists()
+
+
 def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy) -> None:
     cfg_path = template_copy / "bo_config.json"
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))

@@ -15,6 +15,7 @@
         "loss": null
       },
       "status": "timeout",
+      "terminal_reason": "status=timeout",
       "penalty_objective": 1000000000000.0,
       "completed_at": 1772049465.675209
     }

@@ -5,7 +5,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `validate`, `doctor`
+  `heartbeat`, `report`, `reset`, `validate`, `doctor`
 - `bo_config.json`: budget, surrogate/acquisition, seed, paths
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
@@ -35,7 +35,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 
 - `examples/example_results.json`: success (`status: "ok"`)
 - `examples/example_results_timeout.json`: non-`ok` sample
-  (`status: "timeout"`, `objective: null`, `penalty_objective`)
+  (`status: "timeout"`, `objective: null`, `terminal_reason`, `penalty_objective`)
 - `examples/example_run.sh [results-file]`: run script; optional arg selects
   which sample payload to ingest
 

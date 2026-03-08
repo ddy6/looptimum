@@ -9,6 +9,9 @@ These files are generated reference artifacts showing a minimal run lifecycle fo
 5. `status_after_ingest.json` and `status_after_timeout_ingest.json` for
    success vs non-`ok` ingest outcomes
 
+The timeout snapshot includes `terminal_reason` (`status=timeout`) and
+`penalty_objective` to show canonical non-`ok` payload normalization in `v0.3.x`.
+
 They are for documentation examples, not replay into an active run.
 
 Integration pattern note:

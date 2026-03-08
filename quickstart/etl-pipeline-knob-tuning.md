@@ -58,7 +58,8 @@ Your evaluator should:
 2. execute one ETL run with those settings
 3. compute scalar objective from measured metrics
 4. emit non-`ok` statuses (`failed`/`timeout`/`killed`) with
-   `objective: null` and optional `penalty_objective`
+   `objective: null`, recommended `terminal_reason`, and optional
+   `penalty_objective`
 
 Contract details:
 

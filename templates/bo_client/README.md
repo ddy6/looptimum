@@ -6,7 +6,7 @@ surrogate backend, and restartable JSON state.
 ## Files
 
 - `run_bo.py`: driver for `suggest`, `ingest`, `status`, `demo`, `cancel`,
-  `retire`, `heartbeat`, `report`, `validate`, and `doctor`.
+  `retire`, `heartbeat`, `report`, `reset`, `validate`, and `doctor`.
 - `bo_config.json`: run budget, surrogate/acquisition choices, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
 - `objective_schema.json`: objective direction and failure policy.
@@ -57,7 +57,7 @@ No CLI changes are needed when switching backend.
 
 - `examples/example_results.json`: success (`status: "ok"`)
 - `examples/example_results_timeout.json`: non-`ok` sample
-  (`status: "timeout"`, `objective: null`, `penalty_objective`)
+  (`status: "timeout"`, `objective: null`, `terminal_reason`, `penalty_objective`)
 - `examples/example_run.sh [results-file]`: run script; optional arg selects
   which sample payload to ingest
 

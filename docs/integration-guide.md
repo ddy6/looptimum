@@ -159,12 +159,14 @@ def evaluate(params: dict[str, Any]) -> dict[str, Any]:
         return {
             "status": "timeout",
             "objective": None,
+            "terminal_reason": "timeout",
             "penalty_objective": DEFAULT_FAILURE_PENALTY,
         }
     except Exception:
         return {
             "status": "failed",
             "objective": None,
+            "terminal_reason": "evaluation_exception",
             "penalty_objective": DEFAULT_FAILURE_PENALTY,
         }
 ```
@@ -198,6 +200,7 @@ Requirements:
 - status must be one of `ok`, `failed`, `killed`, `timeout`
 - for `status: ok`, primary objective must be numeric and finite
 - for non-`ok` statuses, primary objective should be `null`
+- for non-`ok` statuses, `terminal_reason` is recommended (short string)
 - optional `penalty_objective` can be included for non-`ok` statuses
 
 ### 4. Ingest the Result
@@ -234,6 +237,8 @@ Runtime control commands used during long-running integrations:
   threshold.
 - `heartbeat --trial-id <id>`: update pending liveness metadata.
 - `report`: write `state/report.json` and `state/report.md`.
+- `reset [--yes] [--no-archive]`: reset runtime artifacts; archives current
+  artifacts by default unless `--no-archive` is used.
 - `validate [--strict]`: run config/schema/state checks (`--strict` makes warnings fatal).
 - `doctor [--json]`: print environment/backend/state diagnostics.
 
@@ -329,6 +334,7 @@ can continue and the failure is recorded.
 - Keep `trial_id` and `params` unchanged
 - Use non-`ok` status (`failed`, `killed`, or `timeout`) as appropriate
 - Set primary objective to `null`
+- Include `terminal_reason` as short failure context
 - Optionally include `penalty_objective` when numeric penalty ranking/reporting
   is useful
 - `penalty_objective` is not used for best-trial ranking; `best` is computed
@@ -338,6 +344,7 @@ Compatibility note (legacy `v0.2.x` payloads):
 
 - Legacy sentinel payloads for non-`ok` statuses are still accepted and
   normalized to `objective: null` + `penalty_objective`.
+- Legacy `failure_reason` is accepted and normalized to `terminal_reason`.
 - Ingest emits a deprecation warning for this path.
 - Sentinel primary objective compatibility is planned for removal in `v0.4.0`.
 

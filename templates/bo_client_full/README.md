@@ -10,7 +10,7 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `validate`, `doctor`
+  `heartbeat`, `report`, `reset`, `validate`, `doctor`
 - `bo_config.json`: includes `feature_flags.enable_botorch_gp`
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
@@ -47,7 +47,7 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
 
 - `examples/example_results.json`: success (`status: "ok"`)
 - `examples/example_results_timeout.json`: non-`ok` sample
-  (`status: "timeout"`, `objective: null`, `penalty_objective`)
+  (`status: "timeout"`, `objective: null`, `terminal_reason`, `penalty_objective`)
 - `examples/example_run.sh [results-file]`: run script; optional arg selects
   which sample payload to ingest
 

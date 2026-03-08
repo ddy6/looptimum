@@ -32,7 +32,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "`../quickstart/etl-pipeline-knob-tuning.md`",
     ),
     "docs/quick-reference.md": (
-        "## Public Command Surface (`v0.2.x`)",
+        "## Public Command Surface (`v0.3.x`)",
         "## State and Artifact Definitions",
         "## Compatibility and Migration",
     ),

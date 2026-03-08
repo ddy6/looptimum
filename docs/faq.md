@@ -175,6 +175,7 @@ Recommended approach:
 
 - return a canonical non-`ok` status (`failed`, `killed`, or `timeout`)
 - set primary objective to `null`
+- include `terminal_reason` (short string)
 - optionally include `penalty_objective` for non-`ok` statuses
 - keep `trial_id` and `params` unchanged
 
@@ -185,6 +186,8 @@ Compatibility note:
 - legacy non-`ok` payloads with numeric primary objective are still accepted in
   `v0.2.x`, normalized to `objective: null` + `penalty_objective`, and produce
   a deprecation warning
+- legacy `failure_reason` is accepted as an alias and normalized to
+  `terminal_reason`
 
 ## What if `ingest` rejects my result payload?
 

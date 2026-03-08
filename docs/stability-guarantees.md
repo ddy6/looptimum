@@ -2,7 +2,7 @@
 
 This document defines what is stable in the `v0.3.x` line, what may change,
 and how breaking changes are introduced.
-Current patch tag in this line: `v0.3.1`.
+Current patch tag in this line: `v0.3.2`.
 
 ## Scope
 
@@ -20,7 +20,7 @@ Within `v0.3.x`:
 
 1. No breaking changes to command names and required flags for:
    `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
-   `report`, `validate`, and `doctor`.
+   `report`, `reset`, `validate`, and `doctor`.
 2. No breaking changes to ingest required fields and canonical status values:
    `ok`, `failed`, `killed`, `timeout` (`success` remains accepted alias).
 3. Core state files remain append-compatible and resumable:
@@ -63,6 +63,7 @@ When behavior is deprecated in `v0.3.x`:
 Current deprecations:
 
 - `success` status alias is normalized to `ok`.
+- legacy `failure_reason` ingest field is normalized to `terminal_reason`.
 - Legacy non-`ok` + numeric primary objective is normalized to
   `objective: null` plus `penalty_objective`.
 - Sentinel primary-objective compatibility is planned for removal in `v0.4.0`.

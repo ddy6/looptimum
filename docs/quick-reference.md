@@ -3,14 +3,14 @@
 Use this page as the spec-style contract summary for day-to-day integration,
 automation wiring, and runbook checks.
 
-## Public Command Surface (`v0.2.x`)
+## Public Command Surface (`v0.3.x`)
 
 Stable command names and required flag posture are documented in
 [`stability-guarantees.md`](./stability-guarantees.md).
 
 - core loop: `suggest`, `ingest`, `status`, `demo`
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
-- support ops: `report`, `validate`, `doctor`
+- support ops: `report`, `reset`, `validate`, `doctor`
 
 ## Core Loop Contract
 
@@ -43,16 +43,21 @@ Rules:
 
 - `status: ok` requires numeric finite primary objective.
 - non-`ok` status requires primary objective `null`.
+- optional `terminal_reason` (short string) is recommended for non-`ok`
+  outcomes.
 - optional `penalty_objective` is allowed for non-`ok` outcomes.
 
 Optional compatibility fields:
 
 - `schema_version` (emitted by runtime; optional in ingest schema)
+- legacy `failure_reason` alias (normalized to `terminal_reason`)
 
 ## Result and Failure Semantics
 
 - `best` ranking uses only `status: "ok"` observations.
 - `penalty_objective` is never used for `best` ranking.
+- non-`ok` payloads without an explicit reason are normalized to
+  `terminal_reason: "status=<status>"`.
 - identical duplicate ingest replay is accepted as explicit no-op success.
 - conflicting duplicate ingest replay is rejected with mismatch details.
 
@@ -72,8 +77,10 @@ Default file-backed artifacts under each template's `state/` path:
 
 - one controller/writer per state path is required; multi-controller writes to
   the same state path are unsupported.
-- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`) run under
-  exclusive file lock semantics.
+- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`)
+  run under exclusive file lock semantics.
+- `reset` removes runtime artifacts with confirmation; archive is enabled by
+  default unless `--no-archive` is passed.
 - stale pending handling can be automated via configured age policy or manual
   `retire`.
 - interruption recovery runbook:

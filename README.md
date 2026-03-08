@@ -9,7 +9,7 @@ Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and one scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable release: `v0.3.1`.
+Current stable release: `v0.3.2`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -180,7 +180,8 @@ def evaluate(params):
 ```
 
 Use this when your evaluator can return a scalar directly.
-For fuller failure handling (`failed`/`timeout` + `penalty_objective`), use the
+For fuller failure handling (`failed`/`timeout` + `terminal_reason` +
+`penalty_objective`), use the
 expanded stub in
 [`docs/integration-guide.md#copy-paste-evaluator-stub-fuller-version`](docs/integration-guide.md#copy-paste-evaluator-stub-fuller-version).
 
@@ -232,6 +233,7 @@ Each suggestion includes:
 ### `ingest` Optional Fields
 
 - `schema_version` (semver string, optional in schema and emitted by harness/runtime flows)
+- `terminal_reason` (short string for non-`ok` outcomes; recommended)
 - `penalty_objective` (number, only for non-`ok` statuses; reporting/compatibility only)
 
 ### `status` Headline Fields
@@ -264,6 +266,10 @@ Best ranking rule:
 ### Compatibility Notes
 
 - `success` is accepted as a deprecated alias and normalized to `ok`.
+- Legacy `failure_reason` is accepted as a deprecated alias and normalized to
+  `terminal_reason`.
+- For non-`ok` outcomes with no reason provided, ingest synthesizes
+  `terminal_reason` as `status=<status>`.
 - Legacy `v0.2.x` non-`ok` payloads with numeric primary objective are
   accepted in `v0.3.x`, normalized to
   `objective: null` + `penalty_objective`, and emit a deprecation warning.
@@ -282,7 +288,7 @@ Best ranking rule:
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
   example `0.3 -> 0.4`) and require migration notes.
-- Current patch tag in this line: `v0.3.1` (see `CHANGELOG.md`).
+- Current patch tag in this line: `v0.3.2` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior
@@ -297,6 +303,7 @@ Best ranking rule:
 - `retire --trial-id <id>` or `retire --stale`: retire pending trials manually or by age policy.
 - `heartbeat --trial-id <id>`: update liveness metadata for long-running pending trials.
 - `report`: generate `state/report.json` + `state/report.md`.
+- `reset [--yes] [--no-archive]`: reset campaign runtime artifacts; archive is enabled by default.
 - `validate [--strict]`: sanity-check config/state; warnings are non-fatal unless `--strict`.
 - `doctor [--json]`: print environment/backend/state diagnostics.
 
@@ -306,7 +313,7 @@ Best ranking rule:
 
 | Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
 |---|---|---|---|---|
-| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `validate`, `doctor`) |
+| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `validate`, `doctor`) |
 | `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
 | `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) | full parity |
 

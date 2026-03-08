@@ -5,6 +5,30 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.3.2] - 2026-03-08
+
+Patch release for the `v0.3.x` line focused on richer non-`ok` ingest
+diagnostics and safe one-command campaign reset.
+
+### Added
+
+- Optional `terminal_reason` ingest field is now wired end-to-end in contracts,
+  template schemas, client harness tooling, and persisted observation artifacts.
+- Legacy `failure_reason` ingest/objective output alias is accepted and
+  normalized to `terminal_reason` with deprecation warnings.
+- Non-`ok` payloads missing an explicit reason now get deterministic fallback
+  `terminal_reason: "status=<status>"`.
+- New `reset` runtime command across `bo_client`, `bo_client_demo`, and
+  `bo_client_full` with explicit confirmation safeguards.
+- Default archive-on-reset behavior (`state/reset_archives/reset-<id>/...`) and
+  `--no-archive` override for explicit opt-out.
+
+### Changed
+
+- Public docs and template READMEs now document `terminal_reason` semantics,
+  reset behavior, and `v0.3.2` as the current patch tag.
+- Package metadata now targets `0.3.2`.
+
 ## [0.3.1] - 2026-03-07
 
 Patch release for the `v0.3.x` line focused on surrogate robustness when state

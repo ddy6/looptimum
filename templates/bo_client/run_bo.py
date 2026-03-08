@@ -10,6 +10,7 @@ import json
 import math
 import os
 import random
+import shutil
 import sys
 import time
 from io import StringIO
@@ -227,6 +228,51 @@ def _append_event(paths: PathMap, event: str, **fields: Any) -> None:
     payload = {"event": event, "timestamp": time.time()}
     payload.update(fields)
     append_jsonl(paths["event_log_file"], payload)
+
+
+def _reset_artifact_paths(root: Path, paths: PathMap) -> list[tuple[str, Path]]:
+    candidates = [
+        ("state_file", paths["state_file"]),
+        ("observations_csv", paths["observations_csv"]),
+        ("acquisition_log_file", paths["acquisition_log_file"]),
+        ("event_log_file", paths["event_log_file"]),
+        ("lock_file", paths["lock_file"]),
+        ("report_json_file", paths["report_json_file"]),
+        ("report_md_file", paths["report_md_file"]),
+        ("trials_dir", paths["trials_dir"]),
+        ("demo_result_file", (root / "examples" / "_demo_result.json").resolve()),
+    ]
+    out: list[tuple[str, Path]] = []
+    seen: set[Path] = set()
+    for label, path in candidates:
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        out.append((label, resolved))
+    return out
+
+
+def _copy_path_to_archive(path: Path, destination: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.copytree(path, destination, dirs_exist_ok=True)
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, destination)
+
+
+def _confirm_reset(args: argparse.Namespace, *, root: Path, archive_enabled: bool) -> None:
+    if args.yes:
+        return
+    if not sys.stdin.isatty():
+        raise ValueError("reset is destructive; re-run with --yes for non-interactive use")
+
+    archive_label = "enabled" if archive_enabled else "disabled"
+    print(f"Reset will remove runtime artifacts under {root} (archive={archive_label}).")
+    print("Type RESET to continue: ", end="", flush=True)
+    token = sys.stdin.readline().strip()
+    if token != "RESET":
+        raise ValueError("reset aborted: confirmation token mismatch")
 
 
 def _require_finite_number(value: Any, *, field_name: str, trial_id: int) -> float:
@@ -1533,6 +1579,104 @@ def cmd_report(args: argparse.Namespace) -> None:
             _append_event(paths, "lock_released", command="report", pid=os.getpid())
 
 
+def cmd_reset(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    paths = _runtime_paths(root, cfg)
+    archive_enabled = True if args.archive is None else bool(args.archive)
+    _confirm_reset(args, root=root, archive_enabled=archive_enabled)
+
+    targets = _reset_artifact_paths(root, paths)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="reset",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            archive_root: Path | None = None
+            archived: list[tuple[str, str]] = []
+            if archive_enabled:
+                archive_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+                archive_root = (
+                    paths["state_file"].parent
+                    / "reset_archives"
+                    / f"reset-{archive_stamp}-{time.time_ns()}"
+                ).resolve()
+                archive_root.mkdir(parents=True, exist_ok=False)
+                for _, path in targets:
+                    if not path.exists():
+                        continue
+                    rel = _relative_path(root, path)
+                    dst = archive_root / rel
+                    _copy_path_to_archive(path, dst)
+                    archived.append((rel, _relative_path(root, dst)))
+
+            removed: list[str] = []
+            missing: list[str] = []
+            for _, path in targets:
+                rel = _relative_path(root, path)
+                if not path.exists():
+                    missing.append(rel)
+                    continue
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+                removed.append(rel)
+
+            archive_rel = _relative_path(root, archive_root) if archive_root is not None else None
+            _append_event(
+                paths,
+                "campaign_reset",
+                archive_enabled=archive_enabled,
+                archive_path=archive_rel,
+                removed_count=len(removed),
+                missing_count=len(missing),
+            )
+
+            print("Campaign reset completed.")
+            if archive_enabled:
+                print(f"Archive: {archive_rel}")
+            else:
+                print("Archive: disabled")
+
+            if archived:
+                print("Archived artifacts:")
+                for src_rel, dst_rel in archived:
+                    print(f"- {src_rel} -> {dst_rel}")
+            elif archive_enabled:
+                print("Archived artifacts:")
+                print("- (none)")
+
+            print("Removed artifacts:")
+            if removed:
+                for rel in removed:
+                    print(f"- {rel}")
+            else:
+                print("- (none)")
+
+            if missing:
+                print("Already absent:")
+                for rel in missing:
+                    print(f"- {rel}")
+
+            if archive_root is not None:
+                print("Restore hint:")
+                print(f"- Copy archived files from {archive_root} back into {root}.")
+        finally:
+            _append_event(paths, "lock_released", command="reset", pid=os.getpid())
+
+
 def cmd_validate(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     hard_errors: list[str] = []
@@ -1720,6 +1864,7 @@ def parse_args() -> argparse.Namespace:
             "retire",
             "heartbeat",
             "report",
+            "reset",
             "validate",
             "doctor",
         ],
@@ -1758,6 +1903,26 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="For mutating commands: fail immediately if lock is already held",
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="For reset: skip interactive confirmation prompt.",
+    )
+    archive_group = parser.add_mutually_exclusive_group()
+    archive_group.add_argument(
+        "--archive",
+        dest="archive",
+        action="store_true",
+        default=None,
+        help="For reset: archive runtime artifacts before cleanup (default).",
+    )
+    archive_group.add_argument(
+        "--no-archive",
+        dest="archive",
+        action="store_false",
+        default=None,
+        help="For reset: skip archive before cleanup.",
+    )
     parser.add_argument("--top-n", type=int, default=5, help="For report: number of top trials")
     parser.add_argument(
         "--strict",
@@ -1781,6 +1946,7 @@ def main() -> None:
         "retire": cmd_retire,
         "heartbeat": cmd_heartbeat,
         "report": cmd_report,
+        "reset": cmd_reset,
         "validate": cmd_validate,
         "doctor": cmd_doctor,
     }

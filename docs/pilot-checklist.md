@@ -88,7 +88,8 @@ Define deterministic boundaries explicitly:
 Agree in advance:
 
 - What non-`ok` statuses you will emit (`failed`, `killed`, `timeout`)
-- Failure payload representation (`objective: null` and optional `penalty_objective`)
+- Failure payload representation (`objective: null`, recommended
+  `terminal_reason`, optional `penalty_objective`)
 - Retry policy for transient failures
 - Operator workflow when ingest fails validation
 - Escalation path when pending trials become stale

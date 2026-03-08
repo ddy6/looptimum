@@ -120,6 +120,7 @@ Failed trials should still be represented in the optimization loop using a minim
 - original `params`
 - non-`ok` `status` (`failed`, `killed`, or `timeout`)
 - primary objective set to `null`
+- optional short `terminal_reason` summary
 - optional numeric `penalty_objective` when needed
 
 Keep detailed stack traces, command outputs, or internal diagnostics in local

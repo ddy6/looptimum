@@ -109,9 +109,17 @@ Primary objective handling:
 
 - `status == "ok"`: primary objective must be numeric and finite.
 - non-`ok` status: primary objective is normalized to `null`.
+- optional `terminal_reason` is accepted for non-`ok` statuses.
 - optional `penalty_objective` is accepted for non-`ok` statuses.
 - `best` is computed only from `status == "ok"` primary objective values;
   `penalty_objective` is not used for ranking.
+
+Terminal-reason handling:
+
+- legacy `failure_reason` is accepted and normalized to `terminal_reason`
+  (deprecation warning).
+- if non-`ok` payloads omit both fields, `terminal_reason` is synthesized as
+  `status=<status>`.
 
 Compatibility path (v0.2.x):
 
@@ -155,6 +163,16 @@ It does not mutate state.
 - `report` is explicit (not auto-on-ingest).
 - It writes `state/report.json` and `state/report.md` atomically.
 
+### `reset`
+
+- `reset` is destructive and requires explicit confirmation (interactive token)
+  or `--yes`.
+- By default, reset archives current runtime artifacts under
+  `state/reset_archives/<reset-id>/` before cleanup.
+- `--no-archive` skips archive creation.
+- Reset cleanup targets runtime artifacts only (state/log/report/trials/demo
+  result), not project config/schema/code files.
+
 ### `validate`
 
 - `validate` checks config/schema/state consistency and basic corruption.
@@ -189,7 +207,8 @@ It does not mutate state.
 
 ## Locking Semantics
 
-- Mutating commands use an exclusive lock file (`state/.looptimum.lock`).
+- Mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`)
+  use an exclusive lock file (`state/.looptimum.lock`).
 - Default behavior waits for lock with timeout; `--fail-fast` switches to
   immediate failure on contention.
 - Read-oriented commands (`status`, `validate`, `doctor`) do not require
