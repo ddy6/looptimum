@@ -405,6 +405,50 @@ def normalize_status(
     return normalized
 
 
+def _normalize_terminal_reason(
+    *,
+    payload: JSONDict,
+    status: str,
+    source_path: Path,
+    trial_id: int | None,
+    emit_transition_warnings: bool,
+) -> str | None:
+    terminal_reason_raw = payload.get("terminal_reason", _MISSING)
+    legacy_reason_raw = payload.get("failure_reason", _MISSING)
+
+    def _normalize_reason(raw: Any, field_path: str) -> str | None:
+        if raw is _MISSING or raw is None:
+            return None
+        if not isinstance(raw, str):
+            raise _validation_error(
+                source_path=source_path,
+                field_path=field_path,
+                expected="string",
+                received=raw,
+                trial_id=trial_id,
+            )
+        normalized = raw.strip()
+        return normalized or None
+
+    terminal_reason = _normalize_reason(terminal_reason_raw, "$.terminal_reason")
+    legacy_reason = _normalize_reason(legacy_reason_raw, "$.failure_reason")
+
+    if legacy_reason is not None and emit_transition_warnings:
+        _warn_deprecation(
+            "Deprecated ingest field 'failure_reason' received; use 'terminal_reason'. "
+            "Compatibility alias will be removed in v0.4.0."
+        )
+
+    if status == "ok":
+        return None
+
+    if terminal_reason is not None:
+        return terminal_reason
+    if legacy_reason is not None:
+        return legacy_reason
+    return f"status={status}"
+
+
 def _normalize_primary_objective(
     *,
     payload: JSONDict,
@@ -520,11 +564,23 @@ def normalize_ingest_payload(
         trial_id=trial_id,
         emit_transition_warnings=True,
     )
+    terminal_reason = _normalize_terminal_reason(
+        payload=normalized,
+        status=status,
+        source_path=source_path,
+        trial_id=trial_id,
+        emit_transition_warnings=True,
+    )
     normalized["objectives"] = objectives
     if penalty is None:
         normalized.pop("penalty_objective", None)
     else:
         normalized["penalty_objective"] = penalty
+    normalized.pop("failure_reason", None)
+    if terminal_reason is None:
+        normalized.pop("terminal_reason", None)
+    else:
+        normalized["terminal_reason"] = terminal_reason
     return normalized, trial_id
 
 
@@ -544,10 +600,19 @@ def build_observation_contract(observation: JSONDict, *, objective_name: str) ->
     }
     if "penalty_objective" in observation:
         payload_like["penalty_objective"] = observation["penalty_objective"]
+    if "terminal_reason" in observation:
+        payload_like["terminal_reason"] = observation["terminal_reason"]
 
     objectives, penalty = _normalize_primary_objective(
         payload=payload_like,
         objective_name=objective_name,
+        status=status,
+        source_path=Path("<state>"),
+        trial_id=trial_id,
+        emit_transition_warnings=False,
+    )
+    terminal_reason = _normalize_terminal_reason(
+        payload=payload_like,
         status=status,
         source_path=Path("<state>"),
         trial_id=trial_id,
@@ -561,6 +626,8 @@ def build_observation_contract(observation: JSONDict, *, objective_name: str) ->
     }
     if penalty is not None:
         out["penalty_objective"] = penalty
+    if terminal_reason is not None:
+        out["terminal_reason"] = terminal_reason
     return out
 
 

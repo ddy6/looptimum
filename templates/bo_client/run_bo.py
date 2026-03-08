@@ -1172,6 +1172,8 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 }
                 if "penalty_objective" in payload:
                     received["penalty_objective"] = payload["penalty_objective"]
+                if "terminal_reason" in payload:
+                    received["terminal_reason"] = payload["terminal_reason"]
                 diffs = diff_contract_records(expected, received)
                 if not diffs:
                     _append_event(paths, "ingest_duplicate_noop", trial_id=trial_id)

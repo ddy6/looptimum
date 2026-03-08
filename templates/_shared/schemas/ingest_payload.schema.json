@@ -28,6 +28,9 @@
     "penalty_objective": {
       "type": "number"
     },
+    "terminal_reason": {
+      "type": "string"
+    },
     "heartbeat_at": {
       "type": "number"
     },

@@ -72,6 +72,7 @@ Required compatibility rules:
 4. For `status: ok`, primary objective value must be numeric and finite.
 5. For non-`ok` statuses, set primary objective to `null`; optional
    `penalty_objective` may be included.
+6. For non-`ok` statuses, include optional `terminal_reason` (short string).
 
 ## Implement `objective.py` (Params -> Run -> Scalar Objective)
 
@@ -84,7 +85,7 @@ Replace `evaluate(params)` in `objective.py` so it:
    - a number (treated as objective value, status=`ok`), or
    - a dict like `{"objective": 0.123, "status": "ok"}` for success, or
    - a dict like
-     `{"status": "failed", "objective": null, "penalty_objective": 1e12}`
+     `{"status": "failed", "objective": null, "penalty_objective": 1e12, "terminal_reason": "solver diverged"}`
      for non-`ok` outcomes
 
 Example skeleton pattern:
@@ -137,9 +138,10 @@ Recommended policy:
 2. Set primary objective to `null`.
 3. Optionally provide `penalty_objective` as a finite numeric penalty
    (directionally bad for your objective direction).
-4. Keep `trial_id` and `params` unchanged.
-5. Log detailed error context in your local system logs
-   (not required in the ingest payload).
+4. Provide `terminal_reason` as a short human-readable failure summary.
+5. Keep `trial_id` and `params` unchanged.
+6. Keep detailed logs in your local system logs; the ingest payload reason
+   should stay concise.
 
 Penalty guidance:
 
@@ -148,6 +150,8 @@ Penalty guidance:
 
 `run_one_eval.py` default behavior (`--on-exception failed`) writes a failed
 payload automatically if `objective.py` raises.
+The emitted payload includes `terminal_reason` as
+`<ExceptionClass>: <message>`.
 Default `penalty_objective` is direction-aware: `+1e12` for `minimize`,
 `-1e12` for `maximize`.
 Set direction explicitly with `--objective-direction` or provide

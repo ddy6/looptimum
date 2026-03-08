@@ -140,6 +140,7 @@ def test_report_includes_terminal_traceability_fields_for_timeout_trial(
     terminal = report["terminal_trials"][0]
     assert terminal["trial_id"] == suggestion["trial_id"]
     assert terminal["status"] == "timeout"
+    assert terminal["terminal_reason"] == "status=timeout"
     assert terminal["penalty_objective"] == 4321.0
     assert isinstance(terminal["suggested_at"], float)
     assert isinstance(terminal["completed_at"], float)

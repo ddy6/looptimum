@@ -24,6 +24,8 @@ def evaluate(params: dict[str, Any]) -> float | dict[str, Any]:
         optional for non-`ok` statuses (use `null` semantics)
       - `status` (optional): `ok`, `failed`, `killed`, `timeout` (default `ok`)
       - `penalty_objective` (optional): numeric penalty for non-`ok` statuses
+      - `terminal_reason` (optional): short human-readable reason for non-`ok`
+      - `failure_reason` (optional legacy alias): normalized to `terminal_reason`
 
     Replace this stub with your real integration.
     """

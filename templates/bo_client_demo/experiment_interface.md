@@ -34,6 +34,7 @@ The external runner must write one JSON payload per completed trial:
 - Use canonical statuses: `ok`, `failed`, `killed`, `timeout`.
 - For non-`ok` statuses, submit `objectives.<primary_name>: null`.
 - Optionally include `penalty_objective` (number) for non-`ok` statuses.
+- Optionally include `terminal_reason` (short string) for non-`ok` statuses.
 - Failed trials remain in observations for traceability.
 
 ## Reproducibility

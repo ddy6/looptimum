@@ -199,6 +199,49 @@ def test_non_ok_killed_allows_null_objective_with_optional_penalty(template_copy
     assert state["best"] is None
 
 
+def test_non_ok_failure_reason_alias_maps_to_terminal_reason(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "failed",
+        "failure_reason": "worker crashed",
+    }
+    path = template_copy / "examples" / "_ingest_failed_reason_alias.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
+    assert "Deprecated ingest field 'failure_reason'" in out.stderr
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    obs = state["observations"][0]
+    assert obs["status"] == "failed"
+    assert obs["objectives"]["loss"] is None
+    assert obs["terminal_reason"] == "worker crashed"
+    assert "failure_reason" not in obs
+
+
+def test_non_ok_missing_reason_gets_status_fallback_terminal_reason(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "timeout",
+    }
+    path = template_copy / "examples" / "_ingest_timeout_fallback_reason.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    obs = state["observations"][0]
+    assert obs["status"] == "timeout"
+    assert obs["objectives"]["loss"] is None
+    assert obs["terminal_reason"] == "status=timeout"
+    assert obs["penalty_objective"] is None
+    assert state["best"] is None
+
+
 def test_non_ok_penalty_does_not_affect_best_ranking(template_copy) -> None:
     first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     ok_payload = {

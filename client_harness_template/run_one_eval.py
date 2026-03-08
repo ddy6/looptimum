@@ -183,6 +183,35 @@ def _normalize_status(raw_status: Any) -> str:
     return normalized
 
 
+def _normalize_optional_reason(raw_reason: Any, *, field_name: str) -> str | None:
+    if raw_reason is _MISSING or raw_reason is None:
+        return None
+    if not isinstance(raw_reason, str):
+        raise ValueError(f"{field_name} must be a string")
+    normalized = raw_reason.strip()
+    return normalized or None
+
+
+def _normalize_terminal_reason(output: dict[str, Any], *, status: str) -> str | None:
+    terminal_reason = _normalize_optional_reason(
+        output.get("terminal_reason", _MISSING), field_name="terminal_reason"
+    )
+    legacy_reason = _normalize_optional_reason(
+        output.get("failure_reason", _MISSING), field_name="failure_reason"
+    )
+    if legacy_reason is not None:
+        _warn_deprecation(
+            "Deprecated objective output field 'failure_reason' used; prefer 'terminal_reason'."
+        )
+    if status == "ok":
+        return None
+    if terminal_reason is not None:
+        return terminal_reason
+    if legacy_reason is not None:
+        return legacy_reason
+    return f"status={status}"
+
+
 def _normalize_schema_version(raw_schema_version: Any) -> str:
     if raw_schema_version is None:
         return DEFAULT_SCHEMA_VERSION
@@ -204,6 +233,7 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
     status = _normalize_status(value.get("status", "ok"))
     objective_raw = value.get("objective", value.get("objective_value", _MISSING))
     penalty_raw = value.get("penalty_objective", _MISSING)
+    terminal_reason = _normalize_terminal_reason(value, status=status)
 
     if status == "ok":
         if objective_raw is _MISSING:
@@ -234,6 +264,7 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
         "status": status,
         "objective": None,
         "penalty_objective": penalty_objective,
+        "terminal_reason": terminal_reason,
     }
 
 
@@ -271,9 +302,13 @@ def build_failed_payload(
     objective_name: str,
     penalty_value: float,
     schema_version: str,
+    terminal_reason: str,
 ) -> dict[str, Any]:
     if not math.isfinite(penalty_value):
         raise ValueError("failure penalty_objective must be finite")
+    reason = terminal_reason.strip()
+    if not reason:
+        reason = "status=failed"
     return {
         "schema_version": schema_version,
         "trial_id": int(suggestion["trial_id"]),
@@ -281,6 +316,7 @@ def build_failed_payload(
         "objectives": {objective_name: None},
         "penalty_objective": float(penalty_value),
         "status": "failed",
+        "terminal_reason": reason,
     }
 
 
@@ -395,6 +431,8 @@ def main() -> None:
         }
         if normalized.get("penalty_objective") is not None:
             result["penalty_objective"] = normalized["penalty_objective"]
+        if normalized.get("terminal_reason") is not None:
+            result["terminal_reason"] = normalized["terminal_reason"]
     except Exception as exc:
         if args.on_exception == "raise":
             raise
@@ -402,7 +440,14 @@ def main() -> None:
             f"[run_one_eval] objective evaluation failed; writing status=failed payload: {exc}",
             file=sys.stderr,
         )
-        result = build_failed_payload(suggestion, objective_name, failure_penalty, schema_version)
+        terminal_reason = f"{exc.__class__.__name__}: {exc}".strip()
+        result = build_failed_payload(
+            suggestion,
+            objective_name,
+            failure_penalty,
+            schema_version,
+            terminal_reason,
+        )
 
     _write_json(result_path, result)
     if args.print_result:

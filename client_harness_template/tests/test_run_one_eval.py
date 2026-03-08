@@ -52,6 +52,30 @@ def _write_ok_objective(path: Path) -> None:
     )
 
 
+def _write_non_ok_with_failure_reason_objective(path: Path) -> None:
+    path.write_text(
+        "def evaluate(params):\n"
+        "    return {\n"
+        "        'status': 'failed',\n"
+        "        'objective': None,\n"
+        "        'failure_reason': 'solver diverged',\n"
+        "    }\n",
+        encoding="utf-8",
+    )
+
+
+def _write_non_ok_without_reason_objective(path: Path) -> None:
+    path.write_text(
+        "def evaluate(params):\n"
+        "    return {\n"
+        "        'status': 'timeout',\n"
+        "        'objective': None,\n"
+        "        'penalty_objective': 321.0,\n"
+        "    }\n",
+        encoding="utf-8",
+    )
+
+
 def _write_objective_schema(path: Path, *, name: str, direction: str) -> None:
     payload = {
         "primary_objective": {
@@ -77,6 +101,7 @@ def test_failed_payload_default_penalty_for_minimize(tmp_path: Path) -> None:
     assert payload["status"] == "failed"
     assert payload["objectives"]["loss"] is None
     assert payload["penalty_objective"] == 1.0e12
+    assert payload["terminal_reason"] == "RuntimeError: synthetic failure"
 
 
 def test_failed_payload_default_penalty_for_maximize(tmp_path: Path) -> None:
@@ -98,6 +123,7 @@ def test_failed_payload_default_penalty_for_maximize(tmp_path: Path) -> None:
     assert payload["status"] == "failed"
     assert payload["objectives"]["loss"] is None
     assert payload["penalty_objective"] == -1.0e12
+    assert payload["terminal_reason"] == "RuntimeError: synthetic failure"
 
 
 def test_objective_schema_drives_name_and_direction_defaults(tmp_path: Path) -> None:
@@ -121,6 +147,7 @@ def test_objective_schema_drives_name_and_direction_defaults(tmp_path: Path) -> 
     assert payload["status"] == "failed"
     assert payload["objectives"]["score"] is None
     assert payload["penalty_objective"] == -1.0e12
+    assert payload["terminal_reason"] == "RuntimeError: synthetic failure"
 
 
 def test_explicit_failure_penalty_overrides_direction_default(tmp_path: Path) -> None:
@@ -144,6 +171,7 @@ def test_explicit_failure_penalty_overrides_direction_default(tmp_path: Path) ->
     assert payload["status"] == "failed"
     assert payload["objectives"]["loss"] is None
     assert payload["penalty_objective"] == -123.0
+    assert payload["terminal_reason"] == "RuntimeError: synthetic failure"
 
 
 def test_legacy_failure_sentinel_flag_still_works_with_warning(tmp_path: Path) -> None:
@@ -166,7 +194,40 @@ def test_legacy_failure_sentinel_flag_still_works_with_warning(tmp_path: Path) -
     assert payload["status"] == "failed"
     assert payload["objectives"]["loss"] is None
     assert payload["penalty_objective"] == 777.0
+    assert payload["terminal_reason"] == "RuntimeError: synthetic failure"
     assert "Deprecated flag '--failure-sentinel'" in out.stderr
+
+
+def test_non_ok_output_maps_failure_reason_alias_to_terminal_reason(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_failure_reason.py"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_non_ok_with_failure_reason_objective(objective)
+
+    out = _run_cmd(str(suggestion), str(result), "--objective-module", str(objective))
+    payload = json.loads(result.read_text(encoding="utf-8"))
+    assert payload["status"] == "failed"
+    assert payload["objectives"]["loss"] is None
+    assert payload["penalty_objective"] == 1.0e12
+    assert payload["terminal_reason"] == "solver diverged"
+    assert "failure_reason" not in payload
+    assert "Deprecated objective output field 'failure_reason' used" in out.stderr
+
+
+def test_non_ok_output_without_reason_uses_status_fallback(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_non_ok_no_reason.py"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_non_ok_without_reason_objective(objective)
+
+    _run_cmd(str(suggestion), str(result), "--objective-module", str(objective))
+    payload = json.loads(result.read_text(encoding="utf-8"))
+    assert payload["status"] == "timeout"
+    assert payload["objectives"]["loss"] is None
+    assert payload["penalty_objective"] == 321.0
+    assert payload["terminal_reason"] == "status=timeout"
 
 
 def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> None:

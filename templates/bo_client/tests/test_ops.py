@@ -101,7 +101,7 @@ def test_report_carries_traceability_for_failed_or_ejected_trials(template_copy)
     terminal = report["terminal_trials"][0]
     assert terminal["trial_id"] == suggestion["trial_id"]
     assert terminal["status"] == "timeout"
-    assert terminal["terminal_reason"] is None
+    assert terminal["terminal_reason"] == "status=timeout"
     assert isinstance(terminal["suggested_at"], float)
     assert isinstance(terminal["completed_at"], float)
     assert terminal["penalty_objective"] == 1234.0
