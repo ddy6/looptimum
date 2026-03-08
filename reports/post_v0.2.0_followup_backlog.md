@@ -1,9 +1,9 @@
 # Post-v0.2.0 Follow-Up Backlog
 
 Date opened: 2026-03-04
-Last updated: 2026-03-05
+Last updated: 2026-03-08
 Scope: Phase 8 step 73 follow-up queue seeded from current repo review and validated by initial external feedback.
-Current release context: active backlog for the `v0.3.x` line (`v0.3.0` current).
+Current release context: active backlog for the `v0.3.x` line (`v0.3.1` current).
 
 ## Workflow
 

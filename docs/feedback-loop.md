@@ -1,7 +1,7 @@
 # Feedback Loop
 
 This document defines the post-`v0.2.x` feedback intake and backlog workflow
-(initiated in `v0.2.0`, current patch: `v0.3.0`).
+(initiated in `v0.2.0`, current patch: `v0.3.1`).
 
 ## Source of Truth
 

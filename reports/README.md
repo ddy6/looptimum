@@ -16,9 +16,9 @@ Current update-program progress is tracked in:
 - `reports/phase8_external_inputs.md` (external dependencies checklist)
 - `reports/post_v0.2.0_followup_backlog.md` (post-release backlog queue)
 
-Status as of 2026-03-06:
+Status as of 2026-03-08:
 
-- Current stable release tag: `v0.3.0`
+- Current stable release tag: `v0.3.1`
 - Phases 0-10 complete
 - Phase 10 validation baseline passed (`python3 scripts/check_internal_links.py --paths README.md docs quickstart`; `python3 scripts/check_docs_consistency.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `168 passed, 1 skipped`; `python3 scripts/release_smoke.py`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)

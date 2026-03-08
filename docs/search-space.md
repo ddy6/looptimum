@@ -64,7 +64,7 @@ Native hard-constraint solving is not currently built into default templates.
 
 Hard callout:
 
-- No native hard-constraint solver in `v0.2.x`/`v0.3.0`; use bounds + penalty + failure policy.
+- No native hard-constraint solver in `v0.2.x`/`v0.3.x`; use bounds + penalty + failure policy.
 
 Current integration pattern:
 
