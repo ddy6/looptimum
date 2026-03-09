@@ -7,7 +7,7 @@ Optimization of expensive black-box evaluations improves sample efficiency and o
 
 Looptimum is a file-backed optimization loop for tuning parameters when each
 trial is costly (time, compute, money, or operational risk).
-You provide a parameter space and one scalar objective; Looptimum suggests the
+You provide a parameter space and a scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
 Current stable release: `v0.3.2`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
