@@ -20,7 +20,7 @@ tuning consequences.
 For a spec-style contract summary, use
 [`docs/quick-reference.md`](docs/quick-reference.md).
 
-## When...
+##
 
 - "We're wasting time on parameter sweeps and manual tuning."
 - "Each run is expensive, so we need fewer total experiments."
@@ -28,7 +28,7 @@ For a spec-style contract summary, use
 - "Runs sometimes fail; we need resumable state and traceability."
 - "We have lots of knobs and no reliable way to tune them."
 
-## ...Looptimum Can Help
+## What Looptimum Does
 
 Looptimum replaces ad hoc sweep loops with a small, explicit workflow:
 
