@@ -45,7 +45,6 @@ Status as of 2026-03-08:
 - `v0.3.0` release packages the compatibility-forward line cut with final
   readiness/sign-off artifacts and no removal-only migration burden
 - Final internal release-gate rerun passed on March 6, 2026 (format/lint/typecheck/public-doc-links/docs-consistency/playbook-sync/benchmark-sanity/tests/smoke)
-- Legacy phase-planning files were archived to local ignored path `dev_archive/`
 
 Included:
 
