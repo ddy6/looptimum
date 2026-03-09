@@ -20,26 +20,7 @@ tuning consequences.
 For a spec-style contract summary, use
 [`docs/quick-reference.md`](docs/quick-reference.md).
 
-## Trust Anchors
-
-Every core claim in this README has an auditable source:
-
-- contract semantics and payload/state definitions:
-  [`docs/quick-reference.md`](docs/quick-reference.md)
-- optimizer behavior, backend differences, and failure modes:
-  [`docs/how-it-works.md`](docs/how-it-works.md)
-- compatibility and breaking-change policy:
-  [`docs/stability-guarantees.md`](docs/stability-guarantees.md)
-- recovery and interruption handling:
-  [`docs/recovery-playbook.md`](docs/recovery-playbook.md)
-- CI operational policy for persistence/parallelism/robust best:
-  [`docs/ci-knob-tuning.md`](docs/ci-knob-tuning.md)
-- benchmark evidence and reproducibility artifacts:
-  [`benchmarks/README.md`](benchmarks/README.md),
-  [`benchmarks/summary.json`](benchmarks/summary.json),
-  [`benchmarks/case_study.md`](benchmarks/case_study.md)
-
-## If You've Ever Said...
+## Refined optimization, when and where it counts:
 
 - "We're wasting time on parameter sweeps and manual tuning."
 - "Each run is expensive, so we need fewer total experiments."
@@ -58,6 +39,26 @@ Looptimum replaces ad hoc sweep loops with a small, explicit workflow:
 
 Instead of broad grid/random sweeps, Looptimum uses prior observations to choose
 what to test next.
+
+
+## Trust Anchors
+
+Every core claim in this README has an auditable source:
+
+- contract semantics and payload/state definitions:
+  [`docs/quick-reference.md`](docs/quick-reference.md)
+- optimizer behavior, backend differences, and failure modes:
+  [`docs/how-it-works.md`](docs/how-it-works.md)
+- compatibility and breaking-change policy:
+  [`docs/stability-guarantees.md`](docs/stability-guarantees.md)
+- recovery and interruption handling:
+  [`docs/recovery-playbook.md`](docs/recovery-playbook.md)
+- CI operational policy for persistence/parallelism/robust best:
+  [`docs/ci-knob-tuning.md`](docs/ci-knob-tuning.md)
+- benchmark evidence and reproducibility artifacts:
+  [`benchmarks/README.md`](benchmarks/README.md),
+  [`benchmarks/summary.json`](benchmarks/summary.json),
+  [`benchmarks/case_study.md`](benchmarks/case_study.md)
 
 ### What Runs Where
 
