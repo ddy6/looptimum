@@ -38,7 +38,7 @@ For full command sequences and resume behavior:
 - [FAQ](./faq.md)
 - [Security and Data Handling](./security-data-handling.md)
 - [Use Cases and Fit](./use-cases.md)
-- [Pricing Tiers](./pricing-tiers.md)
+- [Pricing and Service Options](./pricing-tiers.md)
 
 ## Integration Assets
 
@@ -73,7 +73,7 @@ Integration note:
 
 If you are evaluating fit for a pilot, start with:
 
-1. Intake checklist (`intake.md`)
-2. [Pilot Checklist](./pilot-checklist.md)
-3. [Integration Guide](./integration-guide.md)
-4. [Operational Semantics](./operational-semantics.md)
+1. [Pilot and Service Options](../PILOT.md)
+2. Intake checklist (`intake.md`)
+3. [Pilot Checklist](./pilot-checklist.md)
+4. [Integration Guide](./integration-guide.md)

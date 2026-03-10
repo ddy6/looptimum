@@ -1,21 +1,42 @@
-# Pricing Tiers (Placeholder)
+# Pricing and Service Options
 
-This page is intentionally simplified for the initial public release.
+Looptimum supports self-serve usage as an open repository, and it can also be
+used as the basis for scoped pilot work in client-controlled environments.
 
-The full pricing-tier specification will be restored and completed in the next update.
+Specific pricing and delivery are tailored to the project.
+Contact for scope: [contact@looptimum.dev](mailto:contact@looptimum.dev)
 
-## Current Status
+## Public Offers
 
-- Detailed tier definitions: pending next update
-- Detailed pricing ranges/terms: pending next update
-- Delivery model examples: pending next update
+### Fit Assessment
 
-## In The Meantime
+Review whether Looptimum is a practical fit for your optimization problem,
+including parameter framing, objective design, runtime constraints, and pilot
+readiness.
 
-For technical scoping and pilot readiness, use:
+### Pilot Integration Sprint
 
-- `intake.md`
-- `docs/integration-guide.md`
-- `docs/faq.md`
+Wire Looptimum into a real evaluation workflow, validate a one-trial preflight,
+and prepare a bounded pilot with clear operational semantics.
 
-Last updated: March 1, 2026.
+### Assisted Pilot / Readout
+
+Run a bounded pilot with support on artifact review, result interpretation, and
+recommended next steps.
+
+## Scope Notes
+
+- best initial fit is a bounded, expensive black-box problem with one scalar
+  objective
+- local-first and offline-friendly execution is a core strength
+- Looptimum is not positioned as a hosted SaaS platform
+- more complex requirements may be handled through custom scoping or roadmap
+  discussion rather than a default first pilot
+
+## Start Here
+
+- [`../PILOT.md`](../PILOT.md)
+- [`../intake.md`](../intake.md)
+- [`./pilot-checklist.md`](./pilot-checklist.md)
+- [`./integration-guide.md`](./integration-guide.md)
+- [`./security-data-handling.md`](./security-data-handling.md)

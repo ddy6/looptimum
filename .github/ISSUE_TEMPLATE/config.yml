@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Pilot / Commercial Scope
+    url: mailto:contact@looptimum.dev
+    about: Private contact for fit assessment, pilot scoping, and commercial questions.
   - name: Integration Guide
     url: https://github.com/ddy6/looptimum/blob/main/docs/integration-guide.md
     about: Start here for contract and integration workflow details.

@@ -36,13 +36,14 @@ Included files:
   alignment for pilot runs
 - `faq.md`: common technical and operational questions
 - `security-data-handling.md`: detailed local/offline and data-minimization guidance
-- `pricing-tiers.md`: placeholder in this release; full tier/pricing detail
-  will return in the next update
+- `pricing-tiers.md`: public service posture and scoped pilot engagement entry
+  points
 - `use-cases.md`: fit guidance for engineering/simulation, biotech/lab
   pipelines, ML HPO teams, and large-model outer-loop tuning
 
 Reference artifacts:
 
+- `../PILOT.md`
 - `examples/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`

@@ -20,7 +20,16 @@ tuning consequences.
 For a spec-style contract summary, use
 [`docs/quick-reference.md`](docs/quick-reference.md).
 
-##
+## Evaluating Fit For A Pilot?
+
+- Private contact: [contact@looptimum.dev](mailto:contact@looptimum.dev)
+- Start here: [`PILOT.md`](PILOT.md), [`intake.md`](intake.md),
+  [`docs/pilot-checklist.md`](docs/pilot-checklist.md)
+- Best initial fit: bounded numeric parameters, one scalar objective, and
+  expensive evaluations in client-controlled environments
+- Scope and delivery are tailored to the project; contact for scope
+
+## Common Triggers
 
 - "We're wasting time on parameter sweeps and manual tuning."
 - "Each run is expensive, so we need fewer total experiments."
@@ -369,8 +378,9 @@ Expanded gallery with equal mainstream/specialized coverage is in
 - Optional on-prem/offline support: operate entirely in client-controlled
   infrastructure.
 
-If you have an expensive tuning problem, start with `intake.md` and open an
-issue describing your use case.
+If you are evaluating fit for a pilot, start with [`PILOT.md`](PILOT.md),
+[`intake.md`](intake.md), or contact
+[contact@looptimum.dev](mailto:contact@looptimum.dev).
 For first-impression and adoption feedback, use the GitHub Issues template at
 `.github/ISSUE_TEMPLATE/first-impressions.yml` (Issues are the primary
 feedback source of truth).
