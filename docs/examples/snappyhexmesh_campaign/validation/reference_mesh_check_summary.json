@@ -1,0 +1,8 @@
+{
+  "case_alias": "fine_reference_mesh",
+  "source": "reference_checkmesh_log",
+  "total_cells": 658647,
+  "mesh_ok": true,
+  "failed_checks": 0,
+  "severe_non_ortho_faces_gt_70": 28
+}

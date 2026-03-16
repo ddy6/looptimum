@@ -1,0 +1,13 @@
+{
+  "case_alias": "validated_coarse_candidate",
+  "source": "archived_trial_15_metrics_summary",
+  "trial_id": 15,
+  "objective_loss": 9.0,
+  "total_cells": 178473,
+  "mesh_ok": false,
+  "failed_checks": 1,
+  "severe_non_ortho_faces_gt_70": 2,
+  "warped_faces": 4,
+  "low_weight_faces": 0,
+  "underdetermined_cells": 0
+}

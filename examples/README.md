@@ -17,7 +17,12 @@ Included:
 Planned later:
 
 - sample result payloads and run artifacts
-- advanced domain-specific case studies (for example, meshing/OpenFOAM)
+- advanced domain-specific case studies
+
+Included domain-specific case study:
+
+- `snappyhexmesh_campaign/`: sanitized mesh-control example paired with
+  archived validation evidence in `../docs/examples/snappyhexmesh_campaign/`
 
 Positioning note:
 

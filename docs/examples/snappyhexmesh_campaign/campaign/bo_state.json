@@ -1,0 +1,374 @@
+{
+  "schema_version": "0.3.0",
+  "meta": {
+    "created_at": 1773426926.1758034,
+    "seed": 17
+  },
+  "observations": [
+    {
+      "trial_id": 1,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 4,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 1
+      },
+      "objectives": {
+        "loss": 102500.5
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "suggested_at": 1773426926.175877,
+      "completed_at": 1773427188.1303082
+    },
+    {
+      "trial_id": 2,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 3,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 1
+      },
+      "objectives": {
+        "loss": 40353.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_2/ingest_payload.json",
+      "suggested_at": 1773427188.3097675,
+      "completed_at": 1773427522.1515253
+    },
+    {
+      "trial_id": 3,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 3,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 3,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 21469.5
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_3/ingest_payload.json",
+      "suggested_at": 1773427522.3303537,
+      "completed_at": 1773427879.824062
+    },
+    {
+      "trial_id": 4,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 2,
+        "refinementRegions.distance_mode": 4,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 144219.6
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_4/ingest_payload.json",
+      "suggested_at": 1773427880.0054827,
+      "completed_at": 1773428751.3137753
+    },
+    {
+      "trial_id": 5,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 429458.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_5/ingest_payload.json",
+      "suggested_at": 1773428751.4918242,
+      "completed_at": 1773429032.2865794
+    },
+    {
+      "trial_id": 6,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 107606.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_6/ingest_payload.json",
+      "suggested_at": 1773429032.465388,
+      "completed_at": 1773429336.6772625
+    },
+    {
+      "trial_id": 7,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 3,
+        "refinementSurfaces.pipe_level_mode": 2,
+        "refinementRegions.distance_mode": 2,
+        "snapControls.nSmoothPatch": 5,
+        "snapControls.tolerance_mode": 1
+      },
+      "objectives": {
+        "loss": 82941.3
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_7/ingest_payload.json",
+      "suggested_at": 1773429336.8602562,
+      "completed_at": 1773430534.0941725
+    },
+    {
+      "trial_id": 8,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 2,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 9.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_8/ingest_payload.json",
+      "suggested_at": 1773430534.27573,
+      "completed_at": 1773430836.1343672
+    },
+    {
+      "trial_id": 9,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 31508.5
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_9/ingest_payload.json",
+      "suggested_at": 1773430836.330487,
+      "completed_at": 1773431109.710993
+    },
+    {
+      "trial_id": 10,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 3,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 90375.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_10/ingest_payload.json",
+      "suggested_at": 1773431109.907718,
+      "completed_at": 1773431391.0149117
+    },
+    {
+      "trial_id": 11,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 90375.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_11/ingest_payload.json",
+      "suggested_at": 1773431391.212099,
+      "completed_at": 1773431670.9010375
+    },
+    {
+      "trial_id": 12,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 2,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 161572.5
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_12/ingest_payload.json",
+      "suggested_at": 1773431671.101197,
+      "completed_at": 1773431946.4982018
+    },
+    {
+      "trial_id": 13,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 2,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 20424.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_13/ingest_payload.json",
+      "suggested_at": 1773431946.6965184,
+      "completed_at": 1773432249.723697
+    },
+    {
+      "trial_id": 14,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 2,
+        "refinementRegions.distance_mode": 2,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 3
+      },
+      "objectives": {
+        "loss": 60868.700000000004
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_14/ingest_payload.json",
+      "suggested_at": 1773432249.9238546,
+      "completed_at": 1773433304.2545419
+    },
+    {
+      "trial_id": 15,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 5,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 9.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_15/ingest_payload.json",
+      "suggested_at": 1773433304.4618924,
+      "completed_at": 1773433606.0040376
+    },
+    {
+      "trial_id": 16,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 3,
+        "snapControls.nSmoothPatch": 5,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 9.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_16/ingest_payload.json",
+      "suggested_at": 1773433606.206762,
+      "completed_at": 1773433906.607834
+    },
+    {
+      "trial_id": 17,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 2,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 3,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 16213.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_17/ingest_payload.json",
+      "suggested_at": 1773433906.8122537,
+      "completed_at": 1773434209.6404123
+    },
+    {
+      "trial_id": 18,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 5,
+        "snapControls.tolerance_mode": 1
+      },
+      "objectives": {
+        "loss": 10100.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_18/ingest_payload.json",
+      "suggested_at": 1773434209.8455791,
+      "completed_at": 1773434468.9434264
+    },
+    {
+      "trial_id": 19,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 3,
+        "snapControls.nSmoothPatch": 5,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 9907.5
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_19/ingest_payload.json",
+      "suggested_at": 1773434469.1529946,
+      "completed_at": 1773434744.236149
+    },
+    {
+      "trial_id": 20,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 1,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 6,
+        "snapControls.tolerance_mode": 1
+      },
+      "objectives": {
+        "loss": 102500.5
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_20/ingest_payload.json",
+      "suggested_at": 1773434744.4457686,
+      "completed_at": 1773435005.604831
+    },
+    {
+      "trial_id": 21,
+      "params": {
+        "castellatedMeshControls.nCellsBetweenLevels": 1,
+        "refinementSurfaces.pipe_level_mode": 2,
+        "refinementRegions.distance_mode": 1,
+        "snapControls.nSmoothPatch": 7,
+        "snapControls.tolerance_mode": 2
+      },
+      "objectives": {
+        "loss": 144219.6
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_21/ingest_payload.json",
+      "suggested_at": 1773435005.8144417,
+      "completed_at": 1773435880.321573
+    }
+  ],
+  "pending": [],
+  "next_trial_id": 22,
+  "best": {
+    "trial_id": 8,
+    "objective_name": "loss",
+    "objective_value": 9.0,
+    "updated_at": 1773435880.321591
+  }
+}

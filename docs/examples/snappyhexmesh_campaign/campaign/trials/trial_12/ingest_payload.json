@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.3.0",
+  "trial_id": 12,
+  "params": {
+    "castellatedMeshControls.nCellsBetweenLevels": 1,
+    "refinementSurfaces.pipe_level_mode": 1,
+    "refinementRegions.distance_mode": 2,
+    "snapControls.nSmoothPatch": 6,
+    "snapControls.tolerance_mode": 2
+  },
+  "objectives": {
+    "loss": 161572.5
+  },
+  "status": "ok"
+}

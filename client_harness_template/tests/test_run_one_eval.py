@@ -52,6 +52,13 @@ def _write_ok_objective(path: Path) -> None:
     )
 
 
+def _write_trial_id_objective(path: Path) -> None:
+    path.write_text(
+        "import os\ndef evaluate(params):\n    return float(os.environ['LOOPTIMUM_TRIAL_ID'])\n",
+        encoding="utf-8",
+    )
+
+
 def _write_non_ok_with_failure_reason_objective(path: Path) -> None:
     path.write_text(
         "def evaluate(params):\n"
@@ -250,6 +257,19 @@ def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> Non
     payload = json.loads(result.read_text(encoding="utf-8"))
     assert payload["status"] == "ok"
     assert payload["objectives"] == {"score": 0.123}
+
+
+def test_trial_id_is_exported_to_objective_environment(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_trial_id.py"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_trial_id_objective(objective)
+
+    _run_cmd(str(suggestion), str(result), "--objective-module", str(objective))
+    payload = json.loads(result.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert payload["objectives"] == {"loss": 1.0}
 
 
 def test_yaml_objective_schema_requires_compat_mode(tmp_path: Path) -> None:

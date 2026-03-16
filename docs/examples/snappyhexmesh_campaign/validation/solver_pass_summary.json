@@ -1,0 +1,41 @@
+{
+  "campaign_id": "campaign",
+  "selected_trial_id": 15,
+  "reference_case_alias": "fine_reference_mesh",
+  "selected_case_alias": "validated_coarse_candidate",
+  "archived_objective_loss": 9.0,
+  "archived_checkmesh_failed_checks": 1,
+  "archived_checkmesh_mesh_ok": false,
+  "post_hoc_solver_status": "ok",
+  "solver_target_end_time_seconds": 5.0,
+  "solver_time_reached_seconds": 4.999946140825916,
+  "solver_reached_target": true,
+  "reference_total_cells": 658647,
+  "selected_total_cells": 178473,
+  "cell_count_reduction_pct": 72.90308769340785,
+  "reference_solver_wall_clock_seconds": 1806450.0,
+  "selected_solver_wall_clock_seconds": 162928.0,
+  "solver_runtime_reduction_pct": 90.98076337568159,
+  "solver_speedup_vs_reference": 11.08741284493764,
+  "acceptance_thresholds": {
+    "major_outlet_flow_relative_drift_percent_max": 1.0,
+    "aggregate_map_abs_drift_mmhg_max": 0.5,
+    "aggregate_pp_abs_drift_mmhg_max": 0.5
+  },
+  "aggregate_validation": {
+    "all_major_outlet_flows_within_1pct": true,
+    "aggregate_map_within_0_5_mmhg": true,
+    "aggregate_pp_all_within_0_5_mmhg": true,
+    "aggregate_pp_primary_branch_within_0_5_mmhg": true,
+    "max_major_outlet_flow_relative_drift_percent": 0.9616895711451975,
+    "aggregate_map_abs_drift_mmhg": 0.05701867546687822,
+    "aggregate_pp_all_abs_drift_mmhg": 0.4070149253731188,
+    "aggregate_pp_primary_branch_abs_drift_mmhg": 0.433279831995776
+  },
+  "notes": [
+    "The selected coarse candidate is accepted despite one archived failed checkMesh check.",
+    "Acceptance is based on solver stability plus fine-versus-coarse flow and pressure agreement.",
+    "The sanitized runtime summary includes a derived coarse solver wall clock from the selected solver log.",
+    "The public package intentionally uses anonymized case and branch labels."
+  ]
+}

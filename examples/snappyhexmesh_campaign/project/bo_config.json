@@ -1,0 +1,32 @@
+{
+  "seed": 17,
+  "max_trials": 40,
+  "initial_random_trials": 8,
+  "candidate_pool_size": 300,
+  "surrogate": {
+    "type": "rbf_proxy",
+    "length_scale": 0.22,
+    "gp_model": {
+      "kernel": "matern_2.5",
+      "ard": true
+    }
+  },
+  "acquisition": {
+    "type": "ei",
+    "kappa": 1.8,
+    "xi": 0.01
+  },
+  "batch_size": 1,
+  "stopping": {
+    "min_improvement": 0.0001,
+    "patience_trials": 6
+  },
+  "paths": {
+    "state_file": "state/bo_state.json",
+    "observations_csv": "state/observations.csv",
+    "acquisition_log_file": "state/acquisition_log.jsonl",
+    "ingest_schema_file": "../../../templates/_shared/schemas/ingest_payload.schema.json",
+    "search_space_schema_file": "../../../templates/_shared/schemas/search_space.schema.json",
+    "suggestion_schema_file": "../../../templates/_shared/schemas/suggestion_payload.schema.json"
+  }
+}

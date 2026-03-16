@@ -1,0 +1,34 @@
+{
+  "parameters": [
+    {
+      "name": "castellatedMeshControls.nCellsBetweenLevels",
+      "type": "int",
+      "bounds": [1, 3],
+      "description": "snappyHexMesh nCellsBetweenLevels"
+    },
+    {
+      "name": "refinementSurfaces.pipe_level_mode",
+      "type": "int",
+      "bounds": [1, 2],
+      "description": "focus-surface level mode: 1 -> (1 1), 2 -> (2 2)"
+    },
+    {
+      "name": "refinementRegions.distance_mode",
+      "type": "int",
+      "bounds": [1, 4],
+      "description": "distance refinement mode for the interior refinement region"
+    },
+    {
+      "name": "snapControls.nSmoothPatch",
+      "type": "int",
+      "bounds": [5, 7],
+      "description": "snappyHexMesh nSmoothPatch"
+    },
+    {
+      "name": "snapControls.tolerance_mode",
+      "type": "int",
+      "bounds": [1, 3],
+      "description": "snap tolerance mode: 1 -> 0.15, 2 -> 0.5, 3 -> 1.0"
+    }
+  ]
+}

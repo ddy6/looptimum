@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+<style>
+text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
+.title { font-size: 18px; font-weight: 700; }
+.label { font-size: 12px; }
+.small { font-size: 11px; fill: #555; }
+.axis { stroke: #333; stroke-width: 1.2; }
+.grid { stroke: #ddd; stroke-width: 1; }
+</style>
+<rect x="70" y="55" width="280.0" height="310" fill="#f3efe2"/>
+<rect x="350.0" y="55" width="520.0" height="310" fill="#e8f0f2"/>
+<line class="grid" x1="70" y1="362.0" x2="870" y2="362.0"/>
+<text class="small" x="10" y="366.0">1e1</text>
+<line class="grid" x1="70" y1="295.7" x2="870" y2="295.7"/>
+<text class="small" x="10" y="299.7">1e2</text>
+<line class="grid" x1="70" y1="229.5" x2="870" y2="229.5"/>
+<text class="small" x="10" y="233.5">1e3</text>
+<line class="grid" x1="70" y1="163.2" x2="870" y2="163.2"/>
+<text class="small" x="10" y="167.2">1e4</text>
+<line class="grid" x1="70" y1="96.9" x2="870" y2="96.9"/>
+<text class="small" x="10" y="100.9">1e5</text>
+<line class="axis" x1="70" y1="55" x2="70" y2="365"/>
+<line class="axis" x1="70" y1="365" x2="870" y2="365"/>
+<circle cx="70.0" cy="96.2" r="4.5" fill="#1f6f8b"/>
+<circle cx="110.0" cy="123.0" r="4.5" fill="#1f6f8b"/>
+<circle cx="150.0" cy="141.2" r="4.5" fill="#1f6f8b"/>
+<circle cx="190.0" cy="86.4" r="4.5" fill="#1f6f8b"/>
+<circle cx="230.0" cy="55.0" r="4.5" fill="#1f6f8b"/>
+<circle cx="270.0" cy="94.8" r="4.5" fill="#1f6f8b"/>
+<circle cx="310.0" cy="102.3" r="4.5" fill="#1f6f8b"/>
+<circle cx="350.0" cy="365.0" r="4.5" fill="#c54d3f"/>
+<circle cx="390.0" cy="130.2" r="4.5" fill="#1f6f8b"/>
+<circle cx="430.0" cy="99.8" r="4.5" fill="#1f6f8b"/>
+<circle cx="470.0" cy="99.8" r="4.5" fill="#1f6f8b"/>
+<circle cx="510.0" cy="83.1" r="4.5" fill="#1f6f8b"/>
+<circle cx="550.0" cy="142.6" r="4.5" fill="#1f6f8b"/>
+<circle cx="590.0" cy="111.2" r="4.5" fill="#1f6f8b"/>
+<circle cx="630.0" cy="365.0" r="4.5" fill="#c54d3f"/>
+<circle cx="670.0" cy="365.0" r="4.5" fill="#c54d3f"/>
+<circle cx="710.0" cy="149.3" r="4.5" fill="#1f6f8b"/>
+<circle cx="750.0" cy="162.9" r="4.5" fill="#1f6f8b"/>
+<circle cx="790.0" cy="163.5" r="4.5" fill="#1f6f8b"/>
+<circle cx="830.0" cy="96.2" r="4.5" fill="#1f6f8b"/>
+<circle cx="870.0" cy="86.4" r="4.5" fill="#1f6f8b"/>
+<polyline fill="none" stroke="#1f6f8b" stroke-width="2" points="70.0,96.2 110.0,123.0 150.0,141.2 190.0,86.4 230.0,55.0 270.0,94.8 310.0,102.3 350.0,365.0 390.0,130.2 430.0,99.8 470.0,99.8 510.0,83.1 550.0,142.6 590.0,111.2 630.0,365.0 670.0,365.0 710.0,149.3 750.0,162.9 790.0,163.5 830.0,96.2 870.0,86.4"/>
+<text class="small" x="66.0" y="383">1</text>
+<text class="small" x="226.0" y="383">5</text>
+<text class="small" x="346.0" y="383">8</text>
+<text class="small" x="426.0" y="383">10</text>
+<text class="small" x="626.0" y="383">15</text>
+<text class="small" x="866.0" y="383">21</text>
+<text class="title" x="70" y="28">Campaign objective progression</text>
+<text class="small" x="70" y="44">Random phase: trials 1-8 | Surrogate-guided phase: trials 9-21</text>
+<text class="label" x="430.0" y="410">trial_id</text>
+<text class="label" x="18" y="43" transform="rotate(-90 18,43)">objective_loss (log10)</text>
+</svg>

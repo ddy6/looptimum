@@ -29,6 +29,7 @@ _SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)
 _YAML_COMPAT_MODE_ENV = "LOOPTIMUM_YAML_COMPAT_MODE"
 _YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
 _YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
+_TRIAL_ID_ENV = "LOOPTIMUM_TRIAL_ID"
 
 
 def _warn_deprecation(message: str) -> None:
@@ -420,7 +421,15 @@ def main() -> None:
 
     try:
         objective_module = _load_objective_module(objective_module_path)
-        eval_output = objective_module.evaluate(dict(suggestion["params"]))
+        previous_trial_id = os.environ.get(_TRIAL_ID_ENV)
+        os.environ[_TRIAL_ID_ENV] = str(int(suggestion["trial_id"]))
+        try:
+            eval_output = objective_module.evaluate(dict(suggestion["params"]))
+        finally:
+            if previous_trial_id is None:
+                os.environ.pop(_TRIAL_ID_ENV, None)
+            else:
+                os.environ[_TRIAL_ID_ENV] = previous_trial_id
         normalized = _normalize_eval_output(eval_output, default_failure_penalty=failure_penalty)
         result = {
             "schema_version": schema_version,

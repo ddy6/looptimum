@@ -1,0 +1,25 @@
+{
+  "created_at": 1773434469.1536415,
+  "trial_id": 19,
+  "status": "ok",
+  "terminal_reason": null,
+  "params": {
+    "castellatedMeshControls.nCellsBetweenLevels": 1,
+    "refinementSurfaces.pipe_level_mode": 1,
+    "refinementRegions.distance_mode": 3,
+    "snapControls.nSmoothPatch": 5,
+    "snapControls.tolerance_mode": 2
+  },
+  "objective_name": "loss",
+  "objective_value": 9907.5,
+  "penalty_objective": null,
+  "suggested_at": 1773434469.1529946,
+  "completed_at": 1773434744.236149,
+  "last_heartbeat_at": null,
+  "heartbeat_count": 0,
+  "artifact_path": "state/trials/trial_19/ingest_payload.json",
+  "artifacts": {
+    "ingest_payload": "state/trials/trial_19/ingest_payload.json"
+  },
+  "updated_at": 1773434744.236149
+}
