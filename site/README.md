@@ -23,12 +23,15 @@ npm run build
 
 ## Cloudflare Pages
 
-Recommended Pages settings:
+Recommended Cloudflare Workers Builds settings:
 
 - project root: `site`
 - build command: `npm run build`
-- build output directory: `dist`
+- deploy command: `npx wrangler deploy`
 - production branch: `main`
+
+This site is intentionally configured as a static Astro build deployed through
+Workers Builds using Wrangler assets, not as an SSR Worker.
 
 Primary production domain:
 
