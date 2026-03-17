@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Looptimum</title>
+  <desc id="desc">Static social card highlighting validated efficiency gains from the public case study.</desc>
+  <defs>
+    <linearGradient id="wash" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8f1e6" />
+      <stop offset="100%" stop-color="#efe0c6" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f4c3a" />
+      <stop offset="100%" stop-color="#d3a15f" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#wash)" />
+  <circle cx="1060" cy="120" r="180" fill="#d3a15f" fill-opacity="0.15" />
+  <circle cx="180" cy="540" r="220" fill="#0f4c3a" fill-opacity="0.08" />
+  <g fill="none" stroke="#18251f" stroke-opacity="0.07">
+    <path d="M0 88h1200" />
+    <path d="M0 176h1200" />
+    <path d="M0 264h1200" />
+    <path d="M0 352h1200" />
+    <path d="M0 440h1200" />
+    <path d="M0 528h1200" />
+    <path d="M96 0v630" />
+    <path d="M192 0v630" />
+    <path d="M288 0v630" />
+    <path d="M384 0v630" />
+    <path d="M480 0v630" />
+    <path d="M576 0v630" />
+    <path d="M672 0v630" />
+    <path d="M768 0v630" />
+    <path d="M864 0v630" />
+    <path d="M960 0v630" />
+    <path d="M1056 0v630" />
+  </g>
+  <rect x="58" y="56" width="1084" height="518" rx="30" fill="#fffaf3" fill-opacity="0.86" stroke="#18251f" stroke-opacity="0.08" />
+  <g transform="translate(96 96)">
+    <circle cx="22" cy="22" r="22" fill="url(#accent)" />
+    <text x="22" y="30" text-anchor="middle" font-family="Avenir Next, Segoe UI, sans-serif" font-size="26" font-weight="700" fill="#fffaf3">L</text>
+    <text x="62" y="22" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="34" font-weight="700" fill="#18251f">Looptimum</text>
+    <text x="62" y="54" font-family="Avenir Next, Segoe UI, sans-serif" font-size="18" fill="#45544d">Optimization for expensive evaluation loops</text>
+
+    <text x="0" y="126" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="76" font-weight="700" fill="#18251f">
+      Validated efficiency gains,
+    </text>
+    <text x="0" y="208" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="76" font-weight="700" fill="#18251f">
+      not just optimized scores.
+    </text>
+
+    <text x="0" y="278" font-family="Avenir Next, Segoe UI, sans-serif" font-size="28" fill="#45544d">
+      Public case study: coarse snappyHexMesh candidate accepted after solver validation
+    </text>
+
+    <g transform="translate(0 338)">
+      <rect width="300" height="132" rx="24" fill="#f7efe2" stroke="#18251f" stroke-opacity="0.08" />
+      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#0f4c3a">72.9%</text>
+      <text x="26" y="90" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">Fewer mesh cells</text>
+    </g>
+    <g transform="translate(332 338)">
+      <rect width="300" height="132" rx="24" fill="#f7efe2" stroke="#18251f" stroke-opacity="0.08" />
+      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#0f4c3a">91.0%</text>
+      <text x="26" y="90" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">Lower solver wall clock</text>
+    </g>
+    <g transform="translate(664 338)">
+      <rect width="300" height="132" rx="24" fill="#f7efe2" stroke="#18251f" stroke-opacity="0.08" />
+      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#0f4c3a">11.1x</text>
+      <text x="26" y="90" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">Solver speedup</text>
+    </g>
+    <text x="0" y="516" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">
+      All major outlet flows within 1% and aggregate MAP / PP within 0.5 mmHg
+    </text>
+  </g>
+</svg>

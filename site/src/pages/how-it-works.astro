@@ -1,0 +1,96 @@
+---
+import ActionPanel from "../components/ActionPanel.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import { repoLinks, workflowSteps } from "../data/site";
+---
+
+<BaseLayout
+  title="How It Works | Looptimum"
+  description="Understand the suggest-evaluate-ingest workflow and why Looptimum fits client-controlled environments."
+  currentPath="/how-it-works/"
+>
+  <PageHero
+    eyebrow="Mechanics"
+    title="A bounded loop with local state, explicit decisions, and low integration weight."
+    dek="Looptimum does not replace your execution environment. It wraps it with a small, resumable optimization controller."
+    primaryHref="/pilot/"
+    primaryLabel="Talk about a pilot"
+    secondaryHref={repoLinks.repo}
+    secondaryLabel="Review the code"
+  />
+
+  <div class="stack-lg">
+    <section class="step-grid">
+      {workflowSteps.map((step) => (
+        <article class="step-card reveal">
+          <p class="eyebrow">Workflow</p>
+          <h3>{step.title}</h3>
+          <p>{step.body}</p>
+        </article>
+      ))}
+    </section>
+
+    <section class="two-column">
+      <div class="section-head reveal">
+        <p class="eyebrow">Operational stance</p>
+        <h2>Built for environments where the evaluator cannot be outsourced.</h2>
+        <p>
+          Looptimum keeps state and decision trace in local files so the loop
+          survives interruptions, audit questions, and restricted deployment
+          environments without requiring managed optimization infrastructure.
+        </p>
+      </div>
+      <div class="criteria-grid">
+        <article class="criteria-card reveal">
+          <h3>Local state</h3>
+          <p>
+            Observations, trial manifests, and suggestion logs remain file-backed
+            so the control plane stays transparent and resumable.
+          </p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Thin contract</h3>
+          <p>
+            The evaluator only needs to accept bounded parameters and return a
+            scalar objective or explicit failure outcome.
+          </p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Failure-aware</h3>
+          <p>
+            Failed or timed-out evaluations are recorded rather than lost, which
+            matters when each run is expensive.
+          </p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Decision trace</h3>
+          <p>
+            The loop exposes why a trial was suggested and what had been learned
+            so far, instead of hiding the state behind a service boundary.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="proof-banner reveal">
+      <p class="eyebrow">Best initial fit</p>
+      <h2>When Looptimum is a strong pilot candidate</h2>
+      <ul>
+        <li>The evaluation is expensive in time, compute, money, or operational risk.</li>
+        <li>You can define one scalar objective or a defensible scalarization rule.</li>
+        <li>The knob set is bounded and practically searchable.</li>
+        <li>You need fewer wasted runs without surrendering environmental control.</li>
+      </ul>
+    </section>
+
+    <ActionPanel
+      title="See the workflow backed by a validated public case."
+      body="The public snappyHexMesh case shows the loop end to end: bounded campaign, archived decisions, and downstream solver validation."
+      primaryHref="/evidence/"
+      primaryLabel="Open evidence"
+      secondaryHref={repoLinks.caseStudy}
+      secondaryLabel="Read the repo artifact"
+    />
+  </div>
+</BaseLayout>

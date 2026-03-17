@@ -1,0 +1,84 @@
+---
+import ActionPanel from "../components/ActionPanel.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import { repoLinks, useCases } from "../data/site";
+---
+
+<BaseLayout
+  title="Use Cases | Looptimum"
+  description="Representative client scenarios where a bounded, resumable optimization loop can reduce wasted runs."
+  currentPath="/use-cases/"
+>
+  <PageHero
+    eyebrow="Applications"
+    title="Use Looptimum where each evaluation is expensive enough that sample efficiency changes the project."
+    dek="The product is not for cheap loops. It is for situations where broad sweeps, repeated failures, and untracked tuning decisions waste meaningful time or money."
+    primaryHref="/pilot/"
+    primaryLabel="Assess pilot fit"
+    secondaryHref="/evidence/"
+    secondaryLabel="See the proof"
+  />
+
+  <div class="stack-lg">
+    <section class="use-case-grid">
+      {useCases.map((item) => (
+        <article class="use-case-card reveal">
+          <p class="eyebrow">Use case</p>
+          <h3>{item.title}</h3>
+          <p>{item.body}</p>
+        </article>
+      ))}
+    </section>
+
+    <section class="two-column">
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Ideal pilot profile</p>
+        <h2>Start with a loop that already exists and hurts enough.</h2>
+        <p>
+          The fastest pilots are the ones where the evaluator already runs in a
+          client-owned environment and the team can name the knobs, the scalar
+          objective, and the cost of one run.
+        </p>
+      </div>
+      <div class="criteria-grid">
+        <article class="criteria-card reveal">
+          <h3>Bounded knobs</h3>
+          <p>A manageable set of numeric or discrete controls with real operational consequences.</p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Expensive evaluations</h3>
+          <p>Runs that are slow enough or costly enough that fewer wasted trials matter.</p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Stable execution path</h3>
+          <p>An existing script, solver, workflow, or runner that can execute one candidate configuration.</p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Decision accountability</h3>
+          <p>A team that benefits from resuming interrupted work and preserving an auditable search history.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="proof-banner reveal">
+      <p class="eyebrow">Not the best fit</p>
+      <h2>Looptimum is probably unnecessary if</h2>
+      <ul>
+        <li>The objective is cheap enough that random or grid search is already sufficient.</li>
+        <li>You have reliable gradients and can use direct gradient-based optimization.</li>
+        <li>You cannot define one scalar objective or acceptable scoring rule.</li>
+        <li>The problem is so high-dimensional that bounded search is not a credible first move.</li>
+      </ul>
+    </section>
+
+    <ActionPanel
+      title="Use the public case study as the benchmark for a first client conversation."
+      body="It is the clearest public example of how Looptimum converts fewer evaluations into validated downstream savings."
+      primaryHref="/evidence/"
+      primaryLabel="Open evidence"
+      secondaryHref={repoLinks.pilot}
+      secondaryLabel="Read pilot scope notes"
+    />
+  </div>
+</BaseLayout>

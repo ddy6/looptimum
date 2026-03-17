@@ -1,0 +1,33 @@
+---
+interface Props {
+  title: string;
+  body: string;
+  primaryHref: string;
+  primaryLabel: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
+}
+
+const {
+  title,
+  body,
+  primaryHref,
+  primaryLabel,
+  secondaryHref,
+  secondaryLabel,
+} = Astro.props;
+---
+
+<section class="action-panel reveal">
+  <div>
+    <p class="eyebrow">Next step</p>
+    <h2>{title}</h2>
+    <p>{body}</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button button-primary" href={primaryHref}>{primaryLabel}</a>
+    {secondaryHref && secondaryLabel && (
+      <a class="button button-secondary" href={secondaryHref}>{secondaryLabel}</a>
+    )}
+  </div>
+</section>

@@ -1,0 +1,22 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Not Found | Looptimum"
+  description="The requested page does not exist on the Looptimum site."
+  currentPath="/404/"
+>
+  <section class="page-hero reveal">
+    <p class="eyebrow">404</p>
+    <h1>That page is not here.</h1>
+    <p class="dek">
+      Use the main navigation or jump to the evidence page for the validated
+      public case study.
+    </p>
+    <div class="hero-actions">
+      <a class="button button-primary" href="/">Go home</a>
+      <a class="button button-secondary" href="/evidence/">Open evidence</a>
+    </div>
+  </section>
+</BaseLayout>

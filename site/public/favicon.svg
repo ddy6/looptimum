@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Looptimum</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f4c3a" />
+      <stop offset="100%" stop-color="#d3a15f" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#f7f2e7" />
+  <path d="M28 87V41h12v35h49v11H28z" fill="url(#bg)" />
+  <circle cx="89" cy="41" r="12" fill="#0f4c3a" />
+  <path d="M78 41h11v35H78z" fill="#0f4c3a" />
+</svg>

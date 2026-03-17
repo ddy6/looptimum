@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420">
+<style>
+text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
+.title { font-size: 18px; font-weight: 700; }
+.label { font-size: 12px; }
+.small { font-size: 11px; fill: #555; }
+.axis { stroke: #333; stroke-width: 1.2; }
+.grid { stroke: #ddd; stroke-width: 1; }
+</style>
+<line class="axis" x1="70" y1="55" x2="70" y2="350"/>
+<line class="axis" x1="70" y1="350" x2="730" y2="350"/>
+<line x1="70" y1="81.8" x2="730" y2="81.8" stroke="#b66" stroke-dasharray="6 4" stroke-width="1.5"/>
+<text class="small" x="575" y="75.8">0.5 mmHg threshold</text>
+<rect x="130" y="319.4" width="120" height="30.6" fill="#c54d3f"/>
+<text class="label" x="148" y="368">MAP all</text>
+<text class="small" x="154" y="311.4">0.057 mmHg</text>
+<rect x="315" y="131.7" width="120" height="218.3" fill="#c54d3f"/>
+<text class="label" x="333" y="368">PP all</text>
+<text class="small" x="339" y="123.7">0.407 mmHg</text>
+<rect x="500" y="117.6" width="120" height="232.4" fill="#c54d3f"/>
+<text class="label" x="518" y="368">PP primary</text>
+<text class="small" x="524" y="109.6">0.433 mmHg</text>
+<text class="title" x="70" y="28">Aggregate pressure drift</text>
+<text class="small" x="70" y="44">All published aggregate pressure checks remain within 0.5 mmHg</text>
+</svg>

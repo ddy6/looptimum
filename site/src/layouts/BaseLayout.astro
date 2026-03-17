@@ -1,0 +1,84 @@
+---
+import "../styles/global.css";
+import { navItems, repoLinks, siteConfig } from "../data/site";
+
+interface Props {
+  title: string;
+  description: string;
+  currentPath?: string;
+}
+
+const { title, description, currentPath = "/" } = Astro.props;
+const canonicalUrl = new URL(currentPath, siteConfig.siteUrl).toString();
+const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Looptimum" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+    <meta name="theme-color" content="#f7f2e7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href={canonicalUrl} />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">L</span>
+          <span>
+            <strong>Looptimum</strong>
+            <small>Optimization for expensive loops</small>
+          </span>
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav-list">
+            {navItems.map((item) => (
+              <li>
+                <a
+                  class={item.href === currentPath ? "nav-link is-active" : "nav-link"}
+                  href={item.href}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <a class="button button-primary header-cta" href="/pilot/">Request Fit Review</a>
+      </header>
+      <main>
+        <slot />
+      </main>
+      <footer class="site-footer">
+        <div>
+          <p class="footer-mark">Looptimum</p>
+          <p class="footer-copy">
+            File-backed optimization loops for client-controlled environments.
+          </p>
+        </div>
+        <div class="footer-links">
+          <a href="/evidence/">Validated case study</a>
+          <a href="/how-it-works/">How it works</a>
+          <a href="/pilot/">Pilot intake</a>
+          <a href={siteConfig.contactHref}>{siteConfig.contactEmail}</a>
+          <a href={repoLinks.repo}>GitHub</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

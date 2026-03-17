@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+<style>
+text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
+.title { font-size: 18px; font-weight: 700; }
+.label { font-size: 12px; }
+.small { font-size: 11px; fill: #555; }
+.axis { stroke: #333; stroke-width: 1.2; }
+.grid { stroke: #ddd; stroke-width: 1; }
+</style>
+<line class="axis" x1="70" y1="55" x2="70" y2="350"/>
+<line class="axis" x1="70" y1="350" x2="870" y2="350"/>
+<line x1="70" y1="81.8" x2="870" y2="81.8" stroke="#b66" stroke-dasharray="6 4" stroke-width="1.5"/>
+<text class="small" x="740" y="75.8">1.0% threshold</text>
+<rect x="100" y="347.4" width="60" height="2.6" fill="#1f6f8b"/>
+<text class="small" x="106" y="368">b01</text>
+<text class="small" x="104" y="339.4">0.010%</text>
+<rect x="186" y="92.1" width="60" height="257.9" fill="#1f6f8b"/>
+<text class="small" x="192" y="368">b02</text>
+<text class="small" x="190" y="84.1">0.962%</text>
+<rect x="272" y="174.6" width="60" height="175.4" fill="#1f6f8b"/>
+<text class="small" x="278" y="368">b03</text>
+<text class="small" x="276" y="166.6">0.654%</text>
+<rect x="358" y="238.2" width="60" height="111.8" fill="#1f6f8b"/>
+<text class="small" x="364" y="368">b04</text>
+<text class="small" x="362" y="230.2">0.417%</text>
+<rect x="444" y="187.7" width="60" height="162.3" fill="#1f6f8b"/>
+<text class="small" x="450" y="368">b05</text>
+<text class="small" x="448" y="179.7">0.605%</text>
+<rect x="530" y="139.7" width="60" height="210.3" fill="#1f6f8b"/>
+<text class="small" x="536" y="368">b06</text>
+<text class="small" x="534" y="131.7">0.784%</text>
+<rect x="616" y="162.7" width="60" height="187.3" fill="#1f6f8b"/>
+<text class="small" x="622" y="368">b07</text>
+<text class="small" x="620" y="154.7">0.699%</text>
+<rect x="702" y="92.4" width="60" height="257.6" fill="#1f6f8b"/>
+<text class="small" x="708" y="368">b08</text>
+<text class="small" x="706" y="84.4">0.960%</text>
+<text class="title" x="70" y="28">Major outlet-flow relative drift</text>
+<text class="small" x="70" y="44">All anonymized branch-level outlet flows remain within the 1.0% threshold</text>
+</svg>

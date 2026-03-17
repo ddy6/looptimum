@@ -1,0 +1,139 @@
+---
+import ActionPanel from "../components/ActionPanel.astro";
+import MetricCard from "../components/MetricCard.astro";
+import PlotCard from "../components/PlotCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import {
+  evidenceHighlights,
+  heroMetrics,
+  repoLinks,
+  useCases,
+  workflowSteps,
+} from "../data/site";
+---
+
+<BaseLayout
+  title="Looptimum | Reduce Expensive Evaluation Loops"
+  description="Looptimum is a file-backed optimization loop for expensive black-box evaluations in client-controlled environments."
+  currentPath="/"
+>
+  <section class="page-hero">
+    <div class="hero-grid reveal">
+      <div class="hero-copy">
+        <p class="eyebrow">Local-first optimization for expensive loops</p>
+        <h1>Reduce expensive evaluation loops without giving up control.</h1>
+        <p class="dek">
+          Looptimum helps teams replace fragile sweeps and manual tuning with a
+          bounded, resumable optimization loop that stays compatible with
+          client-controlled environments.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/pilot/">Request Fit Review</a>
+          <a class="button button-secondary" href="/evidence/">See Validated Case Study</a>
+        </div>
+      </div>
+      <aside class="hero-panel">
+        <p class="eyebrow">Featured proof</p>
+        <h3>Validated coarse-mesh outcome</h3>
+        <p>
+          A bounded 216-point search was reduced to 21 executed trials. The
+          selected coarse candidate preserved flow and pressure behavior while
+          materially cutting mesh size and solver runtime.
+        </p>
+        <div class="pill-row">
+          {evidenceHighlights.map((item) => (
+            <span class="pill">{item}</span>
+          ))}
+        </div>
+      </aside>
+    </div>
+    <div class="metric-grid">
+      {heroMetrics.map((metric) => (
+        <MetricCard {...metric} />
+      ))}
+    </div>
+  </section>
+
+  <div class="stack-lg">
+    <section class="two-column">
+      <div class="section-head reveal">
+        <p class="eyebrow">Why it fits</p>
+        <h2>Keep the optimization loop thin. Keep the execution where it belongs.</h2>
+        <p>
+          Looptimum is designed for teams that already have an evaluator but do
+          not want to build a full optimization platform around it. The loop
+          stays explicit: suggest, evaluate, ingest.
+        </p>
+      </div>
+      <div class="step-grid">
+        {workflowSteps.map((step) => (
+          <article class="step-card reveal">
+            <p class="eyebrow">Step</p>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="two-column">
+      <div class="feature-panel reveal">
+        <p class="eyebrow">What the public example proves</p>
+        <h2>Optimization gains are only persuasive when downstream validation holds.</h2>
+        <p>
+          The flagship public case study does not stop at an archived objective
+          score. It follows the selected candidate through solver validation and
+          publishes the evidence that mattered: runtime, cell count, outlet
+          flow drift, and aggregate pressure drift.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href={repoLinks.caseStudy}>Read the repo case study</a>
+          <a class="button button-secondary" href="/evidence/">See site summary</a>
+        </div>
+      </div>
+      <div class="plot-grid">
+        <PlotCard
+          title="Solver runtime reduction"
+          src="/proof/fine_vs_coarse_solver_runtime.svg"
+          alt="Bar chart comparing fine and coarse solver runtime"
+          summary="The selected validated coarse case cut solver wall clock by 91.0%, from 1.806 million seconds to 162,928 seconds."
+        />
+        <PlotCard
+          title="Mesh cell-count reduction"
+          src="/proof/fine_vs_coarse_cell_count.svg"
+          alt="Bar chart comparing fine and coarse mesh cell counts"
+          summary="The accepted coarse mesh reduced total cells by 72.9%, from 658,647 to 178,473."
+        />
+      </div>
+    </section>
+
+    <section class="stack-md">
+      <div class="section-head reveal">
+        <p class="eyebrow">Common fits</p>
+        <h2>Good pilots start where each run is expensive enough to matter.</h2>
+        <p>
+          The strongest early deployments have bounded knobs, one scalar
+          objective, and a team that can already execute the evaluation inside
+          its own environment.
+        </p>
+      </div>
+      <div class="use-case-grid">
+        {useCases.map((item) => (
+          <article class="use-case-card reveal">
+            <h3>{item.title}</h3>
+            <p>{item.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <ActionPanel
+      title="Start with a fit review, not a long sales cycle."
+      body="The first question is whether your evaluation profile is expensive enough and structured enough for Looptimum to change the economics of the loop."
+      primaryHref="/pilot/"
+      primaryLabel="Open pilot intake"
+      secondaryHref={repoLinks.repo}
+      secondaryLabel="Browse the public repo"
+    />
+  </div>
+</BaseLayout>

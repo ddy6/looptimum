@@ -1,0 +1,114 @@
+---
+import ActionPanel from "../components/ActionPanel.astro";
+import MetricCard from "../components/MetricCard.astro";
+import PageHero from "../components/PageHero.astro";
+import PlotCard from "../components/PlotCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import {
+  heroMetrics,
+  repoLinks,
+  validationChecks,
+} from "../data/site";
+---
+
+<BaseLayout
+  title="Evidence | Looptimum"
+  description="Validated public evidence showing efficiency gains and downstream solver parity from a bounded optimization campaign."
+  currentPath="/evidence/"
+>
+  <PageHero
+    eyebrow="Evidence"
+    title="A client-facing proof point should survive validation, not just optimization."
+    dek="The flagship public example pairs a bounded snappyHexMesh campaign with a post-hoc solver pass against a fine reference case."
+    primaryHref={repoLinks.caseStudy}
+    primaryLabel="Read the full repo case study"
+    secondaryHref="/pilot/"
+    secondaryLabel="Discuss a similar pilot"
+  />
+
+  <div class="stack-lg">
+    <section class="metric-grid">
+      {heroMetrics.map((metric) => (
+        <MetricCard {...metric} />
+      ))}
+    </section>
+
+    <section class="two-column">
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Campaign summary</p>
+        <h2>Selected public case: validated coarse candidate from campaign trial 15</h2>
+        <ul>
+          <li>216-point bounded search space</li>
+          <li>21 executed trials</li>
+          <li>8 random starts, then 13 surrogate-guided suggestions</li>
+          <li>Archived objective loss for the selected candidate: 9.0</li>
+          <li>One archived failed checkMesh check, documented rather than hidden</li>
+          <li>Accepted on solver stability and fine-vs-coarse mesh-independence evidence</li>
+        </ul>
+      </div>
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Validation thresholds</p>
+        <h2>Public acceptance criteria</h2>
+        <ul>
+          {validationChecks.map((item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <section class="plot-grid">
+      <PlotCard
+        title="Solver wall-clock comparison"
+        src="/proof/fine_vs_coarse_solver_runtime.svg"
+        alt="Bar chart showing a large runtime drop between the fine reference and the coarse validated mesh"
+        summary="The selected coarse case reduced solver wall clock by 91.0%, which is the most direct operational proof for a client-facing pitch."
+      />
+      <PlotCard
+        title="Mesh cell-count comparison"
+        src="/proof/fine_vs_coarse_cell_count.svg"
+        alt="Bar chart showing cell-count reduction from the fine reference mesh to the coarse validated mesh"
+        summary="Cell-count reduction establishes that the solver gain came from a materially lighter mesh rather than a cosmetic parameter change."
+      />
+      <PlotCard
+        title="Objective progression"
+        src="/proof/campaign_objective_progression.svg"
+        alt="Line and point chart showing loss reduction over the campaign"
+        summary="The campaign explored less than 10% of the bounded search space and still found a repeatable low-loss basin."
+      />
+      <PlotCard
+        title="Validation drift"
+        src="/proof/outlet_flow_relative_drift.svg"
+        alt="Chart showing outlet-flow drift staying below the 1% threshold"
+        summary="Downstream validation stayed inside the stated outlet-flow threshold, which is what makes the efficiency claim credible."
+      />
+      <PlotCard
+        title="Aggregate pressure parity"
+        src="/proof/aggregate_pressure_drift.svg"
+        alt="Chart showing aggregate pressure drift staying within the 0.5 mmHg threshold"
+        summary="Aggregate MAP and PP remained inside the 0.5 mmHg acceptance band, which supports the mesh-independence argument."
+      />
+    </section>
+
+    <section class="proof-banner reveal">
+      <p class="eyebrow">Public positioning</p>
+      <h2>Lead with the validated operational delta.</h2>
+      <ul>
+        <li>72.9% fewer mesh cells</li>
+        <li>91.0% lower solver wall clock</li>
+        <li>11.1x solver speedup</li>
+        <li>All major outlet flows within 1%</li>
+        <li>Aggregate MAP and PP within 0.5 mmHg</li>
+      </ul>
+    </section>
+
+    <ActionPanel
+      title="Use this evidence package as the template for future client studies."
+      body="The public repo now has the right shape: archived campaign artifacts, derived summaries, and sanitized validation visuals that a non-specialist stakeholder can still understand."
+      primaryHref={repoLinks.caseStudy}
+      primaryLabel="Browse the repo artifacts"
+      secondaryHref="/pilot/"
+      secondaryLabel="Request a similar assessment"
+    />
+  </div>
+</BaseLayout>

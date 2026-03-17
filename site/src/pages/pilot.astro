@@ -1,0 +1,93 @@
+---
+import ActionPanel from "../components/ActionPanel.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
+---
+
+<BaseLayout
+  title="Pilot Intake | Looptimum"
+  description="Start a Looptimum fit review with the minimum information needed to evaluate a bounded optimization pilot."
+  currentPath="/pilot/"
+>
+  <PageHero
+    eyebrow="Pilot intake"
+    title="Start with the loop that is already expensive enough to deserve attention."
+    dek="A useful first conversation is short: what is being optimized, how expensive is one run, where does it execute, and what constraints cannot be violated."
+    primaryHref={siteConfig.contactHref}
+    primaryLabel="Email fit review"
+    secondaryHref={repoLinks.intake}
+    secondaryLabel="Read technical intake notes"
+  />
+
+  <div class="stack-lg">
+    <section class="two-column">
+      <div class="feature-panel reveal">
+        <p class="eyebrow">What to send</p>
+        <h2>These answers are usually enough to decide whether a pilot is worth scoping.</h2>
+        <p>
+          The first pass of the site keeps outreach lightweight. Use the
+          question set below in email, or in a future form-backed intake flow.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href={siteConfig.contactHref}>
+            {siteConfig.contactEmail}
+          </a>
+          <a class="button button-secondary" href={repoLinks.pilot}>Pilot framing in repo</a>
+        </div>
+      </div>
+      <div class="question-grid">
+        {intakeQuestions.map((question) => (
+          <article class="question-card reveal">
+            <p class="eyebrow">Intake prompt</p>
+            <h3>{question}</h3>
+            <p>
+              Short, concrete answers are enough for a first screening. The
+              goal is to identify fit, not complete procurement paperwork.
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="criteria-grid">
+      <article class="criteria-card reveal">
+        <h3>Best early pilot</h3>
+        <p>
+          One loop, one scalar objective, bounded knobs, and a team that can
+          already run the evaluation on demand.
+        </p>
+      </article>
+      <article class="criteria-card reveal">
+        <h3>Security posture</h3>
+        <p>
+          Looptimum is strongest where execution must stay in a client-owned or
+          restricted environment instead of moving to a hosted service.
+        </p>
+      </article>
+      <article class="criteria-card reveal">
+        <h3>What the public proof covers</h3>
+        <p>
+          The public case already demonstrates an end-to-end validated outcome:
+          fewer trials, lighter mesh, faster solve, and preserved behavior.
+        </p>
+      </article>
+      <article class="criteria-card reveal">
+        <h3>What happens next</h3>
+        <p>
+          If the fit is credible, the next step is a scoped pilot definition:
+          parameters, success metric, run budget, and validation criteria.
+        </p>
+      </article>
+    </section>
+
+    <ActionPanel
+      title="Need stronger proof before outreach?"
+      body="Use the validated public evidence page and the repo case-study artifacts as the technical appendix for early client conversations."
+      primaryHref="/evidence/"
+      primaryLabel="Open validated evidence"
+      secondaryHref={repoLinks.caseStudy}
+      secondaryLabel="Read the repo details"
+    />
+  </div>
+</BaseLayout>
