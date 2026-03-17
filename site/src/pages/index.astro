@@ -62,34 +62,13 @@ import {
 
   <div class="stack-lg">
     <section class="two-column">
-      <div class="section-head reveal">
-        <p class="eyebrow">Why it fits</p>
-        <h2>Keep the optimization loop thin. Keep the execution where it belongs.</h2>
-        <p>
-          Looptimum is designed for teams that already have an evaluator but do
-          not want to build a full optimization platform around it. The loop
-          stays explicit: suggest, evaluate, ingest.
-        </p>
-      </div>
-      <div class="step-grid">
-        {workflowSteps.map((step) => (
-          <article class="step-card reveal">
-            <p class="eyebrow">Step</p>
-            <h3>{step.title}</h3>
-            <p>{step.body}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-
-    <section class="two-column">
       <div class="feature-panel reveal">
-        <p class="eyebrow">What the public example proves</p>
+        <p class="eyebrow">What the example proves</p>
         <h2>Optimization gains are only persuasive when downstream validation holds.</h2>
         <p>
-          The flagship public case study does not stop at an archived objective
-          score. It follows the selected candidate through solver validation and
-          publishes the evidence that mattered: runtime, cell count, outlet
+          The flagship case study does not stop at an archived objective score.
+          It follows the selected candidate through solver validation and
+          highlights the evidence that mattered: runtime, cell count, outlet
           flow drift, and aggregate pressure drift.
         </p>
         <div class="hero-actions">
@@ -114,15 +93,27 @@ import {
     </section>
 
     <section class="stack-md">
-      <div class="section-head reveal">
-        <p class="eyebrow">Common fits</p>
-        <h2>Good pilots start where each run is expensive enough to matter.</h2>
-        <p>
-          The strongest early deployments have bounded knobs, one scalar
-          objective, and a team that can already execute the evaluation inside
-          its own environment.
-        </p>
-      </div>
+      <section class="two-column">
+        <div class="section-head reveal">
+          <p class="eyebrow">Why it fits</p>
+          <h2>Keep the optimization loop thin. Keep the execution where it belongs.</h2>
+          <p>
+            Good pilots start where each run is expensive enough to matter. The
+            strongest early deployments have bounded knobs, one scalar
+            objective, and a team that can already execute the evaluation
+            inside its own environment.
+          </p>
+        </div>
+        <div class="step-grid">
+          {workflowSteps.map((step) => (
+            <article class="step-card reveal">
+              <p class="eyebrow">Step</p>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
       <div class="use-case-grid">
         {useCases.map((item) => (
           <article class="use-case-card reveal">
@@ -139,7 +130,7 @@ import {
       primaryHref="/pilot/"
       primaryLabel="Open pilot intake"
       secondaryHref={repoLinks.repo}
-      secondaryLabel="Browse the public repo"
+      secondaryLabel="Browse the repo"
     />
   </div>
 </BaseLayout>

@@ -134,7 +134,7 @@ def _plot_cell_count() -> None:
     width, height = 700, 420
     margin_left, margin_bottom, margin_top, margin_right = 80, 55, 55, 30
     plot_h = height - margin_top - margin_bottom
-    max_value = max(fine, coarse)
+    max_value = max(fine, coarse) * 1.15
 
     def bar_height(value: float) -> float:
         return (value / max_value) * plot_h
@@ -181,7 +181,7 @@ def _plot_solver_runtime() -> None:
     width, height = 700, 420
     margin_left, margin_bottom, margin_top, margin_right = 80, 55, 55, 30
     plot_h = height - margin_top - margin_bottom
-    max_value = max(fine, coarse)
+    max_value = max(fine, coarse) * 1.15
 
     def bar_height(value: float) -> float:
         return (value / max_value) * plot_h

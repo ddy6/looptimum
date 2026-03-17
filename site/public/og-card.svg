@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
   <title id="title">Looptimum</title>
-  <desc id="desc">Static social card highlighting validated efficiency gains from the public case study.</desc>
+  <desc id="desc">Static social card highlighting validated efficiency gains from the case study.</desc>
   <defs>
     <linearGradient id="wash" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#f8f1e6" />
@@ -48,7 +48,7 @@
     </text>
 
     <text x="0" y="278" font-family="Avenir Next, Segoe UI, sans-serif" font-size="28" fill="#45544d">
-      Public case study: coarse snappyHexMesh candidate accepted after solver validation
+      Case study: coarse snappyHexMesh candidate accepted after solver validation
     </text>
 
     <g transform="translate(0 338)">
