@@ -230,6 +230,15 @@ ul {
   border-radius: var(--radius-xl);
 }
 
+.page-hero-spaced {
+  margin-bottom: 1.5rem;
+}
+
+.page-hero-inner {
+  display: grid;
+  gap: 1.35rem;
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: 1.25fr 0.95fr;

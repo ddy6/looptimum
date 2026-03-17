@@ -3,6 +3,7 @@ interface Props {
   eyebrow?: string;
   title: string;
   dek: string;
+  spacedBelow?: boolean;
   primaryHref?: string;
   primaryLabel?: string;
   secondaryHref?: string;
@@ -13,6 +14,7 @@ const {
   eyebrow,
   title,
   dek,
+  spacedBelow = false,
   primaryHref,
   primaryLabel,
   secondaryHref,
@@ -20,18 +22,20 @@ const {
 } = Astro.props;
 ---
 
-<section class="page-hero page-hero-card reveal">
-  {eyebrow && <p class="eyebrow">{eyebrow}</p>}
-  <h1>{title}</h1>
-  <p class="dek">{dek}</p>
-  {(primaryHref || secondaryHref) && (
-    <div class="hero-actions">
-      {primaryHref && primaryLabel && (
-        <a class="button button-primary" href={primaryHref}>{primaryLabel}</a>
-      )}
-      {secondaryHref && secondaryLabel && (
-        <a class="button button-secondary" href={secondaryHref}>{secondaryLabel}</a>
-      )}
-    </div>
-  )}
+<section class={spacedBelow ? "page-hero page-hero-card page-hero-spaced reveal" : "page-hero page-hero-card reveal"}>
+  <div class="page-hero-inner">
+    {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+    <h1>{title}</h1>
+    <p class="dek">{dek}</p>
+    {(primaryHref || secondaryHref) && (
+      <div class="hero-actions">
+        {primaryHref && primaryLabel && (
+          <a class="button button-primary" href={primaryHref}>{primaryLabel}</a>
+        )}
+        {secondaryHref && secondaryLabel && (
+          <a class="button button-secondary" href={secondaryHref}>{secondaryLabel}</a>
+        )}
+      </div>
+    )}
+  </div>
 </section>
