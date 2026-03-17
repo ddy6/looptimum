@@ -22,7 +22,7 @@ For a spec-style contract summary, use
 
 ## Evaluating Fit For A Pilot?
 
-- Private contact: [contact@looptimum.dev](mailto:contact@looptimum.dev)
+- Private contact: [contact@looptimum.com](mailto:contact@looptimum.com)
 - Start here: [`PILOT.md`](PILOT.md), [`intake.md`](intake.md),
   [`docs/pilot-checklist.md`](docs/pilot-checklist.md)
 - Best initial fit: bounded numeric parameters, one scalar objective, and
@@ -380,7 +380,7 @@ Expanded gallery with equal mainstream/specialized coverage is in
 
 If you are evaluating fit for a pilot, start with [`PILOT.md`](PILOT.md),
 [`intake.md`](intake.md), or contact
-[contact@looptimum.dev](mailto:contact@looptimum.dev).
+[contact@looptimum.com](mailto:contact@looptimum.com).
 For first-impression and adoption feedback, use the GitHub Issues template at
 `.github/ISSUE_TEMPLATE/first-impressions.yml` (Issues are the primary
 feedback source of truth).

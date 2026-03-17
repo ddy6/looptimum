@@ -4,7 +4,7 @@ Looptimum supports self-serve usage as an open repository, and it can also be
 used as the basis for scoped pilot work in client-controlled environments.
 
 Specific pricing and delivery are tailored to the project.
-Contact for scope: [contact@looptimum.dev](mailto:contact@looptimum.dev)
+Contact for scope: [contact@looptimum.com](mailto:contact@looptimum.com)
 
 ## Public Offers
 
