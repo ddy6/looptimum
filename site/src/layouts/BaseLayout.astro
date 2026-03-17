@@ -39,9 +39,12 @@ const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString(
     <div class="site-shell">
       <header class="site-header">
         <a class="brand" href="/">
-          <span class="brand-mark" aria-hidden="true">L</span>
           <span>
-            <strong>Looptimum</strong>
+            <img
+              class="brand-banner-image"
+              src={siteConfig.brandBannerPath}
+              alt="Looptimum"
+            />
             <small>Optimization for expensive loops</small>
           </span>
         </a>

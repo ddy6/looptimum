@@ -11,6 +11,7 @@ export const siteConfig = {
   contactEmail: "contact@looptimum.com",
   contactHref: "mailto:contact@looptimum.com?subject=Looptimum%20pilot%20fit%20review",
   ogImagePath: "/og-card.svg",
+  brandBannerPath: "/brand/looptimum-banner.png",
 };
 
 export const heroMetrics = [
