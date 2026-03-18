@@ -221,7 +221,7 @@ ul {
   flex-shrink: 0;
 }
 
-.page-hero,
+.page-hero-card,
 .hero-grid,
 .action-panel,
 .feature-panel,
@@ -232,7 +232,8 @@ ul {
 .evidence-list,
 .question-card,
 .criteria-card,
-.proof-banner {
+.proof-banner,
+.section-head {
   background: rgba(255, 252, 247, 0.76);
   border: 1px solid rgba(24, 37, 31, 0.1);
   box-shadow: var(--shadow);
@@ -371,7 +372,8 @@ ul {
 
 .feature-panel,
 .proof-banner,
-.evidence-list {
+.evidence-list,
+.section-head {
   padding: 1.5rem;
   border-radius: var(--radius-lg);
 }
