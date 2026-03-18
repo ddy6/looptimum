@@ -7,13 +7,13 @@
       <stop offset="100%" stop-color="#efe0c6" />
     </linearGradient>
     <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f4c3a" />
-      <stop offset="100%" stop-color="#d3a15f" />
+      <stop offset="0%" stop-color="#183f97" />
+      <stop offset="100%" stop-color="#7eb7ff" />
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#wash)" />
   <circle cx="1060" cy="120" r="180" fill="#d3a15f" fill-opacity="0.15" />
-  <circle cx="180" cy="540" r="220" fill="#0f4c3a" fill-opacity="0.08" />
+  <circle cx="180" cy="540" r="220" fill="#2a6fe8" fill-opacity="0.08" />
   <g fill="none" stroke="#18251f" stroke-opacity="0.07">
     <path d="M0 88h1200" />
     <path d="M0 176h1200" />
@@ -53,17 +53,17 @@
 
     <g transform="translate(0 338)">
       <rect width="300" height="132" rx="24" fill="#f7efe2" stroke="#18251f" stroke-opacity="0.08" />
-      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#0f4c3a">72.9%</text>
+      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#183f97">72.9%</text>
       <text x="26" y="90" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">Fewer mesh cells</text>
     </g>
     <g transform="translate(332 338)">
       <rect width="300" height="132" rx="24" fill="#f7efe2" stroke="#18251f" stroke-opacity="0.08" />
-      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#0f4c3a">91.0%</text>
+      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#183f97">91.0%</text>
       <text x="26" y="90" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">Lower solver wall clock</text>
     </g>
     <g transform="translate(664 338)">
       <rect width="300" height="132" rx="24" fill="#f7efe2" stroke="#18251f" stroke-opacity="0.08" />
-      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#0f4c3a">11.1x</text>
+      <text x="26" y="54" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="52" font-weight="700" fill="#183f97">11.1x</text>
       <text x="26" y="90" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">Solver speedup</text>
     </g>
     <text x="0" y="516" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" fill="#45544d">

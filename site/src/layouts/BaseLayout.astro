@@ -31,7 +31,7 @@ const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString(
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageUrl} />
-    <meta name="theme-color" content="#f7f2e7" />
+    <meta name="theme-color" content="#edf5ff" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="canonical" href={canonicalUrl} />
   </head>
@@ -40,12 +40,14 @@ const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString(
       <header class="site-header">
         <a class="brand" href="/">
           <span>
-            <img
-              class="brand-banner-image"
-              src={siteConfig.headerLogoPath}
-              alt="Looptimum"
-            />
-            <small>Optimization for expensive loops</small>
+            <span class="brand-banner-frame">
+              <img
+                class="brand-banner-image"
+                src={siteConfig.headerLogoPath}
+                alt="Looptimum"
+              />
+            </span>
+            <small>Optimum discovery for expensive loops</small>
           </span>
         </a>
         <nav aria-label="Primary">
@@ -71,7 +73,7 @@ const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString(
         <div>
           <p class="footer-mark">Looptimum</p>
           <p class="footer-copy">
-            File-backed optimization loops for client-controlled environments.
+            File-backed optimum trial targeting for client-controlled environments.
           </p>
         </div>
         <div class="footer-links">

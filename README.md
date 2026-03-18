@@ -3,9 +3,9 @@
 [![CI](https://github.com/ddy6/looptimum/actions/workflows/ci.yml/badge.svg)](https://github.com/ddy6/looptimum/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/ddy6/looptimum?display_name=tag)](https://github.com/ddy6/looptimum/releases)
 
-Optimization of expensive black-box evaluations improves sample efficiency and operational reliability while reducing wasted trials.
+Optimum trial targeting for expensive black-box evaluations improves sample efficiency and operational reliability while reducing wasted trials.
 
-Looptimum is a file-backed optimization loop for tuning parameters when each
+Looptimum is a file-backed loop for optimum parameter targeting when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and a scalar objective; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.

@@ -15,17 +15,17 @@ import {
 
 <BaseLayout
   title="Looptimum | Reduce Expensive Evaluation Loops"
-  description="Looptimum is a file-backed optimization loop for expensive black-box evaluations in client-controlled environments."
+  description="Looptimum is a file-backed loop for optimum trial targeting in expensive black-box evaluations and client-controlled environments."
   currentPath="/"
 >
   <section class="page-hero">
     <div class="hero-grid reveal">
       <div class="hero-copy">
-        <p class="eyebrow">Local-first optimization for expensive loops</p>
+        <p class="eyebrow">Bounded trial targeting for expensive evaluations</p>
         <h1>Reduce expensive evaluation loops without giving up control.</h1>
         <p class="dek">
           Looptimum helps teams replace fragile sweeps and manual tuning with a
-          bounded, resumable optimization loop that stays compatible with
+          bounded, resumable loop for optimum trial targeting that stays compatible with
           client-controlled environments.
         </p>
         <div class="hero-actions">
@@ -34,11 +34,13 @@ import {
         </div>
       </div>
       <aside class="hero-panel">
-        <img
-          class="hero-brand-banner"
-          src={siteConfig.brandBannerPath}
-          alt="Looptimum banner"
-        />
+        <span class="hero-brand-banner-frame">
+          <img
+            class="hero-brand-banner"
+            src={siteConfig.brandBannerPath}
+            alt="Looptimum banner"
+          />
+        </span>
         <p class="eyebrow">Featured proof</p>
         <h3>Validated coarse-mesh outcome</h3>
         <p>
@@ -63,10 +65,10 @@ import {
   <div class="stack-lg">
     <section class="two-column">
       <div class="feature-panel reveal">
-        <p class="eyebrow">What the example proves</p>
-        <h2>Optimization gains are only persuasive when downstream validation holds.</h2>
+        <p class="eyebrow">What the example shows</p>
+        <h2>Efficiency gains with downstream validation.</h2>
         <p>
-          The flagship case study does not stop at an archived objective score.
+          The example case study does not stop at an archived objective score.
           It follows the selected candidate through solver validation and
           highlights the evidence that mattered: runtime, cell count, outlet
           flow drift, and aggregate pressure drift.
@@ -96,7 +98,7 @@ import {
       <section class="two-column">
         <div class="section-head reveal">
           <p class="eyebrow">How it fits</p>
-          <h2>Keep the optimization loop thin. Keep the execution where it belongs.</h2>
+          <h2>Keep the trial-targeting loop thin. Keep the execution where it belongs.</h2>
           <p>
             Good pilots start where each run is expensive enough to matter. The
             strongest early deployments have bounded knobs, one scalar
@@ -134,7 +136,7 @@ import {
     </section>
 
     <ActionPanel
-      title="Start with a fit review, not a long sales cycle."
+      title="Start with a fit review."
       body="The first question is whether your evaluation profile is expensive enough and structured enough for Looptimum to change the economics of the loop."
       primaryHref="/pilot/"
       primaryLabel="Open pilot intake"
