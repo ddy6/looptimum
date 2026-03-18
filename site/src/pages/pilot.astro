@@ -27,8 +27,9 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
         <p class="eyebrow">What to send</p>
         <h2>These answers are usually enough to decide whether a pilot is worth scoping.</h2>
         <p>
-          The first pass of the site keeps outreach lightweight. Use the
-          question set below in email, or in a future form-backed intake flow.
+          The intake prompts below are intended to help guide initial fit
+          assessment of your project. Short, concrete answers are helpful for a
+          first screening.
         </p>
         <div class="hero-actions">
           <a class="button button-primary" href={siteConfig.contactHref}>
@@ -42,54 +43,57 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
           <article class="question-card reveal">
             <p class="eyebrow">Intake prompt</p>
             <h3>{question}</h3>
-            <p>
-              Short, concrete answers are enough for a first screening. The
-              goal is to identify fit, not complete procurement paperwork.
-            </p>
           </article>
         ))}
       </div>
     </section>
 
-    <section class="criteria-grid">
-      <article class="criteria-card reveal">
-        <h3>Best early pilot</h3>
-        <p>
-          One loop, one scalar objective, bounded knobs, and a team that can
-          already run the evaluation on demand.
-        </p>
-      </article>
-      <article class="criteria-card reveal">
-        <h3>Security posture</h3>
-        <p>
-          Looptimum is strongest where execution must stay in a client-owned or
-          restricted environment instead of moving to a hosted service.
-        </p>
-      </article>
-      <article class="criteria-card reveal">
-        <h3>What the example proves</h3>
-        <p>
-          The example case already demonstrates an end-to-end validated
-          outcome: fewer trials, lighter mesh, faster solve, and preserved
-          behavior.
-        </p>
-      </article>
-      <article class="criteria-card reveal">
-        <h3>What happens next</h3>
-        <p>
-          If the fit is credible, the next step is a scoped pilot definition:
-          parameters, success metric, run budget, and validation criteria.
-        </p>
-      </article>
+    <section class="stack-md">
+      <div class="section-head reveal">
+        <p class="eyebrow">Fit signals</p>
+        <h2>What a strong first Looptimum project looks like.</h2>
+        <p>These are the characteristics that usually indicate a good early fit.</p>
+      </div>
+
+      <section class="criteria-grid">
+        <article class="criteria-card reveal">
+          <h3>Best early pilot</h3>
+          <p>
+            One loop, one scalar objective, bounded knobs.
+          </p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>Security posture</h3>
+          <p>
+            Looptimum is strongest where execution must stay in a client-owned or
+            restricted environment instead of moving to a hosted service.
+          </p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>What the example demonstrates</h3>
+          <p>
+            The example case outlines an end-to-end validated
+            outcome: fewer trials, lighter mesh, faster solve, and preserved
+            behavior.
+          </p>
+        </article>
+        <article class="criteria-card reveal">
+          <h3>What happens next</h3>
+          <p>
+            If Looptimum might fit your project, the next step is to get in
+            touch, or explore Looptimum on GitHub.
+          </p>
+        </article>
+      </section>
     </section>
 
     <ActionPanel
-      title="Need stronger proof before outreach?"
-      body="Use the validated evidence page and the repo case-study artifacts as the technical appendix for early client conversations."
+      title="Check whether Looptimum fits your project."
+      body="Explore the technical details, review the validated case study, or get in touch."
       primaryHref="/evidence/"
-      primaryLabel="Open validated evidence"
+      primaryLabel="Review case study"
       secondaryHref={repoLinks.caseStudy}
-      secondaryLabel="Read the repo details"
+      secondaryLabel="GitHub"
     />
   </div>
 </BaseLayout>
