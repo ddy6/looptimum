@@ -18,7 +18,7 @@ import {
 >
   <PageHero
     eyebrow="Evidence"
-    title="A client-facing proof point should survive validation, not just score improvement."
+    title="An acceptible optimum must survive validation, not just score improvement."
     dek="The example pairs a bounded snappyHexMesh campaign with a post-hoc solver pass against a fine reference case."
     primaryHref={repoLinks.caseStudy}
     primaryLabel="Read the full repo case study"
@@ -33,10 +33,22 @@ import {
       ))}
     </section>
 
+    <section class="proof-banner reveal">
+      <p class="eyebrow">Campaign objectives</p>
+      <h2>Start from a trusted fine mesh. Find a validated coarse mesh that is actually usable.</h2>
+      <ul>
+        <li>The starting point is a known-stable fine-refined mesh that delivers accurate pressure and flow results but takes weeks to solve.</li>
+        <li>That becomes untenable when the same geometry must be solved repeatedly under different boundary-condition settings.</li>
+        <li>The goal is a coarser mesh that maintains pressure and flow fidelity while materially reducing total cell count and solver time.</li>
+        <li>With snappyHexMesh, finding a numerically stable coarse mesh by hand can be difficult or effectively impossible because the parameter space is large and sensitive.</li>
+        <li>Looptimum makes that search intentional, data-driven, and auditable while pushing trial selection toward low-loss, high-reward tests.</li>
+      </ul>
+    </section>
+
     <section class="two-column">
       <div class="evidence-list reveal">
         <p class="eyebrow">Campaign summary</p>
-        <h2>Selected case: validated coarse candidate from campaign trial 15</h2>
+        <h2>Validated fine-to-coarse mesh campaign with Looptimum</h2>
         <ul>
           <li>216-point bounded search space</li>
           <li>21 executed trials</li>
@@ -48,7 +60,7 @@ import {
       </div>
       <div class="evidence-list reveal">
         <p class="eyebrow">Validation thresholds</p>
-        <h2>Public acceptance criteria</h2>
+        <h2>Optimal mesh acceptance criteria</h2>
         <ul>
           {validationChecks.map((item) => (
             <li>{item}</li>
@@ -80,19 +92,19 @@ import {
         title="Validation drift"
         src="/proof/outlet_flow_relative_drift.svg"
         alt="Chart showing outlet-flow drift staying below the 1% threshold"
-        summary="Downstream validation stayed inside the stated outlet-flow threshold, which is what makes the efficiency claim credible."
+        summary="Downstream validation stayed inside the stated outlet-flow threshold."
       />
       <PlotCard
         title="Aggregate pressure parity"
         src="/proof/aggregate_pressure_drift.svg"
         alt="Chart showing aggregate pressure drift staying within the 0.5 mmHg threshold"
-        summary="Aggregate MAP and PP remained inside the 0.5 mmHg acceptance band, which supports the mesh-independence argument."
+        summary="Aggregate MAP and PP remained inside the 0.5 mmHg acceptance band, indicating mesh-independence of the results."
       />
     </section>
 
     <section class="proof-banner reveal">
-      <p class="eyebrow">Public positioning</p>
-      <h2>Lead with the validated operational delta.</h2>
+      <p class="eyebrow">Results</p>
+      <h2>Exit criteria achieved with notable improvements.</h2>
       <ul>
         <li>72.9% fewer mesh cells</li>
         <li>91.0% lower solver wall clock</li>
@@ -103,12 +115,12 @@ import {
     </section>
 
     <ActionPanel
-      title="Use this evidence package as the template for future client studies."
-      body="The repo now has the right shape: archived campaign artifacts, derived summaries, and sanitized validation visuals that a non-specialist stakeholder can still understand."
+      title="Explore Looptimum on GitHub or request a project assessment."
+      body="Review the validated example, inspect the supporting evidence, and decide whether the same approach fits your own expensive evaluation loop."
       primaryHref={repoLinks.caseStudy}
-      primaryLabel="Browse the repo artifacts"
+      primaryLabel="Explore GitHub"
       secondaryHref="/pilot/"
-      secondaryLabel="Request a similar assessment"
+      secondaryLabel="Request assessment"
     />
   </div>
 </BaseLayout>
