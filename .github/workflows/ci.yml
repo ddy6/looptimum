@@ -42,7 +42,7 @@ jobs:
         run: python -m ruff check .
 
       - name: Validate internal markdown links
-        run: python scripts/check_internal_links.py --paths README.md docs quickstart
+        run: python scripts/check_internal_links.py --paths README.md docs quickstart client_harness_template
 
       - name: Validate public docs consistency
         run: python scripts/check_docs_consistency.py
@@ -56,6 +56,10 @@ jobs:
       - name: Syntax check critical scripts
         run: |
           python -m py_compile \
+            client_harness_template/aws_config.py \
+            client_harness_template/aws_executor.py \
+            client_harness_template/aws_models.py \
+            client_harness_template/objective_aws_batch_example.py \
             client_harness_template/run_one_eval.py \
             scripts/check_benchmark_sanity.py \
             scripts/check_ci_playbook_sync.py \

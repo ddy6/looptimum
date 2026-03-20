@@ -35,6 +35,8 @@ The loop does not need raw data or internal model internals. It just needs:
 - `templates/`: runnable optimization harness variants
   (`bo_client_demo`, `bo_client`, `bo_client_full`)
 - `client_harness_template/`: starter adapter for one-evaluation integration
+- `docs/aws-batch-integration.md`: optional AWS Batch executor path and recovery
+  sidecar design
 - `examples/toy-objectives/`: reference integration patterns
 - `examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end
   objective loop example
@@ -127,6 +129,13 @@ This can be implemented as:
 - a scheduler job wrapper
 
 Use `client_harness_template/run_one_eval.py` as a starting adapter.
+
+Optional AWS path:
+
+- if the evaluator should submit one remote job to AWS Batch and wait for the
+  canonical result, use
+  [`docs/aws-batch-integration.md`](./aws-batch-integration.md)
+- AWS metadata stays out of canonical Looptimum state/report surfaces
 
 ## Copy-Paste Evaluator Stub (Fuller Version)
 

@@ -96,6 +96,70 @@ def _write_objective_schema(path: Path, *, name: str, direction: str) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _write_aws_config(path: Path) -> None:
+    payload = {
+        "region": "us-east-1",
+        "profile": None,
+        "batch": {
+            "job_queue": "looptimum-evals",
+            "job_definition": "looptimum-evaluator:1",
+            "job_name_prefix": "looptimum-trial",
+        },
+        "s3": {
+            "bucket": "client-looptimum-runs",
+            "input_prefix": "inputs/",
+            "output_prefix": "outputs/",
+        },
+        "timeouts": {
+            "poll_interval_seconds": 1,
+            "max_wait_seconds": 300,
+        },
+        "local": {
+            "recovery_dir": "aws_recovery",
+        },
+    }
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _write_fake_boto3_module(path: Path) -> None:
+    path.write_text(
+        "import io\n"
+        "import json\n"
+        "_STORE = {}\n"
+        "def _parse_s3_uri(uri):\n"
+        "    without_scheme = uri[len('s3://'):]\n"
+        "    bucket, _, key = without_scheme.partition('/')\n"
+        "    return bucket, key\n"
+        "class Session:\n"
+        "    def __init__(self, profile_name=None, region_name=None):\n"
+        "        self.profile_name = profile_name\n"
+        "        self.region_name = region_name\n"
+        "    def client(self, service_name):\n"
+        "        if service_name == 's3':\n"
+        "            return _S3Client()\n"
+        "        if service_name == 'batch':\n"
+        "            return _BatchClient()\n"
+        "        raise ValueError(service_name)\n"
+        "class _S3Client:\n"
+        "    def put_object(self, *, Bucket, Key, Body, ContentType):\n"
+        "        if isinstance(Body, bytes):\n"
+        "            Body = Body.decode('utf-8')\n"
+        "        _STORE[(Bucket, Key)] = Body\n"
+        "        return {}\n"
+        "    def get_object(self, *, Bucket, Key):\n"
+        "        return {'Body': io.BytesIO(_STORE[(Bucket, Key)].encode('utf-8'))}\n"
+        "class _BatchClient:\n"
+        "    def submit_job(self, *, jobName, jobQueue, jobDefinition, containerOverrides):\n"
+        "        env = {entry['name']: entry['value'] for entry in containerOverrides['environment']}\n"
+        "        bucket, key = _parse_s3_uri(env['LOOPTIMUM_OUTPUT_S3_URI'])\n"
+        "        _STORE[(bucket, key)] = json.dumps({'status': 'ok', 'objective': 0.456})\n"
+        "        return {'jobId': 'job-123', 'jobName': jobName}\n"
+        "    def describe_jobs(self, *, jobs):\n"
+        "        return {'jobs': [{'jobId': jobs[0], 'status': 'SUCCEEDED'}]}\n",
+        encoding="utf-8",
+    )
+
+
 def test_failed_payload_default_penalty_for_minimize(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_raise.py"
@@ -316,3 +380,33 @@ def test_legacy_yaml_objective_schema_is_supported_with_deprecation(tmp_path: Pa
     assert payload["status"] == "ok"
     assert payload["objectives"] == {"score": 0.123}
     assert "YAML compatibility mode used for objective_schema.yaml" in out.stderr
+
+
+def test_executor_aws_batch_writes_canonical_ingest_payload(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    config = tmp_path / "aws_config.json"
+    fake_boto3 = tmp_path / "boto3.py"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_aws_config(config)
+    _write_fake_boto3_module(fake_boto3)
+
+    existing_pythonpath = os.environ.get("PYTHONPATH")
+    pythonpath = str(tmp_path)
+    if existing_pythonpath:
+        pythonpath = f"{pythonpath}{os.pathsep}{existing_pythonpath}"
+
+    _run_cmd(
+        str(suggestion),
+        str(result),
+        "--executor",
+        "aws-batch",
+        "--aws-config",
+        str(config),
+        env={"PYTHONPATH": pythonpath},
+    )
+
+    payload = json.loads(result.read_text(encoding="utf-8"))
+    assert payload["status"] == "ok"
+    assert payload["objectives"] == {"loss": 0.456}
+    assert (tmp_path / "aws_recovery" / "trial_1" / "recovery_record.json").exists()

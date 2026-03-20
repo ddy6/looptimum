@@ -7,6 +7,7 @@ dependencies = []
 
 [project.optional-dependencies]
 yaml = ["PyYAML>=6,<7"]
+aws = ["boto3>=1.35,<2"]
 
 [tool.ruff]
 target-version = "py311"
@@ -21,6 +22,8 @@ python_version = "3.12"
 files = [
   "templates/_shared/*.py",
   "templates/bo_client/run_bo.py",
+  "client_harness_template/aws_*.py",
+  "client_harness_template/objective_aws_batch_example.py",
   "client_harness_template/run_one_eval.py",
 ]
 check_untyped_defs = true

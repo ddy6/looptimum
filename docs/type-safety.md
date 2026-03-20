@@ -11,6 +11,8 @@ Initial blocking CI gate scope (`v0.3.x` rollout phase 1):
 
 - `templates/_shared/*.py`
 - `templates/bo_client/run_bo.py`
+- `client_harness_template/aws_*.py`
+- `client_harness_template/objective_aws_batch_example.py`
 - `client_harness_template/run_one_eval.py`
 
 Gate runtime for CI: Python `3.12`.

@@ -16,6 +16,12 @@ Contributions should keep the public integration contract clear and stable:
 python3 -m pip install -r requirements-dev.txt
 ```
 
+For local work on the optional AWS Batch executor path, also install:
+
+```bash
+python3 -m pip install ".[aws]"
+```
+
 ## Linting and Formatting
 
 Run formatting first, then lint checks:
@@ -44,6 +50,8 @@ Current enforced scope is intentionally narrow and canonical-first:
 
 - `templates/_shared/*.py`
 - `templates/bo_client/run_bo.py`
+- `client_harness_template/aws_*.py`
+- `client_harness_template/objective_aws_batch_example.py`
 - `client_harness_template/run_one_eval.py`
 
 `Any` policy:
@@ -61,6 +69,10 @@ Run canonical tests from repo root:
 python3 -m pytest -q templates client_harness_template/tests
 ```
 
+If `boto3` is installed, `client_harness_template/tests/test_aws_executor.py`
+also exercises the executor against the real library stack with mocked clients
+and no live AWS calls.
+
 Optional GP backend test:
 
 ```bash
@@ -76,7 +88,7 @@ python3 -m ruff format --check .
 python3 -m ruff check .
 python3 -m mypy
 python3 -m pytest -q templates client_harness_template/tests
-python3 scripts/check_internal_links.py --paths README.md docs quickstart
+python3 scripts/check_internal_links.py --paths README.md docs quickstart client_harness_template
 python3 scripts/check_docs_consistency.py
 python3 scripts/check_ci_playbook_sync.py
 python3 scripts/check_benchmark_sanity.py

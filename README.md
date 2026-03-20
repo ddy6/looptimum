@@ -388,6 +388,7 @@ feedback source of truth).
 
 - `docs/how-it-works.md`
 - `docs/integration-guide.md`
+- `docs/aws-batch-integration.md`
 - `docs/operational-semantics.md`
 - `docs/recovery-playbook.md`
 - `docs/ci-knob-tuning.md`
@@ -413,10 +414,16 @@ Install test dependencies:
 python3 -m pip install -r requirements-dev.txt
 ```
 
-Run template test suites:
+For local work on the optional AWS Batch executor path, also install:
 
 ```bash
-python3 -m pytest -q templates
+python3 -m pip install ".[aws]"
+```
+
+Run repo test suites:
+
+```bash
+python3 -m pytest -q templates client_harness_template/tests
 ```
 
 Optional GP backend validation for `bo_client`:

@@ -17,7 +17,9 @@ import sys
 import warnings
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
+
+from aws_models import CanonicalEvalRequest, ObjectiveDirection
 
 DEFAULT_FAILURE_PENALTY_MINIMIZE = 1e12
 DEFAULT_FAILURE_PENALTY_MAXIMIZE = -1e12
@@ -30,6 +32,7 @@ _YAML_COMPAT_MODE_ENV = "LOOPTIMUM_YAML_COMPAT_MODE"
 _YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
 _YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
 _TRIAL_ID_ENV = "LOOPTIMUM_TRIAL_ID"
+_EXECUTOR_CHOICES = ("local", "aws-batch")
 
 
 def _warn_deprecation(message: str) -> None:
@@ -321,6 +324,50 @@ def build_failed_payload(
     }
 
 
+def _build_eval_request(
+    suggestion: dict[str, Any],
+    *,
+    objective_name: str,
+    objective_direction: str,
+    schema_version: str,
+) -> CanonicalEvalRequest:
+    suggested_at = suggestion.get("suggested_at")
+    normalized_suggested_at = (
+        float(suggested_at)
+        if isinstance(suggested_at, (int, float)) and not isinstance(suggested_at, bool)
+        else None
+    )
+    return CanonicalEvalRequest(
+        trial_id=int(suggestion["trial_id"]),
+        params=dict(suggestion["params"]),
+        schema_version=schema_version,
+        suggested_at=normalized_suggested_at,
+        objective_name=objective_name,
+        objective_direction=cast(ObjectiveDirection, objective_direction),
+    )
+
+
+def _evaluate_with_executor(
+    *,
+    executor: str,
+    request: CanonicalEvalRequest,
+    objective_module_path: Path,
+    aws_config_path: str | None,
+) -> Any:
+    if executor == "local":
+        objective_module = _load_objective_module(objective_module_path)
+        return objective_module.evaluate(dict(request.params))
+
+    if executor == "aws-batch":
+        from aws_config import load_aws_batch_config
+        from aws_executor import evaluate_via_batch
+
+        aws_config = load_aws_batch_config(aws_config_path)
+        return evaluate_via_batch(request, config=aws_config)
+
+    raise ValueError(f"Unsupported executor: {executor}")
+
+
 def parse_args() -> tuple[argparse.Namespace, bool]:
     here = Path(__file__).resolve().parent
     p = argparse.ArgumentParser(
@@ -328,6 +375,20 @@ def parse_args() -> tuple[argparse.Namespace, bool]:
     )
     p.add_argument("suggestion_file", help="Path to suggestion JSON (or raw suggest stdout text)")
     p.add_argument("result_file", help="Path to write ingest payload JSON")
+    p.add_argument(
+        "--executor",
+        choices=_EXECUTOR_CHOICES,
+        default="local",
+        help="Evaluation executor to use: local objective module (default) or aws-batch",
+    )
+    p.add_argument(
+        "--aws-config",
+        default=None,
+        help=(
+            "Path to AWS Batch executor JSON config. Used only with --executor aws-batch; "
+            "otherwise LOOPTIMUM_AWS_CONFIG can be used."
+        ),
+    )
     p.add_argument(
         "--objective-module",
         default=str(here / "objective.py"),
@@ -420,11 +481,21 @@ def main() -> None:
     schema_version = _normalize_schema_version(suggestion.get("schema_version"))
 
     try:
-        objective_module = _load_objective_module(objective_module_path)
+        request = _build_eval_request(
+            suggestion,
+            objective_name=objective_name,
+            objective_direction=objective_direction,
+            schema_version=schema_version,
+        )
         previous_trial_id = os.environ.get(_TRIAL_ID_ENV)
         os.environ[_TRIAL_ID_ENV] = str(int(suggestion["trial_id"]))
         try:
-            eval_output = objective_module.evaluate(dict(suggestion["params"]))
+            eval_output = _evaluate_with_executor(
+                executor=str(args.executor),
+                request=request,
+                objective_module_path=objective_module_path,
+                aws_config_path=str(args.aws_config) if args.aws_config else None,
+            )
         finally:
             if previous_trial_id is None:
                 os.environ.pop(_TRIAL_ID_ENV, None)

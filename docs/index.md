@@ -16,6 +16,7 @@ python3 templates/bo_client_demo/run_bo.py demo \
 For full command sequences and resume behavior:
 
 - [Integration Guide](./integration-guide.md)
+- [AWS Batch Integration](./aws-batch-integration.md)
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
 - [ETL/Pipeline Knob-Tuning Quickstart](../quickstart/etl-pipeline-knob-tuning.md)
@@ -24,6 +25,7 @@ For full command sequences and resume behavior:
 
 - [Quick Reference](./quick-reference.md)
 - [Integration Guide](./integration-guide.md)
+- [AWS Batch Integration](./aws-batch-integration.md)
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
 - [How It Works](./how-it-works.md)
@@ -52,8 +54,11 @@ For full command sequences and resume behavior:
 Repository paths used during integration:
 
 - `quickstart/README.md`
+- `docs/aws-batch-integration.md`
 - `client_harness_template/README.md`
 - `client_harness_template/README_INTEGRATION.md`
+- `client_harness_template/objective_aws_batch_example.py`
+- `client_harness_template/aws_batch_config.example.json`
 - `examples/README.md`
 
 ## Scope and Operating Model

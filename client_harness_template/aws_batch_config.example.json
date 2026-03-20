@@ -1,0 +1,21 @@
+{
+  "region": "us-east-1",
+  "profile": null,
+  "batch": {
+    "job_queue": "looptimum-evals",
+    "job_definition": "looptimum-evaluator:1",
+    "job_name_prefix": "looptimum-trial"
+  },
+  "s3": {
+    "bucket": "client-looptimum-runs",
+    "input_prefix": "inputs/",
+    "output_prefix": "outputs/"
+  },
+  "timeouts": {
+    "poll_interval_seconds": 20,
+    "max_wait_seconds": 14400
+  },
+  "local": {
+    "recovery_dir": "aws_recovery"
+  }
+}

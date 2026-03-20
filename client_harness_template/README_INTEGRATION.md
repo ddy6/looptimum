@@ -13,9 +13,29 @@ The optimization harness (`run_bo.py`) is file-backed:
 
 - `objective.py`: client-fill stub. Replace `evaluate(params)` with your real
   evaluation code.
+- `objective_aws_batch_example.py`: optional example wrapper for AWS Batch-backed
+  execution.
 - `run_one_eval.py`: thin adapter that reads a suggestion file and writes an
   ingest-ready result JSON.
+- `aws_config.py`, `aws_executor.py`, `aws_models.py`: optional AWS Batch
+  executor path and recovery sidecars.
+- `aws_batch_config.example.json`: committed example config shape for the AWS path.
 - `README_INTEGRATION.md`: implementation instructions and failure-mode guidance.
+
+## Executor Selection
+
+`run_one_eval.py` supports two executor modes:
+
+- `--executor local`:
+  default path; load `objective.py` (or `--objective-module`) and call
+  `evaluate(params)`
+- `--executor aws-batch`:
+  bypass local `objective.py`, use `aws_executor.py`, and return canonical
+  result fields from AWS Batch
+
+AWS mode requires a JSON config path via `--aws-config` or
+`LOOPTIMUM_AWS_CONFIG`. For the full AWS path, use
+[`docs/aws-batch-integration.md`](../docs/aws-batch-integration.md).
 
 ## Expected Input (Suggestion)
 
@@ -200,6 +220,17 @@ python3 templates/bo_client_demo/run_bo.py ingest \
   --project-root templates/bo_client_demo \
   --results-file /tmp/result.json
 python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_client_demo
+```
+
+AWS Batch executor example:
+
+```bash
+export LOOPTIMUM_AWS_CONFIG=/path/to/aws_batch_config.json
+python3 client_harness_template/run_one_eval.py \
+  /tmp/suggest_stdout.txt \
+  /tmp/result.json \
+  --executor aws-batch \
+  --objective-schema templates/bo_client_demo/objective_schema.json
 ```
 
 ## Customization Checklist

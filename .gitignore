@@ -50,3 +50,7 @@ meshing_example/meshopt_output/
 
 # Benchmark raw artifacts (generated on demand)
 benchmarks/artifacts/
+
+# Optional local AWS harness sidecars
+client_harness_template/aws_batch_config.json
+client_harness_template/aws_recovery/

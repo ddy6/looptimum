@@ -12,6 +12,8 @@ Included files:
   failure semantics, state definitions, compatibility posture)
 - `integration-guide.md`: end-to-end `suggest -> evaluate -> ingest` integration
   workflow plus lifecycle/ops command usage
+- `aws-batch-integration.md`: optional AWS Batch evaluator path, config, sidecar
+  recovery records, and scope boundaries
 - `operational-semantics.md`: idempotency, pending semantics, lifecycle
   controls, locking, resume behavior, and crash recovery expectations
 - `recovery-playbook.md`: prescriptive interruption/recovery runbook and
