@@ -57,7 +57,6 @@ jobs:
         run: |
           python -m py_compile \
             client_harness_template/run_one_eval.py \
-            meshing_example/run_optuna_meshing.py \
             scripts/check_benchmark_sanity.py \
             scripts/check_ci_playbook_sync.py \
             scripts/check_docs_consistency.py \
