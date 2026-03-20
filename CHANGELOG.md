@@ -5,6 +5,37 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.3.3] - 2026-03-20
+
+Patch release for the `v0.3.x` line focused on an optional `boto3`-backed AWS
+Batch evaluator path and its public integration docs.
+
+### Added
+
+- Optional `aws` dependency extra in package metadata for the client harness
+  AWS path.
+- `client_harness_template/aws_config.py`,
+  `client_harness_template/aws_executor.py`,
+  `client_harness_template/aws_models.py`, and
+  `client_harness_template/objective_aws_batch_example.py` for the optional
+  AWS Batch sidecar executor flow.
+- Committed example config:
+  `client_harness_template/aws_batch_config.example.json`.
+- Dedicated integration guide for the AWS path:
+  `docs/aws-batch-integration.md`.
+- AWS harness coverage in
+  `client_harness_template/tests/test_aws_config.py` and
+  `client_harness_template/tests/test_aws_executor.py`.
+
+### Changed
+
+- `client_harness_template/run_one_eval.py` now supports executor selection so
+  canonical eval requests can run either through a local objective module or
+  the optional AWS Batch executor path.
+- Public docs, integration indexes, and contributor guidance now surface the
+  AWS sidecar example/config path and `v0.3.3` as the current patch tag.
+- Package metadata now targets `0.3.3`.
+
 ## [0.3.2] - 2026-03-08
 
 Patch release for the `v0.3.x` line focused on richer non-`ok` ingest
