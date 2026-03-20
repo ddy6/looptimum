@@ -68,7 +68,6 @@ python3 scripts/check_internal_links.py
 .venv/bin/pytest -q templates client_harness_template/tests
 python3 -m py_compile \
   client_harness_template/run_one_eval.py \
-  meshing_example/run_optuna_meshing.py \
   scripts/check_internal_links.py \
   templates/bo_client/run_bo.py \
   templates/bo_client_demo/run_bo.py \

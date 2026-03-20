@@ -368,7 +368,6 @@ Expanded gallery with equal mainstream/specialized coverage is in
 - `docs/examples/decision_trace/golden_acquisition_log.jsonl`
 - `docs/examples/decision_trace/golden_acquisition_log.md`
 - `docs/examples/decision_trace/cli_transcript.md`
-- `meshing_example/`: advanced, environment-specific OpenFOAM-style case study
 
 ## Pilot and Service Options
 
