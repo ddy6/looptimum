@@ -1681,6 +1681,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
             default_rel="../_shared/schemas/search_space.schema.json",
         )
         validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
+        normalize_search_space(space_cfg)
     except Exception as exc:  # pragma: no cover
         hard_errors.append(f"parameter_space validation failure: {exc}")
 

@@ -50,3 +50,11 @@ def test_template_bo_configs_share_feature_flag_shape() -> None:
         assert flags["enable_service_api_preview"] is False
         assert flags["enable_dashboard_preview"] is False
         assert flags["enable_auth_preview"] is False
+
+
+def test_search_space_schema_exposes_workstream1_parameter_fields() -> None:
+    schema = _load_json(SHARED_SCHEMAS / "search_space.schema.json")
+    item_properties = schema["properties"]["parameters"]["items"]["properties"]
+    assert item_properties["type"]["enum"] == ["float", "int", "bool", "categorical"]
+    assert "choices" in item_properties
+    assert "scale" in item_properties
