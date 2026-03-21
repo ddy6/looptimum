@@ -128,14 +128,47 @@ def test_normalize_search_space_rejects_invalid_semantics(cfg: dict, pattern: st
         SEARCH_SPACE.normalize_search_space(cfg)
 
 
-def test_random_sampling_rejects_deferred_workstream1_runtime_shapes() -> None:
+def test_random_sampling_supports_mixed_parameter_types_and_preserves_raw_values() -> None:
     params = SEARCH_SPACE.normalize_search_space(
         {
             "parameters": [
+                {"name": "epochs", "type": "int", "bounds": [1, 64], "scale": "log"},
                 {"name": "lr", "type": "float", "bounds": [0.001, 0.1], "scale": "log"},
+                {"name": "use_bn", "type": "bool"},
+                {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
             ]
         }
     )
 
-    with pytest.raises(ValueError, match="not supported by random sampling yet"):
-        SEARCH_SPACE.sample_random_point(random.Random(17), params)
+    first = SEARCH_SPACE.sample_random_point(random.Random(17), params)
+    second = SEARCH_SPACE.sample_random_point(random.Random(17), params)
+
+    assert first == second
+    assert 1 <= first["epochs"] <= 64
+    assert isinstance(first["epochs"], int)
+    assert 0.001 <= first["lr"] <= 0.1
+    assert isinstance(first["use_bn"], bool)
+    assert first["optimizer"] in {"adam", "sgd"}
+
+
+def test_surrogate_numeric_only_capability_gap_flags_deferred_modeling_shapes() -> None:
+    linear_numeric = SEARCH_SPACE.normalize_search_space(
+        {"parameters": [{"name": "x", "type": "float", "bounds": [0.0, 1.0]}]}
+    )
+    assert SEARCH_SPACE.surrogate_numeric_only_capability_gap(linear_numeric) is None
+
+    mixed = SEARCH_SPACE.normalize_search_space(
+        {
+            "parameters": [
+                {"name": "lr", "type": "float", "bounds": [0.001, 0.1], "scale": "log"},
+                {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
+            ]
+        }
+    )
+
+    assert SEARCH_SPACE.surrogate_numeric_only_capability_gap(mixed) == {
+        "fallback_reason": "search_space_requires_workstream1_model_encoding",
+        "fallback_param": "lr",
+        "fallback_param_type": "float",
+        "fallback_param_scale": "log",
+    }

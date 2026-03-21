@@ -156,6 +156,15 @@ def _runtime_numeric_param(param: JSONDict, *, context: str) -> None:
         )
 
 
+def _sample_log_scaled_value(
+    rng: random.Random, lo: int | float, hi: int | float, param_type: str
+) -> int | float:
+    sampled = math.exp(rng.uniform(math.log(float(lo)), math.log(float(hi))))
+    if param_type == "int":
+        return min(int(hi), max(int(lo), int(round(sampled))))
+    return sampled
+
+
 def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
     params = space_cfg.get("parameters", [])
     if not params:
@@ -196,17 +205,56 @@ def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
     return out
 
 
+def surrogate_numeric_only_capability_gap(params: list[JSONDict]) -> JSONDict | None:
+    for param in params:
+        param_name = str(param.get("name"))
+        param_type = str(param.get("type"))
+        if param_type not in _NUMERIC_PARAMETER_TYPES:
+            return {
+                "fallback_reason": "search_space_requires_workstream1_model_encoding",
+                "fallback_param": param_name,
+                "fallback_param_type": param_type,
+            }
+        scale = str(param.get("scale", "linear"))
+        if scale != "linear":
+            return {
+                "fallback_reason": "search_space_requires_workstream1_model_encoding",
+                "fallback_param": param_name,
+                "fallback_param_type": param_type,
+                "fallback_param_scale": scale,
+            }
+    return None
+
+
 def sample_random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
     out: JSONDict = {}
     for param in params:
-        _runtime_numeric_param(param, context="random sampling")
-        lo, hi = param["bounds"]
-        if param["type"] == "float":
-            out[param["name"]] = rng.uniform(float(lo), float(hi))
-        elif param["type"] == "int":
-            out[param["name"]] = rng.randint(int(lo), int(hi))
-        else:  # pragma: no cover - guarded by _runtime_numeric_param
-            raise ValueError(f"Unsupported parameter type: {param['type']}")
+        param_name = str(param["name"])
+        param_type = str(param["type"])
+        if param_type in _NUMERIC_PARAMETER_TYPES:
+            lo, hi = param["bounds"]
+            scale = str(param.get("scale", "linear"))
+            if scale == "linear":
+                if param_type == "float":
+                    out[param_name] = rng.uniform(float(lo), float(hi))
+                elif param_type == "int":
+                    out[param_name] = rng.randint(int(lo), int(hi))
+                else:  # pragma: no cover - guarded by normalize_search_space
+                    raise ValueError(f"Unsupported parameter type: {param_type}")
+            elif scale == "log":
+                out[param_name] = _sample_log_scaled_value(rng, lo, hi, param_type)
+            else:  # pragma: no cover - guarded by normalize_search_space
+                raise ValueError(f"Unsupported parameter scale: {scale}")
+            continue
+
+        if param_type == "bool":
+            out[param_name] = bool(rng.randint(0, 1))
+            continue
+        if param_type == "categorical":
+            choices = param["choices"]
+            out[param_name] = choices[rng.randrange(len(choices))]
+            continue
+        raise ValueError(f"Unsupported parameter type: {param_type}")
     return out
 
 
