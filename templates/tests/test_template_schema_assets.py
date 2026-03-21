@@ -7,6 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARED_SCHEMAS = REPO_ROOT / "templates" / "_shared" / "schemas"
 TEMPLATES = ("bo_client", "bo_client_demo", "bo_client_full")
 CANONICAL_FILES = (
+    "constraints.schema.json",
     "ingest_payload.schema.json",
     "search_space.schema.json",
     "suggestion_payload.schema.json",
@@ -52,6 +53,15 @@ def test_template_bo_configs_share_feature_flag_shape() -> None:
         assert flags["enable_auth_preview"] is False
 
 
+def test_template_bo_configs_include_constraints_schema_path() -> None:
+    for template in TEMPLATES:
+        cfg_path = REPO_ROOT / "templates" / template / "bo_config.json"
+        cfg = _load_json(cfg_path)
+        paths = cfg.get("paths")
+        assert isinstance(paths, dict), f"missing paths in {cfg_path}"
+        assert paths.get("constraints_schema_file") == "../_shared/schemas/constraints.schema.json"
+
+
 def test_search_space_schema_exposes_workstream1_parameter_fields() -> None:
     schema = _load_json(SHARED_SCHEMAS / "search_space.schema.json")
     item_properties = schema["properties"]["parameters"]["items"]["properties"]
@@ -59,3 +69,17 @@ def test_search_space_schema_exposes_workstream1_parameter_fields() -> None:
     assert "choices" in item_properties
     assert "scale" in item_properties
     assert "when" in item_properties
+
+
+def test_constraints_schema_exposes_workstream3_rule_collections() -> None:
+    schema = _load_json(SHARED_SCHEMAS / "constraints.schema.json")
+    properties = schema["properties"]
+    assert set(properties) == {
+        "bound_tightening",
+        "linear_inequalities",
+        "forbidden_combinations",
+    }
+    assert properties["linear_inequalities"]["items"]["properties"]["operator"]["enum"] == [
+        "<=",
+        ">=",
+    ]

@@ -39,6 +39,7 @@ def _load_shared_module(module_name: str, filename: str):
 
 
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
+_CONSTRAINTS = _load_shared_module("looptimum_shared_constraints", "constraints.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 
@@ -46,10 +47,13 @@ build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
 format_contract_diff_error = _CONTRACT.format_contract_diff_error
 load_contract_document = _CONTRACT.load_contract_document
+load_optional_contract_document = _CONTRACT.load_optional_contract_document
 load_data_file = _CONTRACT.load_data_file
 load_schema_from_paths = _CONTRACT.load_schema_from_paths
 normalize_ingest_payload = _CONTRACT.normalize_ingest_payload
 validate_against_schema = _CONTRACT.validate_against_schema
+
+normalize_constraints = _CONSTRAINTS.normalize_constraints
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -1845,6 +1849,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     hard_errors: list[str] = []
     warnings_out: list[str] = []
+    params: list[dict[str, Any]] | None = None
 
     try:
         cfg, _ = load_contract_document(root, "bo_config")
@@ -1865,9 +1870,30 @@ def cmd_validate(args: argparse.Namespace) -> None:
             default_rel="../_shared/schemas/search_space.schema.json",
         )
         validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
-        normalize_search_space(space_cfg)
+        params = normalize_search_space(space_cfg)
     except Exception as exc:
         hard_errors.append(f"parameter_space validation failure: {exc}")
+
+    if params is not None:
+        try:
+            constraints_cfg, constraints_path = load_optional_contract_document(root, "constraints")
+            if constraints_path is not None:
+                if not isinstance(constraints_cfg, dict):
+                    raise ValueError("constraints must be an object")
+                constraints_schema, _ = load_schema_from_paths(
+                    root,
+                    cfg.get("paths", {}),
+                    key="constraints_schema_file",
+                    default_rel="../_shared/schemas/constraints.schema.json",
+                )
+                validate_against_schema(
+                    constraints_cfg,
+                    constraints_schema,
+                    source_path=constraints_path,
+                )
+                normalize_constraints(constraints_cfg, params)
+        except Exception as exc:
+            hard_errors.append(f"constraints validation failure: {exc}")
 
     objective_name = "loss"
     objective_direction = "minimize"

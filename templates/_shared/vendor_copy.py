@@ -29,7 +29,9 @@ def main() -> None:
 
     (template_dir / "schemas").mkdir(parents=True, exist_ok=True)
     shutil.copy2(shared_root / "contract.py", template_dir / "contract.py")
+    shutil.copy2(shared_root / "constraints.py", template_dir / "constraints.py")
     for name in [
+        "constraints.schema.json",
         "ingest_payload.schema.json",
         "search_space.schema.json",
         "suggestion_payload.schema.json",
@@ -41,6 +43,7 @@ def main() -> None:
         if cfg_path.exists():
             cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
             paths = cfg.setdefault("paths", {})
+            paths["constraints_schema_file"] = "schemas/constraints.schema.json"
             paths["ingest_schema_file"] = "schemas/ingest_payload.schema.json"
             paths["search_space_schema_file"] = "schemas/search_space.schema.json"
             paths["suggestion_schema_file"] = "schemas/suggestion_payload.schema.json"

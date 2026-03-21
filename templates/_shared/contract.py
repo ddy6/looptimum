@@ -230,8 +230,39 @@ def resolve_contract_path(project_root: Path, stem: str) -> Path:
     )
 
 
+def resolve_optional_contract_path(project_root: Path, stem: str) -> Path | None:
+    preferred = project_root / f"{stem}.json"
+    if preferred.exists():
+        return preferred
+
+    legacy_yaml = project_root / f"{stem}.yaml"
+    if legacy_yaml.exists():
+        raise ValueError(
+            f"Unsupported contract file extension for '{stem}': {legacy_yaml.name}. "
+            f"Rename it to {stem}.json. Only .json contract files are supported."
+        )
+
+    legacy_yml = project_root / f"{stem}.yml"
+    if legacy_yml.exists():
+        raise ValueError(
+            f"Unsupported contract file extension for '{stem}': {legacy_yml.name}. "
+            f"Rename it to {stem}.json. Only .json contract files are supported."
+        )
+
+    return None
+
+
 def load_contract_document(project_root: Path, stem: str) -> tuple[Any, Path]:
     path = resolve_contract_path(project_root, stem)
+    return load_data_file(path), path
+
+
+def load_optional_contract_document(
+    project_root: Path, stem: str
+) -> tuple[Any | None, Path | None]:
+    path = resolve_optional_contract_path(project_root, stem)
+    if path is None:
+        return None, None
     return load_data_file(path), path
 
 

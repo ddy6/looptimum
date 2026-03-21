@@ -314,6 +314,32 @@ def test_validate_accepts_conditional_parameter_space(template_copy) -> None:
     assert "Validation passed." in out.stdout
 
 
+def test_validate_accepts_well_formed_constraints_contract(template_copy) -> None:
+    constraints_path = template_copy / "constraints.json"
+    constraints_path.write_text(
+        json.dumps(
+            {
+                "bound_tightening": [{"param": "x1", "min": 0.2, "max": 0.8}],
+                "linear_inequalities": [
+                    {
+                        "terms": [
+                            {"param": "x1", "coefficient": 1.0},
+                            {"param": "x2", "coefficient": 1.0},
+                        ],
+                        "operator": "<=",
+                        "rhs": 1.5,
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "validate")
+    assert "Validation passed." in out.stdout
+
+
 def test_validate_rejects_conditional_dependency_cycle(template_copy) -> None:
     space_path = template_copy / "parameter_space.json"
     space_path.write_text(
@@ -333,6 +359,31 @@ def test_validate_rejects_conditional_dependency_cycle(template_copy) -> None:
     assert out.returncode != 0
     assert "ERROR: parameter_space validation failure:" in out.stdout
     assert "conditional dependency cycle: a -> b -> a" in out.stdout
+
+
+def test_validate_rejects_invalid_constraints_contract(template_copy) -> None:
+    constraints_path = template_copy / "constraints.json"
+    constraints_path.write_text(
+        json.dumps(
+            {
+                "linear_inequalities": [
+                    {
+                        "terms": [{"param": "x1", "coefficient": 1.0}],
+                        "operator": "<=",
+                        "rhs": 0.4,
+                    }
+                ],
+                "forbidden_combinations": [{"when": {"x1": []}}],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: constraints validation failure:" in out.stdout
+    assert "constraints.forbidden_combinations[0].when.x1 must not be empty" in out.stdout
 
 
 def test_validate_hard_failure_for_duplicate_observation_trial_ids(template_copy) -> None:

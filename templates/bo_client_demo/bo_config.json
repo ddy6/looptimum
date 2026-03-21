@@ -28,6 +28,7 @@
     "state_file": "state/bo_state.json",
     "observations_csv": "state/observations.csv",
     "acquisition_log_file": "state/acquisition_log.jsonl",
+    "constraints_schema_file": "../_shared/schemas/constraints.schema.json",
     "ingest_schema_file": "../_shared/schemas/ingest_payload.schema.json",
     "search_space_schema_file": "../_shared/schemas/search_space.schema.json",
     "suggestion_schema_file": "../_shared/schemas/suggestion_payload.schema.json"

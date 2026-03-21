@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Constraints",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "bound_tightening": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["param"],
+        "additionalProperties": false,
+        "properties": {
+          "param": {
+            "type": "string"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "linear_inequalities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["terms", "operator", "rhs"],
+        "additionalProperties": false,
+        "properties": {
+          "terms": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["param", "coefficient"],
+              "additionalProperties": false,
+              "properties": {
+                "param": {
+                  "type": "string"
+                },
+                "coefficient": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "operator": {
+            "type": "string",
+            "enum": ["<=", ">="]
+          },
+          "rhs": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "forbidden_combinations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["when"],
+        "additionalProperties": false,
+        "properties": {
+          "when": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
