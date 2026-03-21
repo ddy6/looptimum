@@ -58,3 +58,4 @@ def test_search_space_schema_exposes_workstream1_parameter_fields() -> None:
     assert item_properties["type"]["enum"] == ["float", "int", "bool", "categorical"]
     assert "choices" in item_properties
     assert "scale" in item_properties
+    assert "when" in item_properties

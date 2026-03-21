@@ -224,6 +224,51 @@ def test_validate_hard_failure_for_malformed_parameter_space(template_copy) -> N
     assert "field=$.parameters" in out.stdout
 
 
+def test_validate_accepts_conditional_parameter_space(template_copy) -> None:
+    space_path = template_copy / "parameter_space.json"
+    space_path.write_text(
+        json.dumps(
+            {
+                "parameters": [
+                    {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
+                    {
+                        "name": "momentum",
+                        "type": "float",
+                        "bounds": [0.0, 0.99],
+                        "when": {"optimizer": "sgd"},
+                    },
+                ]
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "validate")
+    assert "Validation passed." in out.stdout
+
+
+def test_validate_rejects_conditional_dependency_cycle(template_copy) -> None:
+    space_path = template_copy / "parameter_space.json"
+    space_path.write_text(
+        json.dumps(
+            {
+                "parameters": [
+                    {"name": "a", "type": "int", "bounds": [0, 1], "when": {"b": 1}},
+                    {"name": "b", "type": "int", "bounds": [0, 1], "when": {"a": 1}},
+                ]
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: parameter_space validation failure:" in out.stdout
+    assert "conditional dependency cycle: a -> b -> a" in out.stdout
+
+
 def test_validate_hard_failure_for_duplicate_observation_trial_ids(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {

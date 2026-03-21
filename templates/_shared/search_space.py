@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import math
 import random
-from typing import Any
+from typing import Any, cast
 
 JSONDict = dict[str, Any]
+ConditionValue = bool | str | int | float
 _NUMERIC_PARAMETER_TYPES = {"float", "int"}
 _SUPPORTED_PARAMETER_TYPES = _NUMERIC_PARAMETER_TYPES | {"bool", "categorical"}
 _SUPPORTED_NUMERIC_SCALES = {"linear", "log"}
@@ -22,6 +23,57 @@ def _normalize_description(param: JSONDict, idx: int) -> str | None:
     if not isinstance(description, str):
         raise ValueError(f"parameter_space.parameters[{idx}].description must be a string")
     return description
+
+
+def _normalize_condition_scalar(
+    idx: int, name: str, controller_name: str, value: Any
+) -> ConditionValue:
+    if isinstance(value, bool):
+        return cast(ConditionValue, value)
+    if isinstance(value, str):
+        return cast(ConditionValue, value)
+    if _is_finite_number(value):
+        return cast(ConditionValue, value)
+    raise ValueError(
+        f"parameter_space.parameters[{idx}] ({name}) when.{controller_name} values must be string, boolean, or finite number"
+    )
+
+
+def _normalize_when(idx: int, name: str, param: JSONDict) -> dict[str, list[ConditionValue]] | None:
+    raw_when = param.get("when")
+    if raw_when is None:
+        return None
+    if not isinstance(raw_when, dict) or not raw_when:
+        raise ValueError(
+            f"parameter_space.parameters[{idx}] ({name}) must define 'when' as a non-empty object"
+        )
+
+    normalized: dict[str, list[ConditionValue]] = {}
+    for controller_name, raw_value in raw_when.items():
+        if not isinstance(controller_name, str) or not controller_name:
+            raise ValueError(
+                f"parameter_space.parameters[{idx}] ({name}) when keys must be non-empty strings"
+            )
+
+        raw_values = raw_value if isinstance(raw_value, list) else [raw_value]
+        if not raw_values:
+            raise ValueError(
+                f"parameter_space.parameters[{idx}] ({name}) when.{controller_name} must not be empty"
+            )
+
+        seen_values: set[str] = set()
+        values: list[ConditionValue] = []
+        for candidate in raw_values:
+            normalized_value = _normalize_condition_scalar(idx, name, controller_name, candidate)
+            rendered = _choice_key(normalized_value)
+            if rendered in seen_values:
+                raise ValueError(
+                    f"parameter_space.parameters[{idx}] ({name}) when.{controller_name} must not contain duplicate values"
+                )
+            seen_values.add(rendered)
+            values.append(normalized_value)
+        normalized[controller_name] = values
+    return normalized
 
 
 def _normalize_numeric_param(idx: int, name: str, param: JSONDict, param_type: str) -> JSONDict:
@@ -98,7 +150,7 @@ def _normalize_bool_param(idx: int, name: str, param: JSONDict) -> JSONDict:
     }
 
 
-def _choice_key(choice: str | int | float) -> str:
+def _choice_key(choice: ConditionValue) -> str:
     return json.dumps(choice, sort_keys=True, separators=(",", ":"))
 
 
@@ -230,6 +282,102 @@ def _categorical_choice_index(value: Any, param: JSONDict) -> int:
     )
 
 
+def _canonicalize_when_value(
+    value: ConditionValue, controller: JSONDict, *, dependent_name: str
+) -> ConditionValue:
+    controller_name = str(controller["name"])
+    controller_type = str(controller["type"])
+    if controller_type == "bool":
+        if not isinstance(value, bool):
+            raise ValueError(
+                f"Parameter '{dependent_name}' when.{controller_name} must use boolean values"
+            )
+        return value
+    if controller_type == "int":
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not float(value).is_integer()
+        ):
+            raise ValueError(
+                f"Parameter '{dependent_name}' when.{controller_name} must use integer values"
+            )
+        normalized_value = int(value)
+        lo, hi = map(int, controller["bounds"])
+        if normalized_value < lo or normalized_value > hi:
+            raise ValueError(
+                f"Parameter '{dependent_name}' when.{controller_name} must stay within controller bounds [{lo}, {hi}]"
+            )
+        return normalized_value
+    if controller_type == "categorical":
+        rendered = _choice_key(value)
+        for choice in controller["choices"]:
+            if _choice_key(choice) == rendered:
+                return cast(ConditionValue, choice)
+        raise ValueError(
+            f"Parameter '{dependent_name}' when.{controller_name} must match one of the configured categorical choices"
+        )
+    raise ValueError(
+        f"Parameter '{dependent_name}' must not use float controller '{controller_name}' in 'when'"
+    )
+
+
+def _validate_when_dependencies(params: list[JSONDict]) -> None:
+    by_name = {str(param["name"]): param for param in params}
+    dependency_graph: dict[str, set[str]] = {str(param["name"]): set() for param in params}
+
+    for param in params:
+        param_name = str(param["name"])
+        when = param.get("when")
+        if not isinstance(when, dict):
+            continue
+        for controller_name, raw_values in when.items():
+            controller = by_name.get(controller_name)
+            if controller is None:
+                raise ValueError(
+                    f"Parameter '{param_name}' references unknown conditional controller '{controller_name}'"
+                )
+            if controller_name == param_name:
+                raise ValueError(f"Parameter '{param_name}' must not depend on itself via 'when'")
+            dependency_graph[param_name].add(controller_name)
+            canonical_values: list[ConditionValue] = []
+            seen_values: set[str] = set()
+            for value in raw_values:
+                canonical_value = _canonicalize_when_value(
+                    value, controller, dependent_name=param_name
+                )
+                rendered = _choice_key(canonical_value)
+                if rendered in seen_values:
+                    raise ValueError(
+                        f"Parameter '{param_name}' when.{controller_name} must not contain duplicate values"
+                    )
+                seen_values.add(rendered)
+                canonical_values.append(canonical_value)
+            when[controller_name] = canonical_values
+
+    visit_state: dict[str, int] = {}
+    stack: list[str] = []
+
+    def visit(name: str) -> None:
+        state = visit_state.get(name, 0)
+        if state == 2:
+            return
+        if state == 1:
+            cycle_start = stack.index(name)
+            cycle = stack[cycle_start:] + [name]
+            raise ValueError("parameter_space conditional dependency cycle: " + " -> ".join(cycle))
+
+        visit_state[name] = 1
+        stack.append(name)
+        for dependency in dependency_graph[name]:
+            visit(dependency)
+        stack.pop()
+        visit_state[name] = 2
+
+    for param_name in dependency_graph:
+        visit(param_name)
+
+
 def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
     params = space_cfg.get("parameters", [])
     if not params:
@@ -263,10 +411,40 @@ def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
         else:
             normalized = _normalize_categorical_param(idx, name, param)
 
+        when = _normalize_when(idx, name, param)
+        if when is not None:
+            normalized["when"] = when
         if description is not None:
             normalized["description"] = description
         out.append(normalized)
         seen_names.add(name)
+    _validate_when_dependencies(out)
+    return out
+
+
+def is_parameter_active(param: JSONDict, values: JSONDict) -> bool:
+    when = param.get("when")
+    if not isinstance(when, dict):
+        return True
+    for controller_name, allowed_values in when.items():
+        if controller_name not in values:
+            return False
+        controller_value = values[controller_name]
+        if not any(_choice_key(controller_value) == _choice_key(value) for value in allowed_values):
+            return False
+    return True
+
+
+def active_parameters(params: list[JSONDict], values: JSONDict) -> list[JSONDict]:
+    return [param for param in params if is_parameter_active(param, values)]
+
+
+def omit_inactive_params(values: JSONDict, params: list[JSONDict]) -> JSONDict:
+    out: JSONDict = {}
+    for param in params:
+        param_name = str(param["name"])
+        if param_name in values and is_parameter_active(param, values):
+            out[param_name] = values[param_name]
     return out
 
 

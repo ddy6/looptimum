@@ -98,6 +98,67 @@ def test_normalize_search_space_accepts_mixed_parameter_descriptors() -> None:
     ]
 
 
+def test_normalize_search_space_accepts_conditional_descriptors_and_active_helpers() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
+        {
+            "parameters": [
+                {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
+                {
+                    "name": "momentum",
+                    "type": "float",
+                    "bounds": [0.0, 0.99],
+                    "when": {"optimizer": "sgd"},
+                },
+                {
+                    "name": "nesterov",
+                    "type": "bool",
+                    "when": {"optimizer": ["sgd"]},
+                },
+            ]
+        }
+    )
+
+    assert params == [
+        {
+            "name": "optimizer",
+            "type": "categorical",
+            "choices": ["adam", "sgd"],
+            "encoding": "one_hot",
+            "encoded_size": 2,
+        },
+        {
+            "name": "momentum",
+            "type": "float",
+            "bounds": [0.0, 0.99],
+            "scale": "linear",
+            "encoding": "scalar",
+            "encoded_size": 1,
+            "when": {"optimizer": ["sgd"]},
+        },
+        {
+            "name": "nesterov",
+            "type": "bool",
+            "choices": [False, True],
+            "encoding": "binary",
+            "encoded_size": 1,
+            "when": {"optimizer": ["sgd"]},
+        },
+    ]
+    assert [
+        param["name"] for param in SEARCH_SPACE.active_parameters(params, {"optimizer": "adam"})
+    ] == ["optimizer"]
+    assert [
+        param["name"] for param in SEARCH_SPACE.active_parameters(params, {"optimizer": "sgd"})
+    ] == [
+        "optimizer",
+        "momentum",
+        "nesterov",
+    ]
+    assert SEARCH_SPACE.omit_inactive_params(
+        {"optimizer": "adam", "momentum": 0.9, "nesterov": True}, params
+    ) == {"optimizer": "adam"}
+
+
 @pytest.mark.parametrize(
     ("cfg", "pattern"),
     [
@@ -121,6 +182,57 @@ def test_normalize_search_space_accepts_mixed_parameter_descriptors() -> None:
                 ]
             },
             "duplicate name 'x'",
+        ),
+        (
+            {
+                "parameters": [
+                    {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
+                    {
+                        "name": "momentum",
+                        "type": "float",
+                        "bounds": [0.0, 0.99],
+                        "when": {"missing": "sgd"},
+                    },
+                ]
+            },
+            "unknown conditional controller 'missing'",
+        ),
+        (
+            {
+                "parameters": [
+                    {"name": "base_lr", "type": "float", "bounds": [0.001, 0.1]},
+                    {
+                        "name": "warmup_steps",
+                        "type": "int",
+                        "bounds": [0, 10],
+                        "when": {"base_lr": 0.01},
+                    },
+                ]
+            },
+            "must not use float controller 'base_lr'",
+        ),
+        (
+            {
+                "parameters": [
+                    {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
+                    {
+                        "name": "momentum",
+                        "type": "float",
+                        "bounds": [0.0, 0.99],
+                        "when": {"optimizer": "rmsprop"},
+                    },
+                ]
+            },
+            "must match one of the configured categorical choices",
+        ),
+        (
+            {
+                "parameters": [
+                    {"name": "a", "type": "int", "bounds": [0, 1], "when": {"b": 1}},
+                    {"name": "b", "type": "int", "bounds": [0, 1], "when": {"a": 1}},
+                ]
+            },
+            "conditional dependency cycle: a -> b -> a",
         ),
     ],
 )
