@@ -64,9 +64,6 @@ Current deprecations:
 
 - `success` status alias is normalized to `ok`.
 - legacy `failure_reason` ingest field is normalized to `terminal_reason`.
-- Legacy non-`ok` + numeric primary objective is normalized to
-  `objective: null` plus `penalty_objective`.
-- Sentinel primary-objective compatibility is planned for removal in `v0.4.0`.
 
 ## What May Change Without a Breaking Bump
 
@@ -91,8 +88,8 @@ This policy does not guarantee:
 - Release notes and migration details are tracked in `CHANGELOG.md`.
 - Contract and operational behavior references:
   `docs/operational-semantics.md`, `docs/integration-guide.md`.
-- Migration policy and concrete specs:
-  `docs/migrations/README.md`,
-  `docs/migrations/v0.2.x-to-v0.3.0.md`.
+- Compatibility details and release notes:
+  `CHANGELOG.md`,
+  `docs/stability-guarantees.md`.
 - Feedback and compatibility reports should be filed as GitHub Issues (primary
   source of truth).

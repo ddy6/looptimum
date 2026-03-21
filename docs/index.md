@@ -32,7 +32,6 @@ For full command sequences and resume behavior:
 - [Type Safety](./type-safety.md)
 - [CI Knob Tuning](./ci-knob-tuning.md)
 - [Stability Guarantees](./stability-guarantees.md)
-- [Migrations](./migrations/README.md)
 - [Feedback Loop](./feedback-loop.md)
 - [Search Space Contract](./search-space.md)
 - [Decision Trace](./decision-trace.md)

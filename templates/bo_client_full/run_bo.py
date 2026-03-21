@@ -40,6 +40,7 @@ def _load_shared_module(module_name: str, filename: str):
 
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
+_SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -66,6 +67,12 @@ state_schema_version = _RUNTIME.state_schema_version
 normalize_state_schema_version = _RUNTIME.normalize_state_schema_version
 trial_dir = _RUNTIME.trial_dir
 STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
+
+normalize_search_space = _SEARCH_SPACE.normalize_search_space
+sample_random_point = _SEARCH_SPACE.sample_random_point
+normalized_numeric_distance = _SEARCH_SPACE.normalized_numeric_distance
+normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
+denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
 
 
 def load_cfg(path: Path) -> dict:
@@ -107,33 +114,8 @@ def write_obs_csv(path: Path, rows: list[dict]) -> None:
     atomic_write_text(path, buffer.getvalue())
 
 
-def norm_space(space_cfg: dict) -> list[dict]:
-    params = space_cfg.get("parameters", [])
-    if not params:
-        raise ValueError("parameter_space.json must define 'parameters'")
-    return params
-
-
-def random_point(rng: random.Random, params: list[dict]) -> dict:
-    out: dict = {}
-    for p in params:
-        lo, hi = p["bounds"]
-        if p["type"] == "float":
-            out[p["name"]] = rng.uniform(float(lo), float(hi))
-        elif p["type"] == "int":
-            out[p["name"]] = rng.randint(int(lo), int(hi))
-        else:
-            raise ValueError(f"Unsupported parameter type: {p['type']}")
-    return out
-
-
 def norm_dist(a: dict, b: dict, params: list[dict]) -> float:
-    total = 0.0
-    for param in params:
-        lo, hi = map(float, param["bounds"])
-        span = max(hi - lo, 1e-12)
-        total += ((float(a[param["name"]]) - float(b[param["name"]])) / span) ** 2
-    return math.sqrt(total)
+    return float(normalized_numeric_distance(a, b, params))
 
 
 def predict_rbf_proxy(
@@ -173,7 +155,7 @@ def acq_score(mean: float, std: float, best: float | None, direction: str, acq: 
 
 
 def _candidate_pool(rng: random.Random, params: list[dict], n: int) -> list[dict]:
-    return [random_point(rng, params) for _ in range(int(n))]
+    return [sample_random_point(rng, params) for _ in range(int(n))]
 
 
 def _is_usable_observation(row: dict, objective_name: str) -> bool:
@@ -238,23 +220,9 @@ def propose_with_botorch(
     objective_name, direction = objective["name"], objective["direction"]
     acq_cfg = cfg["acquisition"]
 
-    def normalize(vec: dict) -> list[float]:
-        out = []
-        for param in params:
-            lo, hi = map(float, param["bounds"])
-            span = max(hi - lo, 1e-12)
-            out.append((float(vec[param["name"]]) - lo) / span)
-        return out
-
-    def denormalize(vals: list[float]) -> dict:
-        out: dict = {}
-        for idx, param in enumerate(params):
-            lo, hi = map(float, param["bounds"])
-            value = lo + float(vals[idx]) * (hi - lo)
-            out[param["name"]] = int(round(value)) if param["type"] == "int" else float(value)
-        return out
-
-    x_train = torch.tensor([normalize(obs["params"]) for obs in observations], dtype=torch.double)
+    x_train = torch.tensor(
+        [normalize_numeric_point(obs["params"], params) for obs in observations], dtype=torch.double
+    )
     y_raw = [float(obs["objectives"][objective_name]) for obs in observations]
     y_train = torch.tensor(
         [[-value] if direction == "maximize" else [value] for value in y_raw], dtype=torch.double
@@ -267,14 +235,21 @@ def propose_with_botorch(
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
     for candidate in _candidate_pool(rng, params, int(cfg["candidate_pool_size"])):
-        x = torch.tensor([normalize(candidate)], dtype=torch.double)
+        x = torch.tensor([normalize_numeric_point(candidate, params)], dtype=torch.double)
         posterior = model.posterior(x)
         mean_tensor = posterior.mean.detach().cpu().view(-1)[0].item()
         std_tensor = posterior.variance.detach().cpu().clamp_min(1e-12).sqrt().view(-1)[0].item()
 
         mean = -mean_tensor if direction == "maximize" else mean_tensor
         score = acq_score(mean, std_tensor, best, direction, acq_cfg)
-        scored.append((score, denormalize(normalize(candidate)), mean, std_tensor))
+        scored.append(
+            (
+                score,
+                denormalize_numeric_point(normalize_numeric_point(candidate, params), params),
+                mean,
+                std_tensor,
+            )
+        )
 
     scored.sort(key=lambda row: row[0], reverse=True)
     score, candidate, mean, std = scored[0]
@@ -304,11 +279,14 @@ def propose(
     observations = state["observations"]
     objective = obj_cfg["primary_objective"]
     if len(observations) < int(cfg["initial_random_trials"]):
-        return random_point(rng, params), {"strategy": "initial_random", "surrogate_backend": None}
+        return sample_random_point(rng, params), {
+            "strategy": "initial_random",
+            "surrogate_backend": None,
+        }
     objective_name = str(objective["name"])
     usable_obs = [row for row in observations if _is_usable_observation(row, objective_name)]
     if not usable_obs:
-        return random_point(rng, params), {
+        return sample_random_point(rng, params), {
             "strategy": "initial_random",
             "surrogate_backend": None,
             "fallback_reason": "no_usable_observations",
@@ -320,7 +298,7 @@ def propose(
             2, int(surrogate_cfg.get("botorch_min_fit_observations", 2))
         )
         if len(usable_obs) < min_botorch_fit_observations:
-            return random_point(rng, params), {
+            return sample_random_point(rng, params), {
                 "strategy": "initial_random",
                 "surrogate_backend": None,
                 "fallback_reason": (
@@ -1199,7 +1177,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         default_rel="../_shared/schemas/search_space.schema.json",
     )
     validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
-    params = norm_space(space_cfg)
+    params = normalize_search_space(space_cfg)
 
     obj_cfg, _ = load_contract_document(root, "objective_schema")
     if not isinstance(obj_cfg, dict):
@@ -1329,7 +1307,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         root,
         cfg["paths"],
         key="ingest_schema_file",
-        legacy_key="result_schema_file",
+        removed_key="result_schema_file",
         default_rel="../_shared/schemas/ingest_payload.schema.json",
     )
 

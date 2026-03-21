@@ -1,24 +1,39 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 from acquisition import acquisition_score
+
+_TEMPLATE_DIR = Path(__file__).resolve().parent
+
+
+def _load_shared_module(module_name: str, filename: str):
+    module_path = _TEMPLATE_DIR.parent / "_shared" / filename
+    if not module_path.exists():
+        raise ModuleNotFoundError(
+            f"Missing shared module at {module_path}. Ensure templates/_shared is present."
+        )
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load shared module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
+
+normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
+denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
 
 
 def _normalize(vec: dict, params: list[dict]) -> list[float]:
-    out = []
-    for p in params:
-        lo, hi = map(float, p["bounds"])
-        span = max(hi - lo, 1e-12)
-        out.append((float(vec[p["name"]]) - lo) / span)
-    return out
+    return list(normalize_numeric_point(vec, params))
 
 
 def _denormalize(vals: list[float], params: list[dict]) -> dict:
-    out: dict = {}
-    for i, p in enumerate(params):
-        lo, hi = map(float, p["bounds"])
-        v = lo + float(vals[i]) * (hi - lo)
-        out[p["name"]] = int(round(v)) if p["type"] == "int" else float(v)
-    return out
+    return dict(denormalize_numeric_point(vals, params))
 
 
 def propose_with_gp(

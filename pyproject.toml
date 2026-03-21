@@ -6,7 +6,6 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-yaml = ["PyYAML>=6,<7"]
 aws = ["boto3>=1.35,<2"]
 
 [tool.ruff]

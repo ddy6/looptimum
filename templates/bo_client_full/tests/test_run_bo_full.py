@@ -74,6 +74,37 @@ def test_status_initial(template_copy: Path) -> None:
     assert payload["best"] is None
 
 
+def test_deterministic_first_suggestion_under_fixed_seed(
+    template_copy: Path, tmp_path: Path
+) -> None:
+    src = Path(__file__).resolve().parents[1]
+    second_copy = tmp_path / "template_two"
+    subprocess.run(["cp", "-R", str(src), str(second_copy)], check=True)
+    shared_src = src.parent / "_shared"
+    if shared_src.exists() and not (tmp_path / "_shared").exists():
+        subprocess.run(["cp", "-R", str(shared_src), str(tmp_path / "_shared")], check=True)
+    for p in [
+        second_copy / "state" / "bo_state.json",
+        second_copy / "state" / "observations.csv",
+        second_copy / "state" / "acquisition_log.jsonl",
+        second_copy / "state" / "event_log.jsonl",
+        second_copy / "state" / ".looptimum.lock",
+        second_copy / "state" / "report.json",
+        second_copy / "state" / "report.md",
+        second_copy / "examples" / "_demo_result.json",
+    ]:
+        if p.exists():
+            p.unlink()
+    trials_dir = second_copy / "state" / "trials"
+    if trials_dir.exists():
+        shutil.rmtree(trials_dir)
+
+    first = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    second = _parse_suggestion(run_cmd(second_copy, "suggest").stdout)
+    assert first["trial_id"] == second["trial_id"] == 1
+    assert first["params"] == second["params"]
+
+
 def test_suggest_then_ingest(template_copy: Path) -> None:
     s = run_cmd(template_copy, "suggest")
     lines = [line for line in s.stdout.strip().splitlines() if line.strip()]
@@ -225,7 +256,7 @@ def test_non_ok_killed_null_objective_is_accepted(template_copy: Path) -> None:
     assert state["best"] is None
 
 
-def test_non_ok_sentinel_failed_objective_is_accepted_with_deprecation(template_copy: Path) -> None:
+def test_non_ok_numeric_primary_objective_is_rejected(template_copy: Path) -> None:
     suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
         "trial_id": suggestion["trial_id"],
@@ -236,14 +267,10 @@ def test_non_ok_sentinel_failed_objective_is_accepted_with_deprecation(template_
     path = template_copy / "examples" / "_failed_sentinel_result.json"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
-    assert "Deprecated" in out.stderr
-
-    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
-    obs = state["observations"][0]
-    assert obs["status"] == "failed"
-    assert obs["objectives"]["loss"] is None
-    assert obs["penalty_objective"] == 1e12
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert out.returncode != 0
+    assert "field=$.objectives.loss" in out.stderr
+    assert "null for non-ok status" in out.stderr
 
 
 def test_non_ok_penalty_does_not_affect_best_ranking(template_copy: Path) -> None:

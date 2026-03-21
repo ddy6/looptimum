@@ -7,14 +7,14 @@ surrogate backend, and restartable JSON state.
 
 - `run_bo.py`: driver for `suggest`, `ingest`, `status`, `demo`, `cancel`,
   `retire`, `heartbeat`, `report`, `reset`, `validate`, and `doctor`.
-- `bo_config.json`: run budget, surrogate/acquisition choices, seed, and state paths.
+- `bo_config.json`: run budget, surrogate/acquisition choices, shared
+  `feature_flags`, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
 - `objective_schema.json`: objective direction and failure policy.
 - `experiment_interface.md`: async experiment I/O contract.
 - `examples/`: sample success/failure result payloads and runnable command sequence.
 - `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
-  `search_space`, `suggestion_payload`) plus deprecated alias
-  `result_payload.schema.json` (scheduled removal: `v0.4.0`).
+  `search_space`, `suggestion_payload`).
 - `scripts/`: synthetic objective helper.
 - `surrogate_proxy.py`: proxy backend scoring.
 - `surrogate_gp.py`: BoTorch/GPyTorch backend scoring.
@@ -22,12 +22,9 @@ surrogate backend, and restartable JSON state.
 
 ## Notes
 
-- JSON (`.json`) is the canonical contract format.
-- Legacy `.yaml`/`.yml` files require compatibility mode:
-  `LOOPTIMUM_YAML_COMPAT_MODE=1` (optional allowlist via
-  `LOOPTIMUM_YAML_COMPAT_ALLOWLIST`).
-- YAML usage emits deprecation warnings and is scheduled for removal in
-  `v0.4.0`; full YAML parsing requires `pip install "looptimum[yaml]"`.
+- JSON (`.json`) is the required contract format.
+- `feature_flags` exists in all templates; preview flags are reserved scaffolding
+  and no-op in the current file-backed runtime.
 - State persists in `state/bo_state.json` and can be resumed between runs
   (no hidden service state).
 - Mutating commands use an exclusive lock file (`state/.looptimum.lock`);

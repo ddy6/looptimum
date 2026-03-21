@@ -28,50 +28,12 @@ CANONICAL_STATUSES = {"ok", "failed", "killed", "timeout"}
 SUCCESS_ALIAS = "success"
 _MISSING = object()
 _SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-_YAML_COMPAT_MODE_ENV = "LOOPTIMUM_YAML_COMPAT_MODE"
-_YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
-_YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
 _TRIAL_ID_ENV = "LOOPTIMUM_TRIAL_ID"
 _EXECUTOR_CHOICES = ("local", "aws-batch")
 
 
 def _warn_deprecation(message: str) -> None:
     warnings.warn(message, UserWarning, stacklevel=2)
-
-
-def _yaml_compat_mode_enabled() -> bool:
-    raw = os.environ.get(_YAML_COMPAT_MODE_ENV, "")
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _yaml_allowlist_entries() -> set[str] | None:
-    raw = os.environ.get(_YAML_COMPAT_ALLOWLIST_ENV, "").strip()
-    if not raw:
-        return None
-    return {entry.strip().lower() for entry in raw.split(",") if entry.strip()}
-
-
-def _require_yaml_compat_mode(path: Path) -> None:
-    if not _yaml_compat_mode_enabled():
-        raise ValueError(
-            f"YAML compatibility mode is disabled for {path}. "
-            f"Use .json files (primary path), or set {_YAML_COMPAT_MODE_ENV}=1 "
-            "for migration compatibility."
-        )
-
-    allowlist = _yaml_allowlist_entries()
-    if allowlist is None:
-        return
-
-    name = path.name.lower()
-    stem = path.stem.lower()
-    if "*" in allowlist or name in allowlist or stem in allowlist:
-        return
-    raise ValueError(
-        f"YAML compatibility allowlist blocked {path.name}. "
-        f"Add '{name}' or '{stem}' to {_YAML_COMPAT_ALLOWLIST_ENV} (comma-separated), "
-        "or use '*' to allow all YAML files."
-    )
 
 
 def _load_data_file(path: Path) -> Any:
@@ -84,39 +46,7 @@ def _load_data_file(path: Path) -> Any:
         except json.JSONDecodeError as exc:
             raise ValueError(f"Failed to parse JSON file {path}: {exc}") from exc
 
-    if suffix in {".yaml", ".yml"}:
-        _require_yaml_compat_mode(path)
-        _warn_deprecation(
-            f"YAML compatibility mode used for {path.name}. "
-            f"JSON is the primary path; YAML compatibility is scheduled for removal in "
-            f"{_YAML_COMPAT_REMOVAL_TARGET}."
-        )
-        try:
-            import yaml
-        except ModuleNotFoundError:
-            try:
-                parsed = json.loads(text)
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"Failed to parse YAML file {path}. Install YAML support with "
-                    f'`pip install ".[yaml]"` (or `pip install "looptimum[yaml]"`).'
-                ) from exc
-            _warn_deprecation(
-                f"Parsed {path.name} via JSON compatibility fallback. "
-                f"Rename to .json. YAML compatibility is scheduled for removal in "
-                f"{_YAML_COMPAT_REMOVAL_TARGET}; full YAML requires "
-                '`pip install ".[yaml]"` or `pip install "looptimum[yaml]"`.'
-            )
-            return parsed
-
-        parsed = yaml.safe_load(text)
-        if parsed is None:
-            return {}
-        return parsed
-
-    raise ValueError(
-        f"Unsupported objective schema extension for {path}. Supported: .json, .yaml, .yml"
-    )
+    raise ValueError(f"Unsupported objective schema extension for {path}. Only .json is supported.")
 
 
 def _load_json_or_suggest_stdout(path: Path) -> dict[str, Any]:
@@ -260,9 +190,8 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
         if penalty_objective is None:
             penalty_objective = default_failure_penalty
     else:
-        legacy_sentinel = _require_finite_number(objective_raw, field_name="objective")
-        if penalty_objective is None:
-            penalty_objective = legacy_sentinel
+        _require_finite_number(objective_raw, field_name="objective")
+        raise ValueError("non-ok objective must be null; use penalty_objective for numeric penalty")
 
     return {
         "status": status,
@@ -408,11 +337,7 @@ def parse_args() -> tuple[argparse.Namespace, bool]:
     p.add_argument(
         "--objective-schema",
         default=None,
-        help=(
-            "Path to objective_schema.json (preferred). "
-            "Legacy .yaml/.yml requires LOOPTIMUM_YAML_COMPAT_MODE=1 "
-            "(optional allowlist via LOOPTIMUM_YAML_COMPAT_ALLOWLIST)."
-        ),
+        help="Path to objective_schema.json.",
     )
     p.add_argument(
         "--on-exception",

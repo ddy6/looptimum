@@ -34,7 +34,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     "docs/quick-reference.md": (
         "## Public Command Surface (`v0.3.x`)",
         "## State and Artifact Definitions",
-        "## Compatibility and Migration",
+        "## Compatibility",
     ),
     "quickstart/README.md": ("(./etl-pipeline-knob-tuning.md)",),
     "quickstart/etl-pipeline-knob-tuning.md": (

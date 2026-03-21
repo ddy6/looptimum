@@ -11,22 +11,9 @@ Canonical contract files are JSON:
 - `parameter_space.json`
 - `objective_schema.json`
 
-Legacy `.yaml`/`.yml` contract files are still accepted for compatibility, but
-require compatibility mode:
-set `LOOPTIMUM_YAML_COMPAT_MODE=1` (optionally constrain file names via
-`LOOPTIMUM_YAML_COMPAT_ALLOWLIST`).
-YAML usage emits deprecation warnings and is scheduled for removal in `v0.4.0`.
-Full YAML parsing requires installing YAML extras (`pip install ".[yaml]"` or
-`pip install "looptimum[yaml]"`).
-
 Schema path compatibility:
 
 - canonical config key: `paths.ingest_schema_file`
-- legacy key still accepted: `paths.result_schema_file` (deprecated warning;
-  scheduled removal in `v0.4.0`)
-- deprecated local schema filename alias still accepted when explicitly set:
-  `schemas/result_payload.schema.json` -> `schemas/ingest_payload.schema.json`
-  (scheduled removal in `v0.4.0`)
 
 ## Core Files and Authority
 
@@ -123,10 +110,8 @@ Terminal-reason handling:
 
 Compatibility path (v0.2.x):
 
-- Legacy non-`ok` payloads with numeric primary objective are still accepted.
-- They are normalized to `objective: null` plus `penalty_objective`.
-- A deprecation warning is emitted; sentinel primary objective support is planned
-  for removal in `v0.4.0`.
+- Legacy `failure_reason` remains the only accepted non-canonical alias in this
+  area; numeric primary objectives for non-`ok` payloads are rejected.
 
 ### `status`
 

@@ -183,9 +183,6 @@ This preserves traceability and allows the loop to continue.
 
 Compatibility note:
 
-- legacy non-`ok` payloads with numeric primary objective are still accepted in
-  `v0.2.x`, normalized to `objective: null` + `penalty_objective`, and produce
-  a deprecation warning
 - legacy `failure_reason` is accepted as an alias and normalized to
   `terminal_reason`
 

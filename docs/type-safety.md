@@ -40,7 +40,6 @@ Strictness will ratchet tighter after the canonical scope is stable and green.
 Allowed `Any` boundaries:
 
 - JSON/file I/O ingestion/serialization boundaries
-- optional YAML compatibility paths
 - weakly typed external library boundaries
 
 Outside those boundaries, `Any` is not allowed unless it is narrowly justified

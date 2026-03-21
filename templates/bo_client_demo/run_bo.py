@@ -36,6 +36,7 @@ def _load_shared_module(module_name: str, filename: str):
 
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
+_SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -62,6 +63,10 @@ state_schema_version = _RUNTIME.state_schema_version
 normalize_state_schema_version = _RUNTIME.normalize_state_schema_version
 trial_dir = _RUNTIME.trial_dir
 STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
+
+normalize_search_space = _SEARCH_SPACE.normalize_search_space
+sample_random_point = _SEARCH_SPACE.sample_random_point
+normalized_numeric_distance = _SEARCH_SPACE.normalized_numeric_distance
 
 
 def load_cfg(path: Path) -> dict:
@@ -103,33 +108,8 @@ def write_obs_csv(path: Path, rows: list[dict]) -> None:
     atomic_write_text(path, buffer.getvalue())
 
 
-def norm_space(space_cfg: dict) -> list[dict]:
-    params = space_cfg.get("parameters", [])
-    if not params:
-        raise ValueError("parameter_space.json must define 'parameters'")
-    return params
-
-
-def random_point(rng: random.Random, params: list[dict]) -> dict:
-    out: dict = {}
-    for p in params:
-        lo, hi = p["bounds"]
-        if p["type"] == "float":
-            out[p["name"]] = rng.uniform(float(lo), float(hi))
-        elif p["type"] == "int":
-            out[p["name"]] = rng.randint(int(lo), int(hi))
-        else:
-            raise ValueError(f"Unsupported parameter type: {p['type']}")
-    return out
-
-
 def norm_dist(a: dict, b: dict, params: list[dict]) -> float:
-    total = 0.0
-    for param in params:
-        lo, hi = map(float, param["bounds"])
-        span = max(hi - lo, 1e-12)
-        total += ((float(a[param["name"]]) - float(b[param["name"]])) / span) ** 2
-    return math.sqrt(total)
+    return float(normalized_numeric_distance(a, b, params))
 
 
 def predict_rbf_proxy(
@@ -187,10 +167,10 @@ def propose(
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
     if len(obs) < int(cfg["initial_random_trials"]):
-        return random_point(rng, params), {"strategy": "initial_random"}
+        return sample_random_point(rng, params), {"strategy": "initial_random"}
     usable_obs = [row for row in obs if _is_usable_observation(row, objective_name)]
     if not usable_obs:
-        return random_point(rng, params), {
+        return sample_random_point(rng, params), {
             "strategy": "initial_random",
             "fallback_reason": "no_usable_observations",
         }
@@ -201,7 +181,7 @@ def propose(
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
     for _ in range(int(cfg["candidate_pool_size"])):
-        candidate = random_point(rng, params)
+        candidate = sample_random_point(rng, params)
         mean, std = predict_rbf_proxy(
             candidate,
             usable_obs,
@@ -1070,7 +1050,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         default_rel="../_shared/schemas/search_space.schema.json",
     )
     validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
-    params = norm_space(space_cfg)
+    params = normalize_search_space(space_cfg)
 
     obj_cfg, _ = load_contract_document(root, "objective_schema")
     if not isinstance(obj_cfg, dict):
@@ -1200,7 +1180,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         root,
         cfg["paths"],
         key="ingest_schema_file",
-        legacy_key="result_schema_file",
+        removed_key="result_schema_file",
         default_rel="../_shared/schemas/ingest_payload.schema.json",
     )
 

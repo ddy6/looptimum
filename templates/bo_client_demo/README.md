@@ -6,25 +6,22 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
   `heartbeat`, `report`, `reset`, `validate`, `doctor`
-- `bo_config.json`: budget, surrogate/acquisition, seed, paths
+- `bo_config.json`: budget, surrogate/acquisition, shared `feature_flags`,
+  seed, paths
 - `parameter_space.json`: typed parameter bounds
 - `objective_schema.json`: objective direction and handling
 - `experiment_interface.md`: async I/O contract
 - `examples/`: sample success/failure payloads and run script
 - `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
-  `search_space`, `suggestion_payload`) plus deprecated alias
-  `result_payload.schema.json` (scheduled removal: `v0.4.0`)
+  `search_space`, `suggestion_payload`)
 - `scripts/`: synthetic objective helper
 - `tests/`: `pytest` CLI and state-flow coverage
 
 ## Notes
 
-- JSON (`.json`) is the canonical contract format.
-- Legacy `.yaml`/`.yml` files require compatibility mode:
-  `LOOPTIMUM_YAML_COMPAT_MODE=1` (optional allowlist via
-  `LOOPTIMUM_YAML_COMPAT_ALLOWLIST`).
-- YAML usage emits deprecation warnings and is scheduled for removal in
-  `v0.4.0`; full YAML parsing requires `pip install "looptimum[yaml]"`.
+- JSON (`.json`) is the required contract format.
+- `feature_flags` exists in all templates; preview flags are reserved scaffolding
+  and no-op in the current file-backed runtime.
 - This demo variant intentionally leaves out BoTorch.
 - Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
   wait+timeout behavior and optional `--fail-fast`.

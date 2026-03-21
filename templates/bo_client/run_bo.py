@@ -42,6 +42,7 @@ def _load_shared_module(module_name: str, filename: str) -> ModuleType:
 
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
+_SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -68,6 +69,9 @@ state_schema_version = _RUNTIME.state_schema_version
 normalize_state_schema_version = _RUNTIME.normalize_state_schema_version
 trial_dir = _RUNTIME.trial_dir
 STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
+
+normalize_search_space = _SEARCH_SPACE.normalize_search_space
+sample_random_point = _SEARCH_SPACE.sample_random_point
 
 
 def load_cfg(path: Path) -> JSONDict:
@@ -109,33 +113,6 @@ def write_obs_csv(path: Path, rows: list[JSONDict]) -> None:
     atomic_write_text(path, buffer.getvalue())
 
 
-def norm_space(space_cfg: JSONDict) -> list[JSONDict]:
-    params = space_cfg.get("parameters", [])
-    if not params:
-        raise ValueError("parameter_space.json must define 'parameters'")
-    if not isinstance(params, list):
-        raise ValueError("parameter_space.parameters must be a list")
-    out: list[JSONDict] = []
-    for idx, param in enumerate(params):
-        if not isinstance(param, dict):
-            raise ValueError(f"parameter_space.parameters[{idx}] must be an object")
-        out.append(param)
-    return out
-
-
-def random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
-    out: JSONDict = {}
-    for p in params:
-        lo, hi = p["bounds"]
-        if p["type"] == "float":
-            out[p["name"]] = rng.uniform(float(lo), float(hi))
-        elif p["type"] == "int":
-            out[p["name"]] = rng.randint(int(lo), int(hi))
-        else:
-            raise ValueError(f"Unsupported parameter type: {p['type']}")
-    return out
-
-
 def _is_usable_observation(row: JSONDict, objective_name: str) -> bool:
     if str(row.get("status", "ok")) != "ok":
         return False
@@ -160,10 +137,13 @@ def propose(
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
     if len(obs) < int(cfg["initial_random_trials"]):
-        return random_point(rng, params), {"strategy": "initial_random", "surrogate_backend": None}
+        return sample_random_point(rng, params), {
+            "strategy": "initial_random",
+            "surrogate_backend": None,
+        }
     usable_obs = [row for row in obs if _is_usable_observation(row, objective_name)]
     if not usable_obs:
-        return random_point(rng, params), {
+        return sample_random_point(rng, params), {
             "strategy": "initial_random",
             "surrogate_backend": None,
             "fallback_reason": "no_usable_observations",
@@ -173,7 +153,7 @@ def propose(
     acq_cfg = cfg["acquisition"]
     backend = str(surrogate_cfg.get("type", "rbf_proxy")).lower()
     best = state["best"]["objective_value"] if state["best"] else None
-    candidates = [random_point(rng, params) for _ in range(int(cfg["candidate_pool_size"]))]
+    candidates = [sample_random_point(rng, params) for _ in range(int(cfg["candidate_pool_size"]))]
 
     if backend == "rbf_proxy":
         return propose_with_proxy(
@@ -182,7 +162,7 @@ def propose(
     if backend == "gp":
         gp_min_fit_observations = max(2, int(surrogate_cfg.get("gp_min_fit_observations", 2)))
         if len(usable_obs) < gp_min_fit_observations:
-            return random_point(rng, params), {
+            return sample_random_point(rng, params), {
                 "strategy": "initial_random",
                 "surrogate_backend": None,
                 "fallback_reason": (
@@ -1039,7 +1019,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         default_rel="../_shared/schemas/search_space.schema.json",
     )
     validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
-    params = norm_space(space_cfg)
+    params = normalize_search_space(space_cfg)
 
     obj_cfg, _ = load_contract_document(root, "objective_schema")
     if not isinstance(obj_cfg, dict):
@@ -1169,7 +1149,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         root,
         cfg["paths"],
         key="ingest_schema_file",
-        legacy_key="result_schema_file",
+        removed_key="result_schema_file",
         default_rel="../_shared/schemas/ingest_payload.schema.json",
     )
 

@@ -22,7 +22,7 @@ def test_ingest_accepts_valid_payload(template_copy) -> None:
     assert status["pending"] == 0
 
 
-def test_ingest_accepts_legacy_result_schema_key_with_deprecation(template_copy) -> None:
+def test_ingest_rejects_legacy_result_schema_key(template_copy) -> None:
     cfg_path = template_copy / "bo_config.json"
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     paths = cfg.setdefault("paths", {})
@@ -40,12 +40,12 @@ def test_ingest_accepts_legacy_result_schema_key_with_deprecation(template_copy)
     path = template_copy / "examples" / "_ingest_legacy_schema_key.json"
     path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
-    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
-    assert "Deprecated config path key 'result_schema_file'" in out.stderr
-    assert "removed in v0.4.0" in out.stderr
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert "Unsupported config path key 'result_schema_file'" in out.stderr
+    assert "use 'ingest_schema_file' instead" in out.stderr
 
 
-def test_ingest_accepts_result_payload_schema_alias_with_deprecation(template_copy) -> None:
+def test_ingest_rejects_result_payload_schema_alias(template_copy) -> None:
     cfg_path = template_copy / "bo_config.json"
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     cfg["paths"]["ingest_schema_file"] = "schemas/result_payload.schema.json"
@@ -61,9 +61,9 @@ def test_ingest_accepts_result_payload_schema_alias_with_deprecation(template_co
     path = template_copy / "examples" / "_ingest_alias_schema_file.json"
     path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
-    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
-    assert "Deprecated ingest schema filename 'result_payload.schema.json'" in out.stderr
-    assert "removed in v0.4.0" in out.stderr
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert "Unsupported ingest schema filename 'result_payload.schema.json'" in out.stderr
+    assert "use 'ingest_payload.schema.json' instead" in out.stderr
 
 
 def test_ingest_rejects_schema_violation(template_copy) -> None:
@@ -273,7 +273,7 @@ def test_non_ok_penalty_does_not_affect_best_ranking(template_copy) -> None:
     assert state["best"]["objective_value"] == 0.1
 
 
-def test_non_ok_sentinel_objective_is_accepted_with_deprecation(template_copy) -> None:
+def test_non_ok_numeric_primary_objective_is_rejected(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
         "trial_id": suggestion["trial_id"],
@@ -284,9 +284,7 @@ def test_non_ok_sentinel_objective_is_accepted_with_deprecation(template_copy) -
     path = template_copy / "examples" / "_ingest_failed_sentinel.json"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    out = run_cmd(template_copy, "ingest", "--results-file", str(path))
-    assert "Deprecated" in out.stderr
-    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
-    obs = state["observations"][0]
-    assert obs["objectives"]["loss"] is None
-    assert obs["penalty_objective"] == 1e12
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert out.returncode != 0
+    assert "field=$.objectives.loss" in out.stderr
+    assert "null for non-ok status" in out.stderr

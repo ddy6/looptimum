@@ -26,9 +26,6 @@ Included files:
 - `stability-guarantees.md`: public compatibility guarantees, deprecation
   policy, and breaking-change rules for `v0.3.x` (current patch:
   `v0.3.3`)
-- `migrations/README.md`: migration policy, fixture authority, and support window
-- `migrations/template.md`: required migration spec checklist template
-- `migrations/v0.2.x-to-v0.3.0.md`: concrete state-schema migration spec
 - `feedback-loop.md`: post-release feedback intake, issue-triage workflow,
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and

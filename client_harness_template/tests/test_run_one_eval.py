@@ -83,6 +83,17 @@ def _write_non_ok_without_reason_objective(path: Path) -> None:
     )
 
 
+def _write_non_ok_with_numeric_objective(path: Path) -> None:
+    path.write_text(
+        "def evaluate(params):\n"
+        "    return {\n"
+        "        'status': 'failed',\n"
+        "        'objective': 123.0,\n"
+        "    }\n",
+        encoding="utf-8",
+    )
+
+
 def _write_objective_schema(path: Path, *, name: str, direction: str) -> None:
     payload = {
         "primary_objective": {
@@ -301,6 +312,26 @@ def test_non_ok_output_without_reason_uses_status_fallback(tmp_path: Path) -> No
     assert payload["terminal_reason"] == "status=timeout"
 
 
+def test_non_ok_output_rejects_numeric_primary_objective(tmp_path: Path) -> None:
+    suggestion = tmp_path / "suggestion.json"
+    objective = tmp_path / "objective_non_ok_numeric.py"
+    result = tmp_path / "result.json"
+    _write_suggestion(suggestion)
+    _write_non_ok_with_numeric_objective(objective)
+
+    out = _run_cmd(
+        str(suggestion),
+        str(result),
+        "--objective-module",
+        str(objective),
+        "--on-exception",
+        "raise",
+        expect_ok=False,
+    )
+    assert out.returncode != 0
+    assert "non-ok objective must be null" in out.stderr
+
+
 def test_objective_schema_name_applies_on_successful_eval(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_ok.py"
@@ -336,7 +367,7 @@ def test_trial_id_is_exported_to_objective_environment(tmp_path: Path) -> None:
     assert payload["objectives"] == {"loss": 1.0}
 
 
-def test_yaml_objective_schema_requires_compat_mode(tmp_path: Path) -> None:
+def test_yaml_objective_schema_is_rejected(tmp_path: Path) -> None:
     suggestion = tmp_path / "suggestion.json"
     objective = tmp_path / "objective_ok.py"
     schema = tmp_path / "objective_schema.yaml"
@@ -355,31 +386,7 @@ def test_yaml_objective_schema_requires_compat_mode(tmp_path: Path) -> None:
         expect_ok=False,
     )
     assert out.returncode != 0
-    assert "YAML compatibility mode is disabled" in out.stderr
-
-
-def test_legacy_yaml_objective_schema_is_supported_with_deprecation(tmp_path: Path) -> None:
-    suggestion = tmp_path / "suggestion.json"
-    objective = tmp_path / "objective_ok.py"
-    schema = tmp_path / "objective_schema.yaml"
-    result = tmp_path / "result.json"
-    _write_suggestion(suggestion)
-    _write_ok_objective(objective)
-    _write_objective_schema(schema, name="score", direction="maximize")
-
-    out = _run_cmd(
-        str(suggestion),
-        str(result),
-        "--objective-module",
-        str(objective),
-        "--objective-schema",
-        str(schema),
-        env={"LOOPTIMUM_YAML_COMPAT_MODE": "1"},
-    )
-    payload = json.loads(result.read_text(encoding="utf-8"))
-    assert payload["status"] == "ok"
-    assert payload["objectives"] == {"score": 0.123}
-    assert "YAML compatibility mode used for objective_schema.yaml" in out.stderr
+    assert "Only .json is supported" in out.stderr
 
 
 def test_executor_aws_batch_writes_canonical_ingest_payload(tmp_path: Path) -> None:

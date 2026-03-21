@@ -1,17 +1,35 @@
 from __future__ import annotations
 
+import importlib.util
 import math
+from pathlib import Path
 
 from acquisition import acquisition_score
 
+_TEMPLATE_DIR = Path(__file__).resolve().parent
+
+
+def _load_shared_module(module_name: str, filename: str):
+    module_path = _TEMPLATE_DIR.parent / "_shared" / filename
+    if not module_path.exists():
+        raise ModuleNotFoundError(
+            f"Missing shared module at {module_path}. Ensure templates/_shared is present."
+        )
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load shared module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
+
+normalized_numeric_distance = _SEARCH_SPACE.normalized_numeric_distance
+
 
 def _norm_dist(a: dict, b: dict, params: list[dict]) -> float:
-    s = 0.0
-    for p in params:
-        lo, hi = map(float, p["bounds"])
-        span = max(hi - lo, 1e-12)
-        s += ((float(a[p["name"]]) - float(b[p["name"]])) / span) ** 2
-    return math.sqrt(s)
+    return float(normalized_numeric_distance(a, b, params))
 
 
 def _predict_rbf_proxy(

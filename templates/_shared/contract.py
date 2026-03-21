@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import warnings
 from pathlib import Path
@@ -11,9 +10,6 @@ from typing import Any
 CANONICAL_STATUSES = {"ok", "failed", "killed", "timeout"}
 SUCCESS_ALIAS = "success"
 _MISSING = object()
-_YAML_COMPAT_MODE_ENV = "LOOPTIMUM_YAML_COMPAT_MODE"
-_YAML_COMPAT_ALLOWLIST_ENV = "LOOPTIMUM_YAML_COMPAT_ALLOWLIST"
-_YAML_COMPAT_REMOVAL_TARGET = "v0.4.0"
 _RESULT_SCHEMA_ALIAS = "result_payload.schema.json"
 _INGEST_SCHEMA_CANONICAL = "ingest_payload.schema.json"
 JSONDict = dict[str, Any]
@@ -30,41 +26,6 @@ def _render_value(value: Any) -> str:
 
 def _warn_deprecation(message: str) -> None:
     warnings.warn(message, UserWarning, stacklevel=2)
-
-
-def _yaml_compat_mode_enabled() -> bool:
-    raw = os.environ.get(_YAML_COMPAT_MODE_ENV, "")
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _yaml_allowlist_entries() -> set[str] | None:
-    raw = os.environ.get(_YAML_COMPAT_ALLOWLIST_ENV, "").strip()
-    if not raw:
-        return None
-    return {entry.strip().lower() for entry in raw.split(",") if entry.strip()}
-
-
-def _require_yaml_compat_mode(path: Path) -> None:
-    if not _yaml_compat_mode_enabled():
-        raise ValueError(
-            f"YAML compatibility mode is disabled for {path}. "
-            f"Use .json files (primary path), or set {_YAML_COMPAT_MODE_ENV}=1 "
-            f"for migration compatibility."
-        )
-
-    allowlist = _yaml_allowlist_entries()
-    if allowlist is None:
-        return
-
-    name = path.name.lower()
-    stem = path.stem.lower()
-    if "*" in allowlist or name in allowlist or stem in allowlist:
-        return
-    raise ValueError(
-        f"YAML compatibility allowlist blocked {path.name}. "
-        f"Add '{name}' or '{stem}' to {_YAML_COMPAT_ALLOWLIST_ENV} (comma-separated), "
-        "or use '*' to allow all YAML files."
-    )
 
 
 def _validation_error(
@@ -240,66 +201,37 @@ def load_data_file(path: Path) -> Any:
         except json.JSONDecodeError as exc:
             raise ValueError(f"Failed to parse JSON file {path}: {exc}") from exc
 
-    if suffix in {".yaml", ".yml"}:
-        _require_yaml_compat_mode(path)
-        _warn_deprecation(
-            f"YAML compatibility mode used for {path.name}. "
-            f"JSON is the primary path; YAML compatibility is scheduled for removal in "
-            f"{_YAML_COMPAT_REMOVAL_TARGET}."
-        )
-        try:
-            import yaml
-        except ModuleNotFoundError:
-            # Legacy compatibility: old .yaml files were JSON syntax in this repo.
-            try:
-                parsed = json.loads(text)
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"Failed to parse YAML file {path}. Install YAML support with "
-                    f'`pip install ".[yaml]"` (or `pip install "looptimum[yaml]"`).'
-                ) from exc
-            _warn_deprecation(
-                f"Parsed {path.name} via JSON compatibility fallback. "
-                f"Rename to .json. YAML compatibility is scheduled for removal in "
-                f"{_YAML_COMPAT_REMOVAL_TARGET}; full YAML parsing requires `.[yaml]` / "
-                "`looptimum[yaml]`."
-            )
-            return parsed
-
-        parsed = yaml.safe_load(text)
-        if parsed is None:
-            return {}
-        return parsed
-
-    raise ValueError(f"Unsupported config extension for {path}. Supported: .json, .yaml, .yml")
+    raise ValueError(
+        f"Unsupported config extension for {path}. Only .json contract files are supported."
+    )
 
 
-def resolve_contract_path(project_root: Path, stem: str) -> tuple[Path, bool]:
+def resolve_contract_path(project_root: Path, stem: str) -> Path:
     preferred = project_root / f"{stem}.json"
     if preferred.exists():
-        return preferred, False
+        return preferred
 
     legacy_yaml = project_root / f"{stem}.yaml"
     if legacy_yaml.exists():
-        return legacy_yaml, True
+        raise ValueError(
+            f"Unsupported contract file extension for '{stem}': {legacy_yaml.name}. "
+            f"Rename it to {stem}.json. Only .json contract files are supported."
+        )
 
     legacy_yml = project_root / f"{stem}.yml"
     if legacy_yml.exists():
-        return legacy_yml, True
+        raise ValueError(
+            f"Unsupported contract file extension for '{stem}': {legacy_yml.name}. "
+            f"Rename it to {stem}.json. Only .json contract files are supported."
+        )
 
     raise FileNotFoundError(
-        f"Missing required contract file for '{stem}' under {project_root}. "
-        "Expected .json (preferred) or legacy .yaml/.yml."
+        f"Missing required contract file for '{stem}' under {project_root}. Expected {stem}.json."
     )
 
 
 def load_contract_document(project_root: Path, stem: str) -> tuple[Any, Path]:
-    path, is_legacy = resolve_contract_path(project_root, stem)
-    if is_legacy:
-        _warn_deprecation(
-            f"Deprecated config extension in use: {path.name}. Rename to {stem}.json. "
-            f"YAML compatibility is scheduled for removal in {_YAML_COMPAT_REMOVAL_TARGET}."
-        )
+    path = resolve_contract_path(project_root, stem)
     return load_data_file(path), path
 
 
@@ -309,30 +241,23 @@ def load_schema_from_paths(
     *,
     key: str,
     default_rel: str,
-    legacy_key: str | None = None,
+    removed_key: str | None = None,
 ) -> tuple[JSONDict, Path]:
-    used_legacy_key = False
+    if removed_key is not None and removed_key in paths_cfg:
+        raise ValueError(f"Unsupported config path key '{removed_key}'; use '{key}' instead.")
+
     rel = paths_cfg.get(key)
-    if rel is None and legacy_key is not None and legacy_key in paths_cfg:
-        rel = paths_cfg.get(legacy_key)
-        used_legacy_key = True
     if rel is None:
         rel = default_rel
-    if used_legacy_key and legacy_key is not None:
-        _warn_deprecation(
-            f"Deprecated config path key '{legacy_key}' used; rename to '{key}'. "
-            "Compatibility alias will be removed in v0.4.0."
-        )
     schema_path = (project_root / str(rel)).resolve()
     if key == "ingest_schema_file" and schema_path.name == _RESULT_SCHEMA_ALIAS:
-        _warn_deprecation(
-            f"Deprecated ingest schema filename '{_RESULT_SCHEMA_ALIAS}' in use; "
-            f"rename to '{_INGEST_SCHEMA_CANONICAL}'. Compatibility alias will be removed in "
-            "v0.4.0."
+        raise ValueError(
+            f"Unsupported ingest schema filename '{_RESULT_SCHEMA_ALIAS}'; "
+            f"use '{_INGEST_SCHEMA_CANONICAL}' instead."
         )
     schema = load_data_file(schema_path)
     if not isinstance(schema, dict):
-        raise ValueError(f"Schema file must contain a JSON/YAML object: {schema_path}")
+        raise ValueError(f"Schema file must contain a JSON object: {schema_path}")
     return schema, schema_path
 
 
@@ -456,7 +381,6 @@ def _normalize_primary_objective(
     status: str,
     source_path: Path,
     trial_id: int | None,
-    emit_transition_warnings: bool,
 ) -> tuple[JSONDict, float | None]:
     objectives = payload.get("objectives")
     if not isinstance(objectives, dict):
@@ -512,23 +436,13 @@ def _normalize_primary_objective(
     if primary_value is None:
         return normalized_objectives, normalized_penalty
 
-    # Transition compatibility path for v0.1 sentinel objective payloads.
-    sentinel_value = _require_number(
-        primary_value,
+    raise _validation_error(
         source_path=source_path,
         field_path=f"$.objectives.{objective_name}",
+        expected="null for non-ok status; use penalty_objective for numeric penalty",
         trial_id=trial_id,
+        received=primary_value,
     )
-    if normalized_penalty is None:
-        normalized_penalty = sentinel_value
-    if emit_transition_warnings:
-        _warn_deprecation(
-            f"Deprecated failure objective payload for trial_id={trial_id}: "
-            f"status='{status}' with numeric primary objective. "
-            "Use primary objective null and optional penalty_objective. "
-            "Sentinel support is planned for removal in v0.4.0."
-        )
-    return normalized_objectives, normalized_penalty
 
 
 def normalize_ingest_payload(
@@ -562,7 +476,6 @@ def normalize_ingest_payload(
         status=status,
         source_path=source_path,
         trial_id=trial_id,
-        emit_transition_warnings=True,
     )
     terminal_reason = _normalize_terminal_reason(
         payload=normalized,
@@ -609,7 +522,6 @@ def build_observation_contract(observation: JSONDict, *, objective_name: str) ->
         status=status,
         source_path=Path("<state>"),
         trial_id=trial_id,
-        emit_transition_warnings=False,
     )
     terminal_reason = _normalize_terminal_reason(
         payload=payload_like,

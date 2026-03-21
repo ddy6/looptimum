@@ -11,16 +11,23 @@ CANONICAL_FILES = (
     "search_space.schema.json",
     "suggestion_payload.schema.json",
 )
+FEATURE_FLAG_KEYS = (
+    "enable_botorch_gp",
+    "fallback_to_proxy_if_unavailable",
+    "enable_service_api_preview",
+    "enable_dashboard_preview",
+    "enable_auth_preview",
+)
 
 
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_template_schema_dirs_include_canonical_and_alias_files() -> None:
+def test_template_schema_dirs_include_canonical_files_only() -> None:
     for template in TEMPLATES:
         schema_dir = REPO_ROOT / "templates" / template / "schemas"
-        for name in (*CANONICAL_FILES, "result_payload.schema.json"):
+        for name in CANONICAL_FILES:
             assert (schema_dir / name).exists(), f"missing {schema_dir / name}"
 
 
@@ -33,16 +40,13 @@ def test_template_canonical_schema_files_match_shared_content() -> None:
             assert _load_json(schema_dir / name) == shared[name]
 
 
-def test_result_payload_alias_schema_matches_ingest_shape_with_deprecation_note() -> None:
+def test_template_bo_configs_share_feature_flag_shape() -> None:
     for template in TEMPLATES:
-        schema_dir = REPO_ROOT / "templates" / template / "schemas"
-        alias = _load_json(schema_dir / "result_payload.schema.json")
-        ingest = _load_json(schema_dir / "ingest_payload.schema.json")
-
-        assert alias["required"] == ingest["required"]
-        assert alias["properties"] == ingest["properties"]
-        assert alias.get("x-deprecated-alias-for") == "ingest_payload.schema.json"
-
-        description = alias.get("description")
-        assert isinstance(description, str)
-        assert "Scheduled for removal in v0.4.0" in description
+        cfg_path = REPO_ROOT / "templates" / template / "bo_config.json"
+        cfg = _load_json(cfg_path)
+        flags = cfg.get("feature_flags")
+        assert isinstance(flags, dict), f"missing feature_flags in {cfg_path}"
+        assert tuple(flags.keys()) == FEATURE_FLAG_KEYS
+        assert flags["enable_service_api_preview"] is False
+        assert flags["enable_dashboard_preview"] is False
+        assert flags["enable_auth_preview"] is False

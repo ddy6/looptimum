@@ -232,8 +232,6 @@ If valid:
 Schema path note:
 
 - canonical config key is `paths.ingest_schema_file`
-- legacy `paths.result_schema_file` is still accepted with a deprecation warning
-  and is scheduled for removal in `v0.4.0`
 
 ## Lifecycle and Runtime Ops
 
@@ -318,10 +316,8 @@ Use `intake.md` to capture this precisely.
 
 Objective direction is configured in `objective_schema.json` in your chosen template.
 
-For `client_harness_template/run_one_eval.py --objective-schema`, `.json` is
-preferred; legacy `.yaml`/`.yml` objective schema files require compatibility
-mode (`LOOPTIMUM_YAML_COMPAT_MODE=1`, optional allowlist via
-`LOOPTIMUM_YAML_COMPAT_ALLOWLIST`) and emit deprecation warnings.
+For `client_harness_template/run_one_eval.py --objective-schema`, use the JSON
+contract file `objective_schema.json`.
 
 Examples:
 
@@ -351,11 +347,7 @@ can continue and the failure is recorded.
 
 Compatibility note (legacy `v0.2.x` payloads):
 
-- Legacy sentinel payloads for non-`ok` statuses are still accepted and
-  normalized to `objective: null` + `penalty_objective`.
 - Legacy `failure_reason` is accepted and normalized to `terminal_reason`.
-- Ingest emits a deprecation warning for this path.
-- Sentinel primary objective compatibility is planned for removal in `v0.4.0`.
 
 ### Common Failure Modes
 

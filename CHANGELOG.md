@@ -108,7 +108,7 @@ establishes the `v0.3.x` baseline.
   `ok`.
 - Legacy non-`ok` numeric primary-objective sentinel payloads remain
   compatibility-only and warn.
-- Legacy `paths.result_schema_file` and YAML compatibility-mode paths remain
+- Legacy ingest-schema path aliases and YAML compatibility-mode paths remain
   warn-only compatibility behavior with documented `v0.4.0` removal target.
 
 ### Compatibility Notes
@@ -117,10 +117,6 @@ establishes the `v0.3.x` baseline.
 - Legacy `v0.2.x` (or missing-version) state auto-upgrades in-memory and
   persists on next mutating command.
 - Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
-
-### Migration
-
-- Canonical migration spec: `docs/migrations/v0.2.x-to-v0.3.0.md`.
 
 ## [0.2.9] - 2026-03-06
 
@@ -223,7 +219,7 @@ and type-safety hardening.
 - Type-safety policy doc and contributor guidance:
   `docs/type-safety.md`, `CONTRIBUTING.md`.
 - Dev dependency typing support for gate consistency:
-  `mypy`, `types-PyYAML`.
+  `mypy` plus temporary YAML typing support during the compatibility period.
 
 ### Changed
 
@@ -287,13 +283,12 @@ consistency completion.
 
 ### Changed
 
-- YAML contract loading is now explicit compatibility mode via
-  `LOOPTIMUM_YAML_COMPAT_MODE=1` (optional allowlist:
-  `LOOPTIMUM_YAML_COMPAT_ALLOWLIST`) with deprecation/removal target messaging.
-- Legacy `paths.result_schema_file` compatibility remains warn-only in `v0.3.x`
+- YAML contract loading moved behind explicit compatibility-mode gating with
+  deprecation/removal target messaging.
+- Legacy ingest-schema compatibility remains warn-only in `v0.3.x`
   transition flow and now includes removal target (`v0.4.0`) in warnings.
-- Template-local `result_payload.schema.json` is now a documented compatibility
-  alias aligned to canonical ingest schema content (scheduled removal: `v0.4.0`).
+- Template-local ingest-schema compatibility aliases were documented for the
+  transition period (scheduled removal: `v0.4.0`).
 - Quickstart/docs now emphasize the canonical JSON happy path and note that the
   default clean flow runs without compatibility warnings.
 
@@ -309,10 +304,6 @@ hardening and migration readiness.
 
 ### Added
 
-- Migration documentation set:
-  `docs/migrations/README.md`,
-  `docs/migrations/template.md`,
-  `docs/migrations/v0.2.x-to-v0.3.0.md`.
 - Canonical state-version fixture set for compatibility testing:
   `tests/fixtures/state_versions/`.
 - Cross-template state-version compatibility and upgrade-path tests:

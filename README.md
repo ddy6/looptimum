@@ -287,9 +287,6 @@ Best ranking rule:
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
   to `0.3.0` and persists on next mutating command.
 - Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
-- Migration policy/specs:
-  [`docs/migrations/README.md`](docs/migrations/README.md),
-  [`docs/migrations/v0.2.x-to-v0.3.0.md`](docs/migrations/v0.2.x-to-v0.3.0.md).
 
 ### Stability Promise (`v0.3.x`)
 
@@ -297,7 +294,7 @@ Best ranking rule:
   flags, ingest required fields/status vocabulary, and core state-file
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
-  example `0.3 -> 0.4`) and require migration notes.
+  example `0.3 -> 0.4`) and require explicit compatibility notes.
 - Current patch tag in this line: `v0.3.3` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 

@@ -27,8 +27,16 @@ use:
 
 - canonical: `ingest_payload.schema.json`, `search_space.schema.json`,
   `suggestion_payload.schema.json`
-- temporary compatibility alias: `result_payload.schema.json`
-  (scheduled removal: `v0.4.0`)
+
+Template-local `bo_config.json` files now share a common `feature_flags`
+scaffold:
+
+- active today: `enable_botorch_gp`,
+  `fallback_to_proxy_if_unavailable` (`bo_client_full` only)
+- reserved no-op preview flags:
+  `enable_service_api_preview`,
+  `enable_dashboard_preview`,
+  `enable_auth_preview`
 
 To vendor shared contract helpers/schemas into a standalone template copy:
 

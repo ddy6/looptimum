@@ -24,7 +24,7 @@ DEFAULT_MAX_PENDING_AGE_SECONDS = 86400.0
 _ATOMIC_FAIL_BASENAME_ENV = "LOOPTIMUM_TEST_ATOMIC_FAIL_BASENAME"
 STATE_SCHEMA_VERSION = "0.3.0"
 STATE_SCHEMA_SERIES = (0, 3)
-STATE_MIGRATION_DOC_RELATIVE_PATH = "docs/migrations/v0.2.x-to-v0.3.0.md"
+STATE_COMPATIBILITY_DOC_RELATIVE_PATH = "docs/stability-guarantees.md"
 _STATE_SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 _STATE_SCHEMA_UPGRADE_FLAG = "_looptimum_schema_upgrade_pending"
 _WARNED_LEGACY_STATE_KEYS: set[str] = set()
@@ -69,7 +69,7 @@ def _warn_legacy_state_once(state_path: Path, *, legacy_version: str | None) -> 
         "LEGACY STATE SCHEMA DETECTED: "
         f"{state_path} has {version_label}. Upgrading in-memory to schema_version={STATE_SCHEMA_VERSION!r} "
         "and persisting on the next mutating command. "
-        f"Migration notes: {STATE_MIGRATION_DOC_RELATIVE_PATH}",
+        f"Compatibility notes: {STATE_COMPATIBILITY_DOC_RELATIVE_PATH}",
         UserWarning,
         stacklevel=3,
     )
@@ -99,7 +99,7 @@ def normalize_state_schema_version(state: dict[str, Any], *, state_path: Path) -
     raise ValueError(
         f"Unsupported state.schema_version '{normalized}'. "
         f"This runtime supports only {STATE_SCHEMA_SERIES[0]}.{STATE_SCHEMA_SERIES[1]}.x state versions. "
-        f"See migration notes: {STATE_MIGRATION_DOC_RELATIVE_PATH}"
+        f"See compatibility notes: {STATE_COMPATIBILITY_DOC_RELATIVE_PATH}"
     )
 
 

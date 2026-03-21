@@ -16,6 +16,13 @@
     "kappa": 1.8,
     "xi": 0.01
   },
+  "feature_flags": {
+    "enable_botorch_gp": false,
+    "fallback_to_proxy_if_unavailable": true,
+    "enable_service_api_preview": false,
+    "enable_dashboard_preview": false,
+    "enable_auth_preview": false
+  },
   "batch_size": 1,
   "stopping": {
     "min_improvement": 0.0001,

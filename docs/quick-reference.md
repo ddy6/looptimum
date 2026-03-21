@@ -86,15 +86,13 @@ Default file-backed artifacts under each template's `state/` path:
 - interruption recovery runbook:
   [`recovery-playbook.md`](./recovery-playbook.md).
 
-## Compatibility and Migration
+## Compatibility
 
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) is upgraded
   in-memory and persisted on the next mutating command.
 - earlier `v0.3.x` state is required to load transparently in `v0.3.x`.
 - deprecation and compatibility policy:
   [`stability-guarantees.md`](./stability-guarantees.md).
-- migration docs index and specs:
-  [`migrations/README.md`](./migrations/README.md).
 
 ## Reproducibility and Trust Anchors
 
