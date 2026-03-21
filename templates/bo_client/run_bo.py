@@ -72,7 +72,6 @@ STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
 
 normalize_search_space = _SEARCH_SPACE.normalize_search_space
 sample_random_point = _SEARCH_SPACE.sample_random_point
-surrogate_numeric_only_capability_gap = _SEARCH_SPACE.surrogate_numeric_only_capability_gap
 
 
 def load_cfg(path: Path) -> JSONDict:
@@ -149,14 +148,6 @@ def propose(
             "surrogate_backend": None,
             "fallback_reason": "no_usable_observations",
         }
-    capability_gap = surrogate_numeric_only_capability_gap(params)
-    if capability_gap is not None:
-        decision: JSONDict = {
-            "strategy": "initial_random",
-            "surrogate_backend": None,
-        }
-        decision.update(capability_gap)
-        return sample_random_point(rng, params), decision
 
     surrogate_cfg = cfg["surrogate"]
     acq_cfg = cfg["acquisition"]

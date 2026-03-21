@@ -143,19 +143,6 @@ def _normalize_categorical_param(idx: int, name: str, param: JSONDict) -> JSONDi
     }
 
 
-def _runtime_numeric_param(param: JSONDict, *, context: str) -> None:
-    param_type = str(param.get("type"))
-    if param_type not in _NUMERIC_PARAMETER_TYPES:
-        raise ValueError(
-            f"Parameter '{param.get('name')}' uses type '{param_type}', which is not supported by {context} yet"
-        )
-    scale = str(param.get("scale", "linear"))
-    if scale != "linear":
-        raise ValueError(
-            f"Parameter '{param.get('name')}' uses scale '{scale}', which is not supported by {context} yet"
-        )
-
-
 def _sample_log_scaled_value(
     rng: random.Random, lo: int | float, hi: int | float, param_type: str
 ) -> int | float:
@@ -163,6 +150,84 @@ def _sample_log_scaled_value(
     if param_type == "int":
         return min(int(hi), max(int(lo), int(round(sampled))))
     return sampled
+
+
+def _clamp_unit_interval(value: float) -> float:
+    return min(1.0, max(0.0, value))
+
+
+def _require_supported_choice(value: Any, *, param_name: str) -> str:
+    if isinstance(value, str) or _is_finite_number(value):
+        return _choice_key(value)
+    raise ValueError(
+        f"Parameter '{param_name}' must use a string or finite number categorical value"
+    )
+
+
+def _normalize_numeric_value(value: Any, param: JSONDict) -> float:
+    param_name = str(param["name"])
+    param_type = str(param["type"])
+    if param_type == "int":
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not float(value).is_integer()
+        ):
+            raise ValueError(f"Parameter '{param_name}' must use an integer value")
+        numeric_value = float(value)
+    elif param_type == "float":
+        if not _is_finite_number(value):
+            raise ValueError(f"Parameter '{param_name}' must use a finite numeric value")
+        numeric_value = float(value)
+    else:  # pragma: no cover - guarded by callers
+        raise ValueError(f"Unsupported numeric parameter type: {param_type}")
+
+    lo, hi = map(float, param["bounds"])
+    scale = str(param.get("scale", "linear"))
+    if scale == "linear":
+        span = hi - lo
+        if abs(span) < 1e-12:
+            return 0.0
+        return _clamp_unit_interval((numeric_value - lo) / span)
+    if scale == "log":
+        if numeric_value <= 0.0:
+            raise ValueError(f"Parameter '{param_name}' must be strictly positive for log scale")
+        log_lo = math.log(lo)
+        log_hi = math.log(hi)
+        span = log_hi - log_lo
+        if abs(span) < 1e-12:
+            return 0.0
+        return _clamp_unit_interval((math.log(numeric_value) - log_lo) / span)
+    raise ValueError(f"Unsupported numeric scale: {scale}")
+
+
+def _denormalize_numeric_value(value: float, param: JSONDict) -> int | float:
+    lo, hi = map(float, param["bounds"])
+    unit = _clamp_unit_interval(float(value))
+    scale = str(param.get("scale", "linear"))
+    if scale == "linear":
+        raw_value = lo if abs(hi - lo) < 1e-12 else lo + unit * (hi - lo)
+    elif scale == "log":
+        log_lo = math.log(lo)
+        log_hi = math.log(hi)
+        raw_value = (
+            lo if abs(log_hi - log_lo) < 1e-12 else math.exp(log_lo + unit * (log_hi - log_lo))
+        )
+    else:  # pragma: no cover - guarded by normalize_search_space
+        raise ValueError(f"Unsupported numeric scale: {scale}")
+    if str(param["type"]) == "int":
+        return min(int(hi), max(int(lo), int(round(raw_value))))
+    return float(raw_value)
+
+
+def _categorical_choice_index(value: Any, param: JSONDict) -> int:
+    rendered = _require_supported_choice(value, param_name=str(param["name"]))
+    for idx, choice in enumerate(param["choices"]):
+        if _choice_key(choice) == rendered:
+            return idx
+    raise ValueError(
+        f"Parameter '{param['name']}' must use one of the configured categorical choices"
+    )
 
 
 def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
@@ -205,27 +270,6 @@ def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
     return out
 
 
-def surrogate_numeric_only_capability_gap(params: list[JSONDict]) -> JSONDict | None:
-    for param in params:
-        param_name = str(param.get("name"))
-        param_type = str(param.get("type"))
-        if param_type not in _NUMERIC_PARAMETER_TYPES:
-            return {
-                "fallback_reason": "search_space_requires_workstream1_model_encoding",
-                "fallback_param": param_name,
-                "fallback_param_type": param_type,
-            }
-        scale = str(param.get("scale", "linear"))
-        if scale != "linear":
-            return {
-                "fallback_reason": "search_space_requires_workstream1_model_encoding",
-                "fallback_param": param_name,
-                "fallback_param_type": param_type,
-                "fallback_param_scale": scale,
-            }
-    return None
-
-
 def sample_random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
     out: JSONDict = {}
     for param in params:
@@ -259,30 +303,65 @@ def sample_random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
 
 
 def normalized_numeric_distance(a: JSONDict, b: JSONDict, params: list[JSONDict]) -> float:
-    total = 0.0
-    for param in params:
-        _runtime_numeric_param(param, context="numeric distance scoring")
-        lo, hi = map(float, param["bounds"])
-        span = max(hi - lo, 1e-12)
-        total += ((float(a[param["name"]]) - float(b[param["name"]])) / span) ** 2
+    encoded_a = normalize_numeric_point(a, params)
+    encoded_b = normalize_numeric_point(b, params)
+    total = sum((left - right) ** 2 for left, right in zip(encoded_a, encoded_b))
     return math.sqrt(total)
 
 
 def normalize_numeric_point(vec: JSONDict, params: list[JSONDict]) -> list[float]:
     out: list[float] = []
     for param in params:
-        _runtime_numeric_param(param, context="numeric vector normalization")
-        lo, hi = map(float, param["bounds"])
-        span = max(hi - lo, 1e-12)
-        out.append((float(vec[param["name"]]) - lo) / span)
+        param_name = str(param["name"])
+        param_type = str(param["type"])
+        value = vec[param_name]
+        if param_type in _NUMERIC_PARAMETER_TYPES:
+            out.append(_normalize_numeric_value(value, param))
+        elif param_type == "bool":
+            if not isinstance(value, bool):
+                raise ValueError(f"Parameter '{param_name}' must use a boolean value")
+            out.append(1.0 if value else 0.0)
+        elif param_type == "categorical":
+            active_idx = _categorical_choice_index(value, param)
+            for idx in range(len(param["choices"])):
+                out.append(1.0 if idx == active_idx else 0.0)
+        else:  # pragma: no cover - guarded by normalize_search_space
+            raise ValueError(f"Unsupported parameter type: {param_type}")
     return out
 
 
 def denormalize_numeric_point(vals: list[float], params: list[JSONDict]) -> JSONDict:
     out: JSONDict = {}
-    for idx, param in enumerate(params):
-        _runtime_numeric_param(param, context="numeric vector denormalization")
-        lo, hi = map(float, param["bounds"])
-        value = lo + float(vals[idx]) * (hi - lo)
-        out[param["name"]] = int(round(value)) if param["type"] == "int" else float(value)
+    offset = 0
+    for param in params:
+        param_name = str(param["name"])
+        param_type = str(param["type"])
+        encoded_size = int(param.get("encoded_size", 1))
+        if param_type in _NUMERIC_PARAMETER_TYPES:
+            if offset >= len(vals):
+                raise ValueError(
+                    "Encoded vector shorter than expected for numeric parameter decode"
+                )
+            out[param_name] = _denormalize_numeric_value(float(vals[offset]), param)
+            offset += 1
+        elif param_type == "bool":
+            if offset >= len(vals):
+                raise ValueError(
+                    "Encoded vector shorter than expected for boolean parameter decode"
+                )
+            out[param_name] = _clamp_unit_interval(float(vals[offset])) >= 0.5
+            offset += 1
+        elif param_type == "categorical":
+            segment = [float(value) for value in vals[offset : offset + encoded_size]]
+            if len(segment) != encoded_size:
+                raise ValueError(
+                    "Encoded vector shorter than expected for categorical parameter decode"
+                )
+            best_idx = max(range(encoded_size), key=segment.__getitem__)
+            out[param_name] = param["choices"][best_idx]
+            offset += encoded_size
+        else:  # pragma: no cover - guarded by normalize_search_space
+            raise ValueError(f"Unsupported parameter type: {param_type}")
+    if offset != len(vals):
+        raise ValueError("Encoded vector longer than expected for parameter decode")
     return out

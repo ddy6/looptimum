@@ -73,7 +73,6 @@ sample_random_point = _SEARCH_SPACE.sample_random_point
 normalized_numeric_distance = _SEARCH_SPACE.normalized_numeric_distance
 normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
 denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
-surrogate_numeric_only_capability_gap = _SEARCH_SPACE.surrogate_numeric_only_capability_gap
 
 
 def load_cfg(path: Path) -> dict:
@@ -292,14 +291,6 @@ def propose(
             "surrogate_backend": None,
             "fallback_reason": "no_usable_observations",
         }
-    capability_gap = surrogate_numeric_only_capability_gap(params)
-    if capability_gap is not None:
-        decision = {
-            "strategy": "initial_random",
-            "surrogate_backend": None,
-        }
-        decision.update(capability_gap)
-        return sample_random_point(rng, params), decision
 
     if use_botorch_backend(args, cfg):
         surrogate_cfg = cfg.get("surrogate", {})

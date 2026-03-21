@@ -116,7 +116,7 @@ def test_deterministic_first_suggestion_under_fixed_seed(
     assert first["params"] == second["params"]
 
 
-def test_suggest_supports_mixed_search_space_and_defers_surrogate_scoring(
+def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     template_copy: Path, tmp_path: Path
 ) -> None:
     src = Path(__file__).resolve().parents[1]
@@ -179,11 +179,10 @@ def test_suggest_supports_mixed_search_space_and_defers_surrogate_scoring(
     assert next_suggestion["params"]["optimizer"] in {"adam", "sgd", "rmsprop"}
 
     decision = _latest_decision(template_copy)
-    assert decision["strategy"] == "initial_random"
-    assert decision["fallback_reason"] == "search_space_requires_workstream1_model_encoding"
-    assert decision["fallback_param"] == "lr"
-    assert decision["fallback_param_type"] == "float"
-    assert decision["fallback_param_scale"] == "log"
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert isinstance(decision["predicted_mean"], float)
+    assert isinstance(decision["predicted_std"], float)
+    assert isinstance(decision["acquisition_score"], float)
 
 
 def test_suggest_then_ingest(template_copy: Path) -> None:

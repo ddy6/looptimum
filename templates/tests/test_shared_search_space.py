@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import random
 from pathlib import Path
 
@@ -151,24 +152,59 @@ def test_random_sampling_supports_mixed_parameter_types_and_preserves_raw_values
     assert first["optimizer"] in {"adam", "sgd"}
 
 
-def test_surrogate_numeric_only_capability_gap_flags_deferred_modeling_shapes() -> None:
-    linear_numeric = SEARCH_SPACE.normalize_search_space(
-        {"parameters": [{"name": "x", "type": "float", "bounds": [0.0, 1.0]}]}
-    )
-    assert SEARCH_SPACE.surrogate_numeric_only_capability_gap(linear_numeric) is None
-
-    mixed = SEARCH_SPACE.normalize_search_space(
+def test_mixed_encoding_round_trips_raw_values() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
         {
             "parameters": [
-                {"name": "lr", "type": "float", "bounds": [0.001, 0.1], "scale": "log"},
-                {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd"]},
+                {"name": "lr", "type": "float", "bounds": [0.001, 1.0], "scale": "log"},
+                {"name": "layers", "type": "int", "bounds": [1, 9]},
+                {"name": "use_bn", "type": "bool"},
+                {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd", "rmsprop"]},
             ]
         }
     )
-
-    assert SEARCH_SPACE.surrogate_numeric_only_capability_gap(mixed) == {
-        "fallback_reason": "search_space_requires_workstream1_model_encoding",
-        "fallback_param": "lr",
-        "fallback_param_type": "float",
-        "fallback_param_scale": "log",
+    point = {
+        "lr": 0.03162277660168379,
+        "layers": 5,
+        "use_bn": True,
+        "optimizer": "sgd",
     }
+
+    encoded = SEARCH_SPACE.normalize_numeric_point(point, params)
+    assert encoded == pytest.approx([0.5, 0.5, 1.0, 0.0, 1.0, 0.0])
+
+    decoded = SEARCH_SPACE.denormalize_numeric_point(encoded, params)
+    assert decoded["lr"] == pytest.approx(point["lr"])
+    assert decoded["layers"] == point["layers"]
+    assert decoded["use_bn"] is point["use_bn"]
+    assert decoded["optimizer"] == point["optimizer"]
+
+
+def test_mixed_distance_uses_encoded_representation() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
+        {
+            "parameters": [
+                {"name": "lr", "type": "float", "bounds": [0.001, 1.0], "scale": "log"},
+                {"name": "layers", "type": "int", "bounds": [1, 9]},
+                {"name": "use_bn", "type": "bool"},
+                {"name": "optimizer", "type": "categorical", "choices": ["adam", "sgd", "rmsprop"]},
+            ]
+        }
+    )
+    first = {
+        "lr": 0.03162277660168379,
+        "layers": 5,
+        "use_bn": True,
+        "optimizer": "sgd",
+    }
+    second = {
+        "lr": 0.03162277660168379,
+        "layers": 5,
+        "use_bn": False,
+        "optimizer": "adam",
+    }
+
+    assert SEARCH_SPACE.normalized_numeric_distance(first, first, params) == pytest.approx(0.0)
+    assert SEARCH_SPACE.normalized_numeric_distance(first, second, params) == pytest.approx(
+        math.sqrt(3.0)
+    )

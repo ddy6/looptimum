@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -116,7 +118,7 @@ def test_deterministic_first_suggestion_under_fixed_seed(
     assert first["params"] == second["params"]
 
 
-def test_suggest_supports_mixed_search_space_and_defers_surrogate_scoring(
+def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     template_copy: Path, tmp_path: Path
 ) -> None:
     src = Path(__file__).resolve().parents[1]
@@ -179,12 +181,11 @@ def test_suggest_supports_mixed_search_space_and_defers_surrogate_scoring(
     assert next_suggestion["params"]["optimizer"] in {"adam", "sgd", "rmsprop"}
 
     decision = _latest_decision(template_copy)
-    assert decision["strategy"] == "initial_random"
-    assert decision["surrogate_backend"] is None
-    assert decision["fallback_reason"] == "search_space_requires_workstream1_model_encoding"
-    assert decision["fallback_param"] == "lr"
-    assert decision["fallback_param_type"] == "float"
-    assert decision["fallback_param_scale"] == "log"
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+    assert isinstance(decision["predicted_mean"], float)
+    assert isinstance(decision["predicted_std"], float)
+    assert isinstance(decision["acquisition_score"], float)
 
 
 def test_suggest_then_ingest(template_copy: Path) -> None:
@@ -476,6 +477,43 @@ def test_botorch_backend_falls_back_when_usable_observations_insufficient(
     assert decision["strategy"] == "initial_random"
     assert decision["surrogate_backend"] is None
     assert decision["fallback_reason"].startswith("insufficient_usable_observations_for_botorch_gp")
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_GP_TESTS") != "1" or importlib.util.find_spec("botorch") is None,
+    reason="set RUN_GP_TESTS=1 and install botorch to run BoTorch backend tests",
+)
+def test_suggest_supports_mixed_search_space_with_botorch_backend(template_copy: Path) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_mixed_parameter_space(), indent=2), encoding="utf-8"
+    )
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["initial_random_trials"] = 2
+    cfg["feature_flags"]["enable_botorch_gp"] = True
+    cfg["surrogate"]["botorch_min_fit_observations"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    for idx in range(2):
+        suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+        payload = {
+            "trial_id": suggestion["trial_id"],
+            "params": suggestion["params"],
+            "objectives": {"loss": 0.4 - 0.05 * idx},
+            "status": "ok",
+        }
+        path = template_copy / "examples" / "_mixed_botorch_seed.json"
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["trial_id"] == 3
+    assert isinstance(suggestion["params"]["use_bn"], bool)
+    assert suggestion["params"]["optimizer"] in {"adam", "sgd", "rmsprop"}
+
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "botorch_gp"
 
 
 def test_resume_restores_state_and_trial_ids(template_copy: Path) -> None:

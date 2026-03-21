@@ -83,7 +83,7 @@ def test_deterministic_first_suggestion_under_fixed_seed(template_copy, tmp_path
     assert first["params"] == second["params"]
 
 
-def test_suggest_supports_mixed_search_space_and_defers_surrogate_scoring(
+def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     template_copy, tmp_path
 ) -> None:
     src = Path(__file__).resolve().parents[1]
@@ -146,12 +146,11 @@ def test_suggest_supports_mixed_search_space_and_defers_surrogate_scoring(
     assert next_suggestion["params"]["optimizer"] in {"adam", "sgd", "rmsprop"}
 
     decision = _latest_decision(template_copy)
-    assert decision["strategy"] == "initial_random"
-    assert decision["surrogate_backend"] is None
-    assert decision["fallback_reason"] == "search_space_requires_workstream1_model_encoding"
-    assert decision["fallback_param"] == "lr"
-    assert decision["fallback_param_type"] == "float"
-    assert decision["fallback_param_scale"] == "log"
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+    assert isinstance(decision["predicted_mean"], float)
+    assert isinstance(decision["predicted_std"], float)
+    assert isinstance(decision["acquisition_score"], float)
 
 
 def test_suggest_surrogate_falls_back_with_only_non_ok_observations(template_copy) -> None:
@@ -239,6 +238,42 @@ def test_gp_backend_falls_back_when_usable_observations_insufficient(template_co
     assert decision["strategy"] == "initial_random"
     assert decision["surrogate_backend"] is None
     assert decision["fallback_reason"].startswith("insufficient_usable_observations_for_gp")
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_GP_TESTS") != "1" or importlib.util.find_spec("botorch") is None,
+    reason="set RUN_GP_TESTS=1 and install botorch to run GP backend tests",
+)
+def test_suggest_supports_mixed_search_space_with_gp_backend(template_copy) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_mixed_parameter_space(), indent=2), encoding="utf-8"
+    )
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["surrogate"]["type"] = "gp"
+    cfg["initial_random_trials"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    for idx in range(2):
+        suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+        result = {
+            "trial_id": suggestion["trial_id"],
+            "params": suggestion["params"],
+            "objectives": {"loss": 0.4 - 0.05 * idx},
+            "status": "ok",
+        }
+        path = template_copy / "examples" / "_mixed_gp_seed_result.json"
+        path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["trial_id"] == 3
+    assert isinstance(suggestion["params"]["use_bn"], bool)
+    assert suggestion["params"]["optimizer"] in {"adam", "sgd", "rmsprop"}
+
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "gp"
 
 
 @pytest.mark.skipif(
