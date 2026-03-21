@@ -78,6 +78,21 @@ def _mixed_parameter_space() -> dict:
     }
 
 
+def _conditional_parameter_space() -> dict:
+    return {
+        "parameters": [
+            {
+                "name": "momentum",
+                "type": "float",
+                "bounds": [0.0, 0.99],
+                "when": {"gate": 1},
+            },
+            {"name": "x", "type": "float", "bounds": [0.0, 1.0]},
+            {"name": "gate", "type": "int", "bounds": [0, 1]},
+        ]
+    }
+
+
 def test_status_initial(template_copy: Path) -> None:
     out = run_cmd(template_copy, "status")
     payload = json.loads(out.stdout)
@@ -186,6 +201,80 @@ def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     assert isinstance(decision["predicted_mean"], float)
     assert isinstance(decision["predicted_std"], float)
     assert isinstance(decision["acquisition_score"], float)
+
+
+def test_suggest_supports_conditional_param_activation_and_omission(
+    template_copy: Path, tmp_path: Path
+) -> None:
+    src = Path(__file__).resolve().parents[1]
+    active_copy = tmp_path / "template_active"
+    subprocess.run(["cp", "-R", str(src), str(active_copy)], check=True)
+    shared_src = src.parent / "_shared"
+    if shared_src.exists() and not (tmp_path / "_shared").exists():
+        subprocess.run(["cp", "-R", str(shared_src), str(tmp_path / "_shared")], check=True)
+    for p in [
+        active_copy / "state" / "bo_state.json",
+        active_copy / "state" / "observations.csv",
+        active_copy / "state" / "acquisition_log.jsonl",
+        active_copy / "state" / "event_log.jsonl",
+        active_copy / "state" / ".looptimum.lock",
+        active_copy / "state" / "report.json",
+        active_copy / "state" / "report.md",
+        active_copy / "examples" / "_demo_result.json",
+    ]:
+        if p.exists():
+            p.unlink()
+    trials_dir = active_copy / "state" / "trials"
+    if trials_dir.exists():
+        shutil.rmtree(trials_dir)
+
+    for project_root, seed in [(template_copy, 0), (active_copy, 4)]:
+        (project_root / "parameter_space.json").write_text(
+            json.dumps(_conditional_parameter_space(), indent=2), encoding="utf-8"
+        )
+        cfg_path = project_root / "bo_config.json"
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        cfg["initial_random_trials"] = 1
+        cfg["seed"] = seed
+        cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    inactive = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert inactive["params"]["gate"] == 0
+    assert set(inactive["params"]) == {"gate", "x"}
+    assert "momentum" not in inactive["params"]
+    inactive_state = json.loads(
+        (template_copy / "state" / "bo_state.json").read_text(encoding="utf-8")
+    )
+    assert inactive_state["pending"][0]["params"] == inactive["params"]
+
+    active = _parse_suggestion(run_cmd(active_copy, "suggest").stdout)
+    assert active["params"]["gate"] == 1
+    assert set(active["params"]) == {"gate", "momentum", "x"}
+    assert 0.0 <= active["params"]["momentum"] <= 0.99
+
+    result = {
+        "trial_id": inactive["trial_id"],
+        "params": inactive["params"],
+        "objectives": {"loss": 0.3},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_conditional_seed_result.json"
+    result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    next_suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert next_suggestion["trial_id"] == 2
+    assert next_suggestion["params"]["gate"] in {0, 1}
+    if next_suggestion["params"]["gate"] == 0:
+        assert set(next_suggestion["params"]) == {"gate", "x"}
+        assert "momentum" not in next_suggestion["params"]
+    else:
+        assert set(next_suggestion["params"]) == {"gate", "momentum", "x"}
+        assert 0.0 <= next_suggestion["params"]["momentum"] <= 0.99
+
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
 
 
 def test_suggest_then_ingest(template_copy: Path) -> None:

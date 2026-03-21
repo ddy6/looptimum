@@ -378,6 +378,34 @@ def _validate_when_dependencies(params: list[JSONDict]) -> None:
         visit(param_name)
 
 
+def _ordered_parameters(params: list[JSONDict]) -> list[JSONDict]:
+    by_name = {str(param["name"]): param for param in params}
+    ordered: list[JSONDict] = []
+    visit_state: dict[str, int] = {}
+
+    def visit(name: str) -> None:
+        state = visit_state.get(name, 0)
+        if state == 2:
+            return
+        if state == 1:
+            raise ValueError(
+                f"parameter_space conditional dependency cycle during ordering at '{name}'"
+            )
+
+        visit_state[name] = 1
+        param = by_name[name]
+        when = param.get("when")
+        if isinstance(when, dict):
+            for controller_name in when:
+                visit(str(controller_name))
+        ordered.append(param)
+        visit_state[name] = 2
+
+    for param in params:
+        visit(str(param["name"]))
+    return ordered
+
+
 def normalize_search_space(space_cfg: JSONDict) -> list[JSONDict]:
     params = space_cfg.get("parameters", [])
     if not params:
@@ -436,22 +464,28 @@ def is_parameter_active(param: JSONDict, values: JSONDict) -> bool:
 
 
 def active_parameters(params: list[JSONDict], values: JSONDict) -> list[JSONDict]:
-    return [param for param in params if is_parameter_active(param, values)]
+    return [param for param in _ordered_parameters(params) if is_parameter_active(param, values)]
 
 
 def omit_inactive_params(values: JSONDict, params: list[JSONDict]) -> JSONDict:
     out: JSONDict = {}
-    for param in params:
+    for param in _ordered_parameters(params):
         param_name = str(param["name"])
         if param_name in values and is_parameter_active(param, values):
             out[param_name] = values[param_name]
     return out
 
 
+def _inactive_encoded_segment(param: JSONDict) -> list[float]:
+    return [0.0] * int(param.get("encoded_size", 1))
+
+
 def sample_random_point(rng: random.Random, params: list[JSONDict]) -> JSONDict:
     out: JSONDict = {}
-    for param in params:
+    for param in _ordered_parameters(params):
         param_name = str(param["name"])
+        if not is_parameter_active(param, out):
+            continue
         param_type = str(param["type"])
         if param_type in _NUMERIC_PARAMETER_TYPES:
             lo, hi = param["bounds"]
@@ -489,8 +523,11 @@ def normalized_numeric_distance(a: JSONDict, b: JSONDict, params: list[JSONDict]
 
 def normalize_numeric_point(vec: JSONDict, params: list[JSONDict]) -> list[float]:
     out: list[float] = []
-    for param in params:
+    for param in _ordered_parameters(params):
         param_name = str(param["name"])
+        if not is_parameter_active(param, vec):
+            out.extend(_inactive_encoded_segment(param))
+            continue
         param_type = str(param["type"])
         value = vec[param_name]
         if param_type in _NUMERIC_PARAMETER_TYPES:
@@ -511,10 +548,13 @@ def normalize_numeric_point(vec: JSONDict, params: list[JSONDict]) -> list[float
 def denormalize_numeric_point(vals: list[float], params: list[JSONDict]) -> JSONDict:
     out: JSONDict = {}
     offset = 0
-    for param in params:
+    for param in _ordered_parameters(params):
         param_name = str(param["name"])
         param_type = str(param["type"])
         encoded_size = int(param.get("encoded_size", 1))
+        if not is_parameter_active(param, out):
+            offset += encoded_size
+            continue
         if param_type in _NUMERIC_PARAMETER_TYPES:
             if offset >= len(vals):
                 raise ValueError(

@@ -21,10 +21,10 @@ Note: historical audit for `v0.2.0`; current patch release tag is `v0.3.2`.
 Validated locally on 2026-03-04:
 
 ```bash
-.venv/bin/ruff format --check .
-.venv/bin/ruff check .
+python -m ruff format --check .
+python -m ruff check .
 python3 scripts/check_internal_links.py
-.venv/bin/pytest -q templates client_harness_template/tests
+python -m pytest -q templates client_harness_template/tests
 python3 scripts/release_smoke.py
 ```
 

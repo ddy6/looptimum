@@ -159,6 +159,34 @@ def test_normalize_search_space_accepts_conditional_descriptors_and_active_helpe
     ) == {"optimizer": "adam"}
 
 
+def test_conditional_sampling_omits_inactive_params_and_orders_dependencies() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
+        {
+            "parameters": [
+                {
+                    "name": "momentum",
+                    "type": "float",
+                    "bounds": [0.0, 0.99],
+                    "when": {"gate": 1},
+                },
+                {"name": "gate", "type": "int", "bounds": [0, 1]},
+                {"name": "x", "type": "float", "bounds": [0.0, 1.0]},
+            ]
+        }
+    )
+
+    inactive_point = SEARCH_SPACE.sample_random_point(random.Random(1), params)
+    active_point = SEARCH_SPACE.sample_random_point(random.Random(5), params)
+
+    assert list(inactive_point.keys()) == ["gate", "x"]
+    assert inactive_point["gate"] == 0
+    assert "momentum" not in inactive_point
+
+    assert list(active_point.keys()) == ["gate", "momentum", "x"]
+    assert active_point["gate"] == 1
+    assert 0.0 <= active_point["momentum"] <= 0.99
+
+
 @pytest.mark.parametrize(
     ("cfg", "pattern"),
     [
@@ -262,6 +290,35 @@ def test_random_sampling_supports_mixed_parameter_types_and_preserves_raw_values
     assert 0.001 <= first["lr"] <= 0.1
     assert isinstance(first["use_bn"], bool)
     assert first["optimizer"] in {"adam", "sgd"}
+
+
+def test_conditional_encoding_round_trips_with_omitted_inactive_params() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
+        {
+            "parameters": [
+                {
+                    "name": "momentum",
+                    "type": "float",
+                    "bounds": [0.0, 0.99],
+                    "when": {"gate": 1},
+                },
+                {"name": "gate", "type": "int", "bounds": [0, 1]},
+                {"name": "x", "type": "float", "bounds": [0.0, 1.0]},
+            ]
+        }
+    )
+
+    inactive_point = {"gate": 0, "x": 0.25}
+    inactive_encoded = SEARCH_SPACE.normalize_numeric_point(inactive_point, params)
+    assert inactive_encoded == pytest.approx([0.0, 0.0, 0.25])
+    assert SEARCH_SPACE.denormalize_numeric_point(inactive_encoded, params) == inactive_point
+
+    active_point = {"gate": 1, "momentum": 0.5, "x": 0.25}
+    active_encoded = SEARCH_SPACE.normalize_numeric_point(active_point, params)
+    assert active_encoded == pytest.approx([1.0, 0.5050505050505051, 0.25])
+    assert SEARCH_SPACE.denormalize_numeric_point(active_encoded, params) == pytest.approx(
+        active_point
+    )
 
 
 def test_mixed_encoding_round_trips_raw_values() -> None:

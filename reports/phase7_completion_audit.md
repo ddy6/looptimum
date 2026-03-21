@@ -63,9 +63,9 @@ Validated on 2026-03-04:
 
 ```bash
 python3 scripts/check_internal_links.py
-.venv/bin/ruff format --check .
-.venv/bin/ruff check .
-.venv/bin/pytest -q templates client_harness_template/tests
+python -m ruff format --check .
+python -m ruff check .
+python -m pytest -q templates client_harness_template/tests
 python3 -m py_compile \
   client_harness_template/run_one_eval.py \
   scripts/check_internal_links.py \

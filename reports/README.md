@@ -23,7 +23,7 @@ Status as of 2026-03-08:
   - Feature A: terminal-reason contract wiring (`terminal_reason`, legacy `failure_reason` alias, deterministic fallback reason).
   - Feature B: campaign `reset` command with default archive-before-cleanup and explicit confirmation safeguards.
 - Phases 0-10 complete
-- Phase 10 validation baseline passed (`python3 scripts/check_internal_links.py --paths README.md docs quickstart`; `python3 scripts/check_docs_consistency.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `.venv/bin/ruff check .`; `.venv/bin/ruff format --check .`; `.venv/bin/mypy`; `.venv/bin/pytest -q templates client_harness_template/tests` -> `168 passed, 1 skipped`; `python3 scripts/release_smoke.py`)
+- Phase 10 validation baseline passed (`python3 scripts/check_internal_links.py --paths README.md docs quickstart`; `python3 scripts/check_docs_consistency.py`; `python3 scripts/check_ci_playbook_sync.py`; `python3 scripts/check_benchmark_sanity.py`; `python -m ruff check .`; `python -m ruff format --check .`; `python -m mypy`; `python -m pytest -q templates client_harness_template/tests` -> `168 passed, 1 skipped`; `python3 scripts/release_smoke.py`)
 - Phase 6 trust-building assets shipped (tiny objective, evaluator stubs, golden decision trace sample, CLI transcript, case-study gallery)
 - Phase 6 follow-on hardening shipped (deterministic golden-log regeneration + golden artifact contract tests)
 - Phase 7 closed with contract-critical parity tests across demo/default/full template tiers
