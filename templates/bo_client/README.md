@@ -10,6 +10,7 @@ surrogate backend, and restartable JSON state.
 - `bo_config.json`: run budget, surrogate/acquisition choices, shared
   `feature_flags`, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
+- `constraints.json` (optional): hard-feasibility rules for `suggest`.
 - `objective_schema.json`: objective direction and failure policy.
 - `experiment_interface.md`: async experiment I/O contract.
 - `examples/`: sample success/failure result payloads and runnable command sequence.
@@ -33,6 +34,9 @@ surrogate backend, and restartable JSON state.
   validates the primary objective value.
 - Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
   `state/trials/trial_<id>/manifest.json`, and explicit `report` outputs.
+- Acquisition decisions now include backend labels and feasibility metadata in
+  `state/acquisition_log.jsonl`; all-infeasible constrained attempts are logged
+  before `suggest` exits nonzero.
 
 ## Surrogate Selection
 

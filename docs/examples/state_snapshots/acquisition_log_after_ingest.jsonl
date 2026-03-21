@@ -1,1 +1,1 @@
-{"trial_id": 1, "decision": {"strategy": "initial_random"}, "timestamp": 1772049465.584159}
+{"trial_id": 1, "decision": {"strategy": "initial_random", "surrogate_backend": null, "constraint_status": {"enabled": false, "phase": "initial-random", "requested": 1, "accepted": 1, "attempted": 1, "rejected": 0, "feasible_ratio": 1.0, "reject_counts": {}, "warning": null}}, "timestamp": 1772049465.584159}

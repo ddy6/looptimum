@@ -1,0 +1,19 @@
+{
+  "forbidden_combinations": [
+    {
+      "when": {
+        "optimizer": "sgd",
+        "use_bn": true
+      }
+    },
+    {
+      "when": {
+        "scheduler": [
+          "cosine",
+          "one_cycle"
+        ],
+        "warmup_steps": 0
+      }
+    }
+  ]
+}

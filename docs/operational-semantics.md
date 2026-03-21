@@ -10,6 +10,7 @@ Canonical contract files are JSON:
 - `bo_config.json`
 - `parameter_space.json`
 - `objective_schema.json`
+- `constraints.json` (optional)
 
 Schema path compatibility:
 
@@ -52,23 +53,27 @@ State schema versioning rule:
 
 `suggest` performs these steps:
 
-1. Load config, parameter space, objective schema, and state.
+1. Load config, parameter space, objective schema, optional constraints, and state.
 2. Initialize `state.meta.seed` from config if unset.
 3. Acquire exclusive lock for mutation.
 4. Optionally auto-retire stale pending trials (based on `max_pending_age_seconds`).
 5. Check budget using `observations + pending`.
 6. Generate candidate parameters and decision metadata.
-7. Append a pending trial and increment `next_trial_id`.
-8. Write/update trial manifest for pending trial.
-9. Append one JSON line to `acquisition_log.jsonl`.
-10. Append lifecycle events to `event_log.jsonl`.
-11. Persist updated state with atomic write.
-12. Print suggestion JSON.
+7. If all sampled attempts are infeasible, append a failure decision to
+   `acquisition_log.jsonl` and exit nonzero without creating pending state.
+8. On success, append a pending trial and increment `next_trial_id`.
+9. Write/update trial manifest for the pending trial.
+10. Append one JSON line to `acquisition_log.jsonl`.
+11. Append lifecycle events to `event_log.jsonl`.
+12. Persist updated state with atomic write.
+13. Print suggestion JSON.
 
 Important implications:
 
 - `suggest` is not idempotent; repeated calls usually produce new pending trials.
 - If budget is exhausted, no pending trial is created.
+- If constraints eliminate all sampled attempts, no pending trial is created and
+  the failed decision is still logged for audit/debugging.
 - Automatic stale retirement is conservative and age-based; it records terminal
   `killed` observations with a stale-retire reason.
 
@@ -161,6 +166,8 @@ It does not mutate state.
 ### `validate`
 
 - `validate` checks config/schema/state consistency and basic corruption.
+- when `constraints.json` is present, `validate` also performs semantic
+  constraint normalization checks
 - Hard failures return non-zero exit.
 - Warnings are informational with exit 0 unless `--strict`.
 
@@ -208,7 +215,9 @@ Recovery model:
 - If process exits, next command resumes from `bo_state.json`.
 - `observations.csv` can be regenerated from canonical observations in state.
 - `acquisition_log.jsonl` may contain events not represented in state if a
-  crash happens after log append but before state save.
+  `suggest` attempt was logged but produced no pending trial (for example an
+  all-infeasible constrained attempt), or if a crash happens after log append
+  but before state save.
 - `event_log.jsonl` provides additional lifecycle trace context but is not
   authoritative state.
 - Per-trial manifests in `state/trials/` are audit helpers and can be rebuilt

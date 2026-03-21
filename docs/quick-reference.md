@@ -15,7 +15,7 @@ Stable command names and required flag posture are documented in
 ## Core Loop Contract
 
 1. `suggest`: emits one trial proposal (`trial_id`, `params`, `suggested_at`,
-   `schema_version`) and records pending state.
+   `schema_version`) and records pending state on success.
 2. evaluator: runs externally using `params`; Looptimum does not execute your
    workload.
 3. `ingest`: validates trial identity and payload shape, then clears pending
@@ -23,12 +23,21 @@ Stable command names and required flag posture are documented in
 4. `status`: reports run headline state (`observations`, `pending`, `best`,
    `next_trial_id`, and related metadata).
 
+Optional hard-feasibility contract:
+
+- `constraints.json`: validated by `validate` and enforced by `suggest`
+
 ## `suggest` Output (Canonical Fields)
 
 - `schema_version`: semver string emitted by runtime
 - `trial_id`: unique integer identifier in run scope
 - `params`: exact parameter payload for external evaluation
 - `suggested_at`: suggestion timestamp
+
+Constraint note:
+
+- if constraints eliminate all sampled attempts, `suggest` exits nonzero,
+  creates no pending trial, and records the failure in `acquisition_log.jsonl`
 
 ## `ingest` Payload Contract
 
@@ -85,6 +94,11 @@ Default file-backed artifacts under each template's `state/` path:
   `retire`.
 - interruption recovery runbook:
   [`recovery-playbook.md`](./recovery-playbook.md).
+
+Constraint pointers:
+
+- `search-space.md`: parameter types, `scale`, and `when`
+- `constraints.md`: hard-constraint DSL and troubleshooting
 
 ## Compatibility
 

@@ -1,0 +1,33 @@
+{
+  "bound_tightening": [
+    {
+      "param": "lr",
+      "min": 0.0003,
+      "max": 0.03
+    }
+  ],
+  "linear_inequalities": [
+    {
+      "terms": [
+        {
+          "param": "depth",
+          "coefficient": 1.0
+        },
+        {
+          "param": "width",
+          "coefficient": 0.01
+        }
+      ],
+      "operator": "<=",
+      "rhs": 18.0
+    }
+  ],
+  "forbidden_combinations": [
+    {
+      "when": {
+        "optimizer": "sgd",
+        "use_bn": true
+      }
+    }
+  ]
+}

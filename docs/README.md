@@ -30,6 +30,8 @@ Included files:
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and
   multi-objective boundaries
+- `constraints.md`: hard-constraint contract semantics, troubleshooting, and
+  example authoring guidance
 - `decision-trace.md`: acquisition log schema and decision metadata guidance
 - `pilot-checklist.md`: intake-to-execution checklist and responsibility
   alignment for pilot runs
@@ -46,6 +48,7 @@ Reference artifacts:
 - `examples/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`
+- `examples/constraints/README.md`
 - `../quickstart/etl-pipeline-knob-tuning.md`
 - `../examples/toy_objectives/03_tiny_quadratic_loop/README.md`
 - `../benchmarks/README.md`

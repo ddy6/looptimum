@@ -7,6 +7,12 @@ This folder holds Phase 6 trust-building decision-trace artifacts:
 - `cli_transcript.md`: text transcript of `suggest -> evaluate -> ingest -> status`
 - `regenerate_golden_log.sh`: one-command regeneration script for the golden log
 
+Current sample characteristics:
+
+- warmup and surrogate-acquisition records
+- explicit `surrogate_backend` on every record
+- nested `constraint_status` metadata on every record
+
 These artifacts are integration/audit references, not benchmark claims.
 
 Note:

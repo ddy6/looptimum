@@ -15,6 +15,7 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
   `enable_botorch_gp` and `fallback_to_proxy_if_unavailable` are active in this
   template today
 - `parameter_space.json`: typed parameter bounds
+- `constraints.json` (optional): hard-feasibility rules for `suggest`
 - `objective_schema.json`: objective direction and handling
 - `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
   `search_space`, `suggestion_payload`)
@@ -36,6 +37,8 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
 - preview flags in `feature_flags` are reserved scaffolding and no-op in the
   current file-backed runtime.
 - Acquisition logs record selected backend and fallback reason when applicable.
+- Constrained decisions also record feasibility metadata; all-infeasible
+  attempts are logged before `suggest` exits nonzero.
 - Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
   wait+timeout behavior and optional `--fail-fast`.
 - Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in

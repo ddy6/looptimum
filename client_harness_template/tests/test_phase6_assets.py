@@ -27,7 +27,18 @@ def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
         assert row["timestamp"] == 1_700_000_000.0 + float(idx)
         decision = row["decision"]
         assert isinstance(decision, dict)
+        assert "constraint_status" in decision
+        status = decision["constraint_status"]
+        assert status["enabled"] is False
+        assert status["warning"] is None
+        assert status["reject_counts"] == {}
         strategies.append(str(decision["strategy"]))
+        if idx <= 6:
+            assert decision["surrogate_backend"] is None
+            assert status["phase"] == "initial-random"
+        else:
+            assert decision["surrogate_backend"] == "rbf_proxy"
+            assert status["phase"] == "candidate-pool"
 
     assert strategies[:6] == ["initial_random"] * 6
     assert all(strategy == "surrogate_acquisition" for strategy in strategies[6:])

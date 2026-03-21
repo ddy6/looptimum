@@ -9,6 +9,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 - `bo_config.json`: budget, surrogate/acquisition, shared `feature_flags`,
   seed, paths
 - `parameter_space.json`: typed parameter bounds
+- `constraints.json` (optional): hard-feasibility rules for `suggest`
 - `objective_schema.json`: objective direction and handling
 - `experiment_interface.md`: async I/O contract
 - `examples/`: sample success/failure payloads and run script
@@ -27,6 +28,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   wait+timeout behavior and optional `--fail-fast`.
 - Runtime artifacts include `state/event_log.jsonl` and per-trial manifests in
   `state/trials/trial_<id>/manifest.json`.
+- Acquisition decisions include `surrogate_backend` and feasibility metadata in
+  `state/acquisition_log.jsonl`.
 
 ## Example Payloads
 

@@ -1,0 +1,32 @@
+{
+  "linear_inequalities": [
+    {
+      "terms": [
+        {
+          "param": "x1",
+          "coefficient": 1.0
+        },
+        {
+          "param": "x2",
+          "coefficient": 1.0
+        }
+      ],
+      "operator": "<=",
+      "rhs": 1.1
+    },
+    {
+      "terms": [
+        {
+          "param": "x2",
+          "coefficient": 2.0
+        },
+        {
+          "param": "x3",
+          "coefficient": -1.0
+        }
+      ],
+      "operator": ">=",
+      "rhs": 0.0
+    }
+  ]
+}

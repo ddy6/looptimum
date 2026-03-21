@@ -407,6 +407,29 @@ See:
 - `docs/examples/state_snapshots/` (includes both `ok` and non-`ok`
   ingest examples)
 
+## Optional Hard Constraints
+
+If your campaign has true feasibility rules, add an optional
+`constraints.json` next to the other contract files.
+
+Current behavior:
+
+- `validate` checks both schema shape and semantic consistency
+- `suggest` enforces constraints during warmup and surrogate candidate-pool
+  generation
+- partial feasible-pool collapse produces a warning on `stderr`
+- all-infeasible attempts fail clearly, create no pending trial, and write a
+  failure decision to `acquisition_log.jsonl`
+
+Use `constraints.json` only for hard feasibility. Keep soft tradeoffs in the
+scalar objective or evaluator-side penalty logic.
+
+References:
+
+- `docs/constraints.md`
+- `docs/examples/constraints/README.md`
+- `docs/decision-trace.md`
+
 ## Reproducibility: Seeds and Determinism Boundaries
 
 What is designed to be reproducible:

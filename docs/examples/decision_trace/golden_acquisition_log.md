@@ -1,7 +1,8 @@
 # Golden Acquisition Log (Deterministic Sample)
 
 This sample provides a compact decision-trace file with warmup and
-surrogate-acquisition records.
+surrogate-acquisition records using the current decision shape, including
+`surrogate_backend` and `constraint_status`.
 
 File:
 
@@ -37,6 +38,8 @@ Generation context:
 1. Records `trial_id=1..6` are warmup (`strategy: "initial_random"`).
 2. Records `trial_id=7..8` are surrogate scoring
    (`strategy: "surrogate_acquisition"` with UCB fields).
+3. All records show `constraint_status.enabled: false` because this sample is
+   unconstrained.
 
 ## Field Annotations
 
@@ -51,12 +54,26 @@ Top-level fields per line:
 - `strategy`:
   - `initial_random` during warmup window
   - `surrogate_acquisition` after warmup
+- `surrogate_backend`:
+  - `null` during warmup in this sample
+  - `rbf_proxy` during surrogate acquisition in this sample
 - `acquisition_type`: heuristic used in acquisition mode (`ucb` here)
 - `predicted_mean`: surrogate mean estimate for candidate
 - `predicted_std`: uncertainty proxy for candidate
 - `acquisition_score`: ranking score used to pick emitted candidate
+- `constraint_status`: nested feasibility metadata for the sampling phase
+
+`constraint_status` fields in this sample:
+
+- `enabled`: `false`
+- `phase`: `initial-random` or `candidate-pool`
+- `requested`, `accepted`, `attempted`, `rejected`, `feasible_ratio`:
+  feasibility counters for that phase
+- `reject_counts`: empty here because no constraints were active
+- `warning`: `null` here because no constrained pool collapse occurred
 
 ## Usage
 
 Use this file to validate parser expectations, audit-log ingestion paths, and
-human debugging workflows against a stable, known-good sample.
+human debugging workflows against a stable, known-good sample of the current
+decision object format.

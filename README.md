@@ -393,6 +393,7 @@ feedback source of truth).
 - `docs/type-safety.md`
 - `docs/feedback-loop.md`
 - `docs/search-space.md`
+- `docs/constraints.md`
 - `docs/decision-trace.md`
 - `docs/pilot-checklist.md`
 - `docs/faq.md`

@@ -34,6 +34,7 @@ For full command sequences and resume behavior:
 - [Stability Guarantees](./stability-guarantees.md)
 - [Feedback Loop](./feedback-loop.md)
 - [Search Space Contract](./search-space.md)
+- [Constraints Contract](./constraints.md)
 - [Decision Trace](./decision-trace.md)
 - [Pilot Checklist](./pilot-checklist.md)
 - [FAQ](./faq.md)
@@ -44,6 +45,7 @@ For full command sequences and resume behavior:
 ## Integration Assets
 
 - [Docs Examples](./examples/README.md)
+- [Constraints Examples](./examples/constraints/README.md)
 - [State Snapshot References](./examples/state_snapshots/README.md)
 - [Decision-Trace References](./examples/decision_trace/README.md)
 - [Benchmark Evidence Index](../benchmarks/README.md)

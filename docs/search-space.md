@@ -1,115 +1,178 @@
 # Search Space Contract
 
-This document defines search-space support in current public templates and the
-boundaries you should plan around during integration.
+This document defines the current search-space support in public templates.
 
-## Current Support (All Public Templates)
+## Current Support
 
-Current default template implementations support:
+All public templates currently support:
 
 - `float` parameters with numeric bounds
 - `int` parameters with numeric bounds
+- `bool` parameters
+- `categorical` parameters with explicit `choices`
+- numeric `scale` values of `linear` or `log`
+- optional conditional activation via `when`
 
-Expected parameter entry shape:
+The canonical contract file is `parameter_space.json`.
+
+## Parameter Shapes
+
+### Numeric
 
 ```json
 {
-  "name": "x1",
+  "name": "lr",
   "type": "float",
-  "bounds": [0.0, 1.0],
-  "description": "Optional human-readable note"
+  "bounds": [0.0001, 0.1],
+  "scale": "log"
 }
 ```
 
-`name`, `type`, and `bounds` are required for runtime sampling behavior.
+Numeric notes:
+
+- `float` and `int` require `bounds`
+- `scale` defaults to `linear`
+- `scale: "log"` requires strictly positive bounds
+
+### Boolean
+
+```json
+{
+  "name": "use_bn",
+  "type": "bool"
+}
+```
+
+### Categorical
+
+```json
+{
+  "name": "optimizer",
+  "type": "categorical",
+  "choices": ["adam", "sgd", "rmsprop"]
+}
+```
+
+### Conditional
+
+```json
+{
+  "name": "momentum",
+  "type": "float",
+  "bounds": [0.0, 0.99],
+  "when": {
+    "optimizer": "sgd"
+  }
+}
+```
+
+Conditional notes:
+
+- inactive params are omitted from suggestion payloads and persisted state
+- `when` matches raw controller values, not encoded model vectors
+- current controllers for `when` should be `bool`, `int`, or `categorical`
 
 ## Sampling Semantics
 
 ### `float`
 
-- Sampled uniformly between lower and upper bounds.
-- Bounds are interpreted on a linear scale.
+- `linear`: uniform over the declared bounds
+- `log`: log-uniform over strictly positive bounds
 
 ### `int`
 
-- Sampled with inclusive integer bounds.
-- Values are whole-number candidates only.
+- `linear`: inclusive integer sampling
+- `log`: log-scaled sampling followed by integer projection
 
-## Log-Scale Parameters
+### `bool`
 
-Native log-scale parameter types are not currently implemented.
+- sampled as `true` / `false`
 
-Pragmatic workaround:
+### `categorical`
 
-- Define a linear parameter in log-space (example: `log10_lr` in `[-5, -1]`).
-- Convert inside your evaluator (`lr = 10 ** log10_lr`) before running.
-- Record both transformed and raw values in your own artifacts if needed.
+- sampled from the declared `choices`
 
-## Categorical and Conditional Parameters
+### `when`
 
-Current status:
+- inactive dependent params are not emitted in `suggest`
+- ingest canonicalization ignores inactive known fields for duplicate/pending
+  matching
 
-- Categorical parameters: not natively sampled by default `run_bo.py`.
-- Conditional parameters: not natively modeled.
+## Modeling Representation
 
-Recommended approach today:
+User-facing and state-authoritative artifacts keep raw parameter values.
 
-- Start with a numeric subset (`float`/`int`) for first pilot.
-- Add template extension logic for category encoding or conditional activation
-  when required by your use case.
+Internal model-facing representation:
+
+- numeric params use scalar encoding
+- bool params use binary numeric encoding
+- categorical params use one-hot encoding
+- inactive conditional branches contribute zeroed encoded segments
+
+This keeps logs, state, CSVs, and evaluator payloads readable while preserving
+a stable numeric representation for proxy, GP, and BoTorch paths.
 
 ## Constraints and Invalid Regions
 
-Native hard-constraint solving is not currently built into default templates.
+Base parameter bounds are still the first line of defense.
 
-Hard callout:
+Optional hard constraints are defined in a separate `constraints.json`
+contract:
 
-- No native hard-constraint solver in `v0.2.x`/`v0.3.x`; use bounds + penalty + failure policy.
+- `bound_tightening`
+- `linear_inequalities`
+- `forbidden_combinations`
 
-Current integration pattern:
+Hard-constraint behavior:
 
-1. Keep bounds as first-line constraints.
-2. Use scalar penalties for soft constraints and tradeoff pressure.
-3. Detect invalid/non-evaluable combinations in evaluator/runtime.
-4. Return a failure payload with clear status and policy-aligned objective
-   representation.
+- enforced during warmup and surrogate candidate-pool generation
+- can reduce the feasible pool with a warning
+- can hard-fail `suggest` if all sampled attempts are infeasible
 
-This keeps behavior explicit and auditable for pilot workflows.
-See `docs/how-it-works.md` for pathologies and deterministic-boundary guidance.
+Soft-constraint behavior is not built into acquisition scoring today.
+
+For soft preferences or tradeoff pressure:
+
+- shape the scalar objective directly
+- use explicit penalties in evaluator output
+- reserve `constraints.json` for true feasibility rules
+
+See `docs/constraints.md` for rule details and troubleshooting guidance.
 
 ## Multi-Objective Handling
 
-Current templates optimize one primary objective.
+Current public templates still optimize one primary objective.
 
 Details:
 
-- Primary objective is configured in `objective_schema.json`.
-- Best-so-far tracking uses only that primary objective.
-- Additional metrics/objectives can still be stored externally for analysis.
+- primary objective is configured in `objective_schema.json`
+- best-so-far tracking uses only that primary objective
+- additional metrics can still be recorded outside the core contract
 
-If your problem is multi-objective, define and document scalarization before
-running a pilot.
+If your problem is multi-objective, plan the scalarization policy explicitly.
 
 ## Reproducibility Guidance
 
 To keep optimization traces reproducible:
 
-- Keep parameter names stable across runs.
-- Keep bounds and parameter order stable within a campaign.
-- Version control changes to parameter definitions before new runs.
-- Avoid changing units mid-campaign; if needed, start a new campaign.
+- keep parameter names stable within a campaign
+- keep bounds, choices, `scale`, and `when` logic stable within a campaign
+- version control all search-space and constraint changes
+- avoid changing units or semantic meaning mid-campaign
 
 ## Practical Pilot Pattern
 
-For first implementation:
+For an initial campaign:
 
-1. Choose 2-20 high-leverage numeric parameters.
-2. Use clear, bounded ranges based on known safe operation.
-3. Document invalid regions and failure handling in intake artifacts.
-4. Expand only after one stable end-to-end cycle.
+1. Start with 2-20 high-leverage parameters.
+2. Keep hard feasibility in bounds + `constraints.json`.
+3. Keep soft preferences in the objective, not in the constraint contract.
+4. Add conditional branches only when they reflect real evaluator structure.
+5. Expand complexity only after one stable end-to-end loop.
 
-Related docs:
+## Related Docs
 
-- `docs/integration-guide.md`
+- `docs/constraints.md`
+- `docs/how-it-works.md`
 - `docs/operational-semantics.md`
-- `intake.md`
+- `docs/decision-trace.md`

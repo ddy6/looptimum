@@ -84,14 +84,25 @@ Alternatives (brief):
 
 ## Constraints and Failure Policy
 
-> No native hard-constraint solver in `v0.2.x`/`v0.3.x`; use bounds + penalty + failure policy.
+Current public templates support optional hard feasibility filtering through
+`constraints.json`.
 
-Sanctioned pattern:
+Current posture:
 
-1. Bounds for always-invalid regions.
-2. Penalty shaping for soft constraints and tradeoff pressure.
-3. Explicit fail-fast policy for non-evaluable regions (ingest non-`ok` with
-   contract-consistent payload semantics).
+1. Bounds and `constraints.json` are the hard-feasibility layer.
+2. Soft constraints still belong in scalar objective shaping, not in
+   acquisition scoring.
+3. Non-evaluable regions can still use explicit fail-fast ingest policy
+   (`status != "ok"`) when feasibility depends on evaluator-time information.
+
+Operational implications:
+
+- constraints can narrow warmup and surrogate candidate pools before a
+  suggestion is emitted
+- if constraints reduce but do not eliminate the feasible pool, `suggest`
+  succeeds and emits a warning on `stderr`
+- if constraints eliminate all sampled attempts, `suggest` exits nonzero and
+  records the failure reason in `acquisition_log.jsonl`
 
 ## Known Pathologies and Failure Modes
 
@@ -99,7 +110,8 @@ Sanctioned pattern:
 |---|---|---|
 | High-dimensional space with weak structure | Candidate pool under-covers useful regions | Tighten bounds, reduce active dimensions, increase budget carefully |
 | Heavy objective noise | Ranking instability and churn near top candidates | Use median-of-k default with re-eval budget policy |
-| Conditional/discontinuous spaces | Surrogate assumptions degrade | Encode safe bounds, use explicit penalties/fail-fast policy |
+| Conditional/discontinuous spaces | Surrogate assumptions degrade | Keep controller structure explicit with `when`; use hard constraints only for true feasibility |
+| Constraints eliminate all sampled attempts | `suggest` exits nonzero without creating pending state | Inspect `constraint_error_reason` and dominant `reject_counts`; loosen impossible rules before retrying |
 | Optional GP dependency/runtime variance | Behavior shifts by dependency stack | Prefer proxy baseline unless GP benefits are validated in your environment |
 | Frequent evaluator failures/timeouts | Effective trial budget collapses | Strengthen failure policy, improve evaluator reliability, tune penalty policy |
 
@@ -141,3 +153,4 @@ Proxy-scoring note:
 - `docs/operational-semantics.md`
 - `docs/decision-trace.md`
 - `docs/search-space.md`
+- `docs/constraints.md`

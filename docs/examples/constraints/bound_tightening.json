@@ -1,0 +1,13 @@
+{
+  "bound_tightening": [
+    {
+      "param": "x1",
+      "min": 0.2,
+      "max": 0.8
+    },
+    {
+      "param": "workers",
+      "min": 2
+    }
+  ]
+}
