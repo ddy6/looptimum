@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Callable
 from typing import Any, cast
 
 JSONDict = dict[str, Any]
@@ -451,3 +452,94 @@ def accumulate_reject_counts(counts: JSONDict, evaluation: JSONDict) -> JSONDict
     for rule_id, count in cast(JSONDict, evaluation.get("reject_counts", {})).items():
         updated[str(rule_id)] = int(updated.get(str(rule_id), 0)) + int(count)
     return updated
+
+
+def apply_bound_tightening(params: list[JSONDict], constraints: JSONDict | None) -> list[JSONDict]:
+    if not constraints:
+        return params
+
+    tightened_bounds: dict[str, tuple[int | float | None, int | float | None]] = {}
+    for rule in cast(list[JSONDict], constraints.get("bound_tightening", [])):
+        param_name = str(rule["param"])
+        current_min, current_max = tightened_bounds.get(param_name, (None, None))
+        if "min" in rule:
+            next_min = cast(int | float, rule["min"])
+            current_min = next_min if current_min is None else max(current_min, next_min)
+        if "max" in rule:
+            next_max = cast(int | float, rule["max"])
+            current_max = next_max if current_max is None else min(current_max, next_max)
+        tightened_bounds[param_name] = (current_min, current_max)
+
+    tightened_params: list[JSONDict] = []
+    for param in params:
+        param_name = str(param["name"])
+        if param_name not in tightened_bounds or str(param["type"]) not in _NUMERIC_PARAMETER_TYPES:
+            tightened_params.append(param)
+            continue
+
+        bound_min, bound_max = tightened_bounds[param_name]
+        raw_lo, raw_hi = cast(list[int | float], param["bounds"])
+        lo = raw_lo if bound_min is None else bound_min
+        hi = raw_hi if bound_max is None else bound_max
+
+        if str(param["type"]) == "int":
+            narrowed_bounds: list[int | float] = [int(lo), int(hi)]
+        else:
+            narrowed_bounds = [float(lo), float(hi)]
+
+        if narrowed_bounds == list(param["bounds"]):
+            tightened_params.append(param)
+            continue
+
+        tightened = dict(param)
+        tightened["bounds"] = narrowed_bounds
+        tightened_params.append(tightened)
+    return tightened_params
+
+
+def sample_feasible_candidates(
+    sample_candidate: Callable[[], JSONDict],
+    constraints: JSONDict | None,
+    *,
+    target_count: int,
+    max_attempts: int,
+) -> JSONDict:
+    if target_count <= 0:
+        raise ValueError("target_count must be >= 1")
+    if max_attempts <= 0:
+        raise ValueError("max_attempts must be >= 1")
+
+    feasible: list[JSONDict] = []
+    attempts = 0
+    reject_counts: JSONDict = {}
+
+    while len(feasible) < target_count and attempts < max_attempts:
+        attempts += 1
+        candidate = sample_candidate()
+        if not constraints:
+            feasible.append(candidate)
+            continue
+
+        evaluation = evaluate_constraints(candidate, constraints)
+        if bool(evaluation["feasible"]):
+            feasible.append(candidate)
+            continue
+        reject_counts = accumulate_reject_counts(reject_counts, evaluation)
+
+    return {
+        "candidates": feasible,
+        "attempts": attempts,
+        "infeasible_attempts": attempts - len(feasible),
+        "reject_counts": reject_counts,
+    }
+
+
+def format_reject_summary(reject_counts: JSONDict, *, limit: int = 3) -> str:
+    if not reject_counts:
+        return "none"
+
+    ranked = sorted(
+        ((str(rule_id), int(count)) for rule_id, count in reject_counts.items()),
+        key=lambda item: (-item[1], item[0]),
+    )
+    return ", ".join(f"{rule_id}={count}" for rule_id, count in ranked[: max(1, limit)])

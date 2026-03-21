@@ -50,6 +50,10 @@ def _conditional_parameter_space() -> dict:
     }
 
 
+def _write_constraints(project_root: Path, payload: dict) -> None:
+    (project_root / "constraints.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def test_status_initial(template_copy) -> None:
     out = run_cmd(template_copy, "status")
     payload = json.loads(out.stdout)
@@ -242,6 +246,72 @@ def test_suggest_supports_conditional_param_activation_and_omission(
     assert decision["surrogate_backend"] == "rbf_proxy"
 
 
+def test_suggest_applies_constraints_to_initial_random_and_surrogate_pool(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["initial_random_trials"] = 1
+    cfg["candidate_pool_size"] = 100
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    _write_constraints(
+        template_copy,
+        {
+            "bound_tightening": [{"param": "x1", "min": 0.8, "max": 0.9}],
+            "linear_inequalities": [
+                {
+                    "terms": [
+                        {"param": "x1", "coefficient": 1.0},
+                        {"param": "x2", "coefficient": 1.0},
+                    ],
+                    "operator": "<=",
+                    "rhs": 1.1,
+                }
+            ],
+        },
+    )
+
+    first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert 0.8 <= first["params"]["x1"] <= 0.9
+    assert first["params"]["x1"] + first["params"]["x2"] <= 1.1 + 1e-9
+
+    result = {
+        "trial_id": first["trial_id"],
+        "params": first["params"],
+        "objectives": {"loss": 0.25},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_constraints_seed_result.json"
+    result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    second = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert 0.8 <= second["params"]["x1"] <= 0.9
+    assert second["params"]["x1"] + second["params"]["x2"] <= 1.1 + 1e-9
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+
+
+def test_suggest_hard_fails_when_constraints_eliminate_all_candidates(template_copy) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps({"parameters": [{"name": "x", "type": "int", "bounds": [0, 0]}]}, indent=2),
+        encoding="utf-8",
+    )
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["candidate_pool_size"] = 25
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    _write_constraints(template_copy, {"forbidden_combinations": [{"when": {"x": 0}}]})
+
+    out = run_cmd(template_copy, "suggest", expect_ok=False)
+
+    assert out.returncode != 0
+    assert (
+        "ERROR: constraints eliminated all 25 initial-random attempts "
+        "(dominant rejects: forbidden_combinations[0]=25)" in out.stderr
+    )
+    assert not (template_copy / "state" / "acquisition_log.jsonl").exists()
+
+
 def test_suggest_surrogate_falls_back_with_only_non_ok_observations(template_copy) -> None:
     cfg = json.loads((template_copy / "bo_config.json").read_text(encoding="utf-8"))
     initial = int(cfg["initial_random_trials"])
@@ -327,6 +397,57 @@ def test_gp_backend_falls_back_when_usable_observations_insufficient(template_co
     assert decision["strategy"] == "initial_random"
     assert decision["surrogate_backend"] is None
     assert decision["fallback_reason"].startswith("insufficient_usable_observations_for_gp")
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_GP_TESTS") != "1" or importlib.util.find_spec("botorch") is None,
+    reason="set RUN_GP_TESTS=1 and install botorch to run GP backend tests",
+)
+def test_suggest_gp_backend_respects_constraints(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["surrogate"]["type"] = "gp"
+    cfg["initial_random_trials"] = 2
+    cfg["candidate_pool_size"] = 60
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    _write_constraints(
+        template_copy,
+        {
+            "bound_tightening": [{"param": "x1", "max": 0.2}],
+            "linear_inequalities": [
+                {
+                    "terms": [
+                        {"param": "x1", "coefficient": 1.0},
+                        {"param": "x2", "coefficient": 1.0},
+                    ],
+                    "operator": "<=",
+                    "rhs": 0.7,
+                }
+            ],
+        },
+    )
+
+    for idx in range(2):
+        suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+        assert suggestion["params"]["x1"] <= 0.2 + 1e-9
+        assert suggestion["params"]["x1"] + suggestion["params"]["x2"] <= 0.7 + 1e-9
+        result = {
+            "trial_id": suggestion["trial_id"],
+            "params": suggestion["params"],
+            "objectives": {"loss": 0.4 - 0.05 * idx},
+            "status": "ok",
+        }
+        path = template_copy / "examples" / "_gp_constraints_seed_result.json"
+        path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["trial_id"] == 3
+    assert suggestion["params"]["x1"] <= 0.2 + 1e-9
+    assert suggestion["params"]["x1"] + suggestion["params"]["x2"] <= 0.7 + 1e-9
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "gp"
 
 
 @pytest.mark.skipif(

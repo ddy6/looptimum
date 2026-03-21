@@ -56,6 +56,9 @@ normalize_ingest_payload = _CONTRACT.normalize_ingest_payload
 validate_against_schema = _CONTRACT.validate_against_schema
 
 normalize_constraints = _CONSTRAINTS.normalize_constraints
+apply_bound_tightening = _CONSTRAINTS.apply_bound_tightening
+format_reject_summary = _CONSTRAINTS.format_reject_summary
+sample_feasible_candidates = _CONSTRAINTS.sample_feasible_candidates
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -130,6 +133,61 @@ def _is_usable_observation(row: JSONDict, objective_name: str) -> bool:
     return math.isfinite(float(value))
 
 
+def _load_constraints(root: Path, cfg: JSONDict, params: list[JSONDict]) -> JSONDict | None:
+    constraints_cfg, constraints_path = load_optional_contract_document(root, "constraints")
+    if constraints_path is None:
+        return None
+    if not isinstance(constraints_cfg, dict):
+        raise ValueError("constraints must be an object")
+    constraints_schema, _ = load_schema_from_paths(
+        root,
+        cfg.get("paths", {}),
+        key="constraints_schema_file",
+        default_rel="../_shared/schemas/constraints.schema.json",
+    )
+    validate_against_schema(constraints_cfg, constraints_schema, source_path=constraints_path)
+    return cast(JSONDict, normalize_constraints(constraints_cfg, params))
+
+
+def _sampling_attempt_budget(cfg: JSONDict, constraints: JSONDict | None, target_count: int) -> int:
+    if not constraints:
+        return target_count
+    candidate_pool_size = max(1, int(cfg["candidate_pool_size"]))
+    return max(target_count, candidate_pool_size, target_count * 8)
+
+
+def _sample_random_candidates(
+    rng: random.Random,
+    cfg: JSONDict,
+    params: list[JSONDict],
+    constraints: JSONDict | None,
+    *,
+    target_count: int,
+) -> JSONDict:
+    sampling_params = apply_bound_tightening(params, constraints)
+    return cast(
+        JSONDict,
+        sample_feasible_candidates(
+            lambda: cast(JSONDict, sample_random_point(rng, sampling_params)),
+            constraints,
+            target_count=target_count,
+            max_attempts=_sampling_attempt_budget(cfg, constraints, target_count),
+        ),
+    )
+
+
+def _require_feasible_candidates(sampled: JSONDict, *, phase: str) -> list[JSONDict]:
+    candidates = cast(list[JSONDict], sampled["candidates"])
+    if candidates:
+        return candidates
+    attempts = int(sampled["attempts"])
+    reject_summary = format_reject_summary(cast(JSONDict, sampled["reject_counts"]))
+    raise ValueError(
+        f"constraints eliminated all {attempts} {phase} attempts "
+        f"(dominant rejects: {reject_summary})"
+    )
+
+
 def propose(
     rng: random.Random,
     state: JSONDict,
@@ -137,18 +195,21 @@ def propose(
     params: list[JSONDict],
     obj_cfg: JSONDict,
     seed: int,
+    constraints: JSONDict | None = None,
 ) -> tuple[JSONDict, JSONDict]:
     obs = state["observations"]
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
     if len(obs) < int(cfg["initial_random_trials"]):
-        return sample_random_point(rng, params), {
+        sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
+        return _require_feasible_candidates(sampled, phase="initial-random")[0], {
             "strategy": "initial_random",
             "surrogate_backend": None,
         }
     usable_obs = [row for row in obs if _is_usable_observation(row, objective_name)]
     if not usable_obs:
-        return sample_random_point(rng, params), {
+        sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
+        return _require_feasible_candidates(sampled, phase="fallback-random")[0], {
             "strategy": "initial_random",
             "surrogate_backend": None,
             "fallback_reason": "no_usable_observations",
@@ -158,7 +219,14 @@ def propose(
     acq_cfg = cfg["acquisition"]
     backend = str(surrogate_cfg.get("type", "rbf_proxy")).lower()
     best = state["best"]["objective_value"] if state["best"] else None
-    candidates = [sample_random_point(rng, params) for _ in range(int(cfg["candidate_pool_size"]))]
+    sampled = _sample_random_candidates(
+        rng,
+        cfg,
+        params,
+        constraints,
+        target_count=int(cfg["candidate_pool_size"]),
+    )
+    candidates = _require_feasible_candidates(sampled, phase="candidate-pool")
 
     if backend == "rbf_proxy":
         return propose_with_proxy(
@@ -167,7 +235,8 @@ def propose(
     if backend == "gp":
         gp_min_fit_observations = max(2, int(surrogate_cfg.get("gp_min_fit_observations", 2)))
         if len(usable_obs) < gp_min_fit_observations:
-            return sample_random_point(rng, params), {
+            sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
+            return _require_feasible_candidates(sampled, phase="fallback-random")[0], {
                 "strategy": "initial_random",
                 "surrogate_backend": None,
                 "fallback_reason": (
@@ -1025,6 +1094,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     )
     validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
     params = normalize_search_space(space_cfg)
+    constraints = _load_constraints(root, cfg, params)
 
     obj_cfg, _ = load_contract_document(root, "objective_schema")
     if not isinstance(obj_cfg, dict):
@@ -1090,7 +1160,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
             seed = int(state["meta"]["seed"]) + int(state["next_trial_id"])
             rng = random.Random(seed)
-            cand, decision = propose(rng, state, cfg, params, obj_cfg, seed)
+            cand, decision = propose(rng, state, cfg, params, obj_cfg, seed, constraints)
             trial_id = int(state["next_trial_id"])
             suggestion = {
                 "schema_version": state_schema_version(state),
@@ -1709,22 +1779,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
     if params is not None:
         try:
-            constraints_cfg, constraints_path = load_optional_contract_document(root, "constraints")
-            if constraints_path is not None:
-                if not isinstance(constraints_cfg, dict):
-                    raise ValueError("constraints must be an object")
-                constraints_schema, _ = load_schema_from_paths(
-                    root,
-                    cfg.get("paths", {}),
-                    key="constraints_schema_file",
-                    default_rel="../_shared/schemas/constraints.schema.json",
-                )
-                validate_against_schema(
-                    constraints_cfg,
-                    constraints_schema,
-                    source_path=constraints_path,
-                )
-                normalize_constraints(constraints_cfg, params)
+            _load_constraints(root, cfg, params)
         except Exception as exc:  # pragma: no cover
             hard_errors.append(f"constraints validation failure: {exc}")
 

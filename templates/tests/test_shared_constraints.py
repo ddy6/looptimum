@@ -267,3 +267,81 @@ def test_evaluate_constraints_treats_missing_conditional_values_as_not_applicabl
         "violations": [],
         "reject_counts": {},
     }
+
+
+def test_apply_bound_tightening_narrows_sampling_bounds_without_mutating_original() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
+        {
+            "parameters": [
+                {"name": "x", "type": "float", "bounds": [0.0, 1.0]},
+                {"name": "y", "type": "int", "bounds": [0, 10]},
+                {"name": "flag", "type": "bool"},
+            ]
+        }
+    )
+    constraints = CONSTRAINTS.normalize_constraints(
+        {
+            "bound_tightening": [
+                {"param": "x", "min": 0.2},
+                {"param": "x", "max": 0.8},
+                {"param": "y", "min": 3, "max": 5},
+            ]
+        },
+        params,
+    )
+
+    tightened = CONSTRAINTS.apply_bound_tightening(params, constraints)
+
+    assert params[0]["bounds"] == [0.0, 1.0]
+    assert params[1]["bounds"] == [0, 10]
+    assert tightened == [
+        {
+            "name": "x",
+            "type": "float",
+            "bounds": [0.2, 0.8],
+            "scale": "linear",
+            "encoding": "scalar",
+            "encoded_size": 1,
+        },
+        {
+            "name": "y",
+            "type": "int",
+            "bounds": [3, 5],
+            "scale": "linear",
+            "encoding": "scalar",
+            "encoded_size": 1,
+        },
+        {
+            "name": "flag",
+            "type": "bool",
+            "choices": [False, True],
+            "encoding": "binary",
+            "encoded_size": 1,
+        },
+    ]
+
+
+def test_sample_feasible_candidates_tracks_attempts_and_reject_counts() -> None:
+    constraints = {
+        "bound_tightening": [],
+        "linear_inequalities": [],
+        "forbidden_combinations": [{"rule_id": "forbidden_combinations[0]", "when": {"x": [0]}}],
+    }
+
+    samples = iter([{"x": 0}, {"x": 0}, {"x": 1}, {"x": 1}])
+    result = CONSTRAINTS.sample_feasible_candidates(
+        lambda: next(samples),
+        constraints,
+        target_count=2,
+        max_attempts=4,
+    )
+
+    assert result == {
+        "candidates": [{"x": 1}, {"x": 1}],
+        "attempts": 4,
+        "infeasible_attempts": 2,
+        "reject_counts": {"forbidden_combinations[0]": 2},
+    }
+    assert (
+        CONSTRAINTS.format_reject_summary(result["reject_counts"]) == "forbidden_combinations[0]=2"
+    )
