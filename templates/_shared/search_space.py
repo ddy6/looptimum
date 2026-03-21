@@ -476,6 +476,15 @@ def omit_inactive_params(values: JSONDict, params: list[JSONDict]) -> JSONDict:
     return out
 
 
+def canonicalize_conditional_params(values: JSONDict, params: list[JSONDict]) -> JSONDict:
+    out = omit_inactive_params(values, params)
+    known_names = {str(param["name"]) for param in params}
+    for key, value in values.items():
+        if key not in known_names:
+            out[key] = value
+    return out
+
+
 def _inactive_encoded_segment(param: JSONDict) -> list[float]:
     return [0.0] * int(param.get("encoded_size", 1))
 

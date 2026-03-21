@@ -72,6 +72,7 @@ STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
 
 normalize_search_space = _SEARCH_SPACE.normalize_search_space
 sample_random_point = _SEARCH_SPACE.sample_random_point
+canonicalize_conditional_params = _SEARCH_SPACE.canonicalize_conditional_params
 
 
 def load_cfg(path: Path) -> JSONDict:
@@ -1138,6 +1139,10 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
+    space_cfg, space_path = load_contract_document(root, "parameter_space")
+    if not isinstance(space_cfg, dict):
+        raise ValueError(f"parameter_space must be an object: {space_path}")
+    params = normalize_search_space(space_cfg)
 
     obj_cfg, _ = load_contract_document(root, "objective_schema")
     if not isinstance(obj_cfg, dict):
@@ -1179,6 +1184,9 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 objective_name=objective_name,
                 source_path=payload_path,
             )
+            payload["params"] = canonicalize_conditional_params(
+                cast(JSONDict, payload["params"]), params
+            )
             heartbeat_fields = _load_heartbeat_fields(payload, trial_id)
 
             pending = {int(row["trial_id"]): row for row in state["pending"]}
@@ -1189,7 +1197,13 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 if prior is None:
                     raise ValueError(f"trial_id {trial_id} is not pending")
 
-                expected = build_observation_contract(prior, objective_name=objective_name)
+                prior_for_compare = dict(prior)
+                prior_for_compare["params"] = canonicalize_conditional_params(
+                    cast(JSONDict, prior.get("params", {})), params
+                )
+                expected = build_observation_contract(
+                    prior_for_compare, objective_name=objective_name
+                )
                 received = {
                     "trial_id": trial_id,
                     "params": payload["params"],
@@ -1207,9 +1221,12 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                     return
                 raise ValueError(format_contract_diff_error(trial_id, diffs))
 
-            if payload.get("params") != pending[trial_id].get("params"):
+            pending_params = canonicalize_conditional_params(
+                cast(JSONDict, pending[trial_id].get("params", {})), params
+            )
+            if payload.get("params") != pending_params:
                 param_diffs = diff_contract_records(
-                    {"params": pending[trial_id].get("params", {})},
+                    {"params": pending_params},
                     {"params": payload.get("params", {})},
                 )
                 details = "\n".join(f"- field {diff}" for diff in param_diffs)

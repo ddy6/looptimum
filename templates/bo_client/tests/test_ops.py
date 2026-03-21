@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import subprocess
 import sys
@@ -46,6 +47,21 @@ def _stop_lock_holder(holder: subprocess.Popen[str]) -> None:
         except subprocess.TimeoutExpired:
             holder.kill()
             holder.wait(timeout=5)
+
+
+def _conditional_parameter_space() -> dict:
+    return {
+        "parameters": [
+            {
+                "name": "momentum",
+                "type": "float",
+                "bounds": [0.0, 0.99],
+                "when": {"gate": 1},
+            },
+            {"name": "x", "type": "float", "bounds": [0.0, 1.0]},
+            {"name": "gate", "type": "int", "bounds": [0, 1]},
+        ]
+    }
 
 
 def test_report_generates_json_and_markdown(template_copy) -> None:
@@ -106,6 +122,56 @@ def test_report_carries_traceability_for_failed_or_ejected_trials(template_copy)
     assert isinstance(terminal["completed_at"], float)
     assert terminal["penalty_objective"] == 1234.0
     assert isinstance(terminal["artifact_path"], str)
+
+
+def test_report_and_csv_handle_conditional_param_omission_across_trials(template_copy) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_conditional_parameter_space(), indent=2), encoding="utf-8"
+    )
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["seed"] = 3
+    cfg["initial_random_trials"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert first["params"]["gate"] == 0
+    first_payload = {
+        "trial_id": first["trial_id"],
+        "params": {**first["params"], "momentum": 0.41},
+        "objectives": {"loss": 0.3},
+        "status": "ok",
+    }
+    first_path = template_copy / "examples" / "_report_conditional_first.json"
+    first_path.write_text(json.dumps(first_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(first_path))
+
+    second = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert second["params"]["gate"] == 1
+    assert set(second["params"]) == {"gate", "momentum", "x"}
+    second_payload = {
+        "trial_id": second["trial_id"],
+        "params": second["params"],
+        "objectives": {"loss": 0.2},
+        "status": "ok",
+    }
+    second_path = template_copy / "examples" / "_report_conditional_second.json"
+    second_path.write_text(json.dumps(second_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(second_path))
+
+    run_cmd(template_copy, "report", "--top-n", "3")
+
+    with (template_copy / "state" / "observations.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = {int(row["trial_id"]): row for row in csv.DictReader(handle)}
+    assert rows[first["trial_id"]]["param_momentum"] == ""
+    assert rows[second["trial_id"]]["param_momentum"] != ""
+
+    report = json.loads((template_copy / "state" / "report.json").read_text(encoding="utf-8"))
+    top_by_trial = {int(row["trial_id"]): row for row in report["top_trials"]}
+    assert top_by_trial[first["trial_id"]]["params"] == first["params"]
+    assert top_by_trial[second["trial_id"]]["params"] == second["params"]
 
 
 def _seed_runtime_artifacts_for_reset(template_copy: Path) -> None:

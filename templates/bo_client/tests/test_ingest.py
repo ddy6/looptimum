@@ -1,8 +1,37 @@
 from __future__ import annotations
 
+import csv
 import json
 
 from conftest import parse_suggestion, run_cmd
+
+
+def _conditional_parameter_space() -> dict:
+    return {
+        "parameters": [
+            {
+                "name": "momentum",
+                "type": "float",
+                "bounds": [0.0, 0.99],
+                "when": {"gate": 1},
+            },
+            {"name": "x", "type": "float", "bounds": [0.0, 1.0]},
+            {"name": "gate", "type": "int", "bounds": [0, 1]},
+        ]
+    }
+
+
+def _configure_conditional_space(
+    template_copy, *, seed: int, initial_random_trials: int = 1
+) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_conditional_parameter_space(), indent=2), encoding="utf-8"
+    )
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["seed"] = seed
+    cfg["initial_random_trials"] = initial_random_trials
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
 
 def test_ingest_accepts_valid_payload(template_copy) -> None:
@@ -139,6 +168,61 @@ def test_duplicate_ingest_conflicting_replay_is_rejected_with_diff(template_copy
     assert out.returncode != 0
     assert "conflicting duplicate ingest" in out.stderr
     assert "$.objectives.loss differs" in out.stderr
+
+
+def test_ingest_canonicalizes_inactive_conditional_params_for_state_and_csv(template_copy) -> None:
+    _configure_conditional_space(template_copy, seed=0)
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["params"]["gate"] == 0
+    assert set(suggestion["params"]) == {"gate", "x"}
+
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": {**suggestion["params"], "momentum": 0.55},
+        "objectives": {"loss": 0.12},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_ingest_conditional_inactive_extra.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    observation = state["observations"][0]
+    assert observation["params"] == suggestion["params"]
+    artifact_rel = observation["artifact_path"]
+    artifact_payload = json.loads((template_copy / artifact_rel).read_text(encoding="utf-8"))
+    assert artifact_payload["params"] == suggestion["params"]
+
+    with (template_copy / "state" / "observations.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows[0]["param_gate"] == "0"
+    assert rows[0]["param_x"] != ""
+    assert "param_momentum" not in rows[0]
+
+
+def test_duplicate_ingest_replay_ignores_inactive_conditional_param_fields(template_copy) -> None:
+    _configure_conditional_space(template_copy, seed=0)
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": {**suggestion["params"], "momentum": 0.33},
+        "objectives": {"loss": 0.1},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_ingest_conditional_duplicate.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+    before = json.loads(run_cmd(template_copy, "status").stdout)
+
+    replay = run_cmd(template_copy, "ingest", "--results-file", str(path))
+    assert "No-op:" in replay.stdout
+
+    after = json.loads(run_cmd(template_copy, "status").stdout)
+    assert after == before
 
 
 def test_ingest_accepts_success_alias_and_normalizes_to_ok(template_copy) -> None:

@@ -157,6 +157,9 @@ def test_normalize_search_space_accepts_conditional_descriptors_and_active_helpe
     assert SEARCH_SPACE.omit_inactive_params(
         {"optimizer": "adam", "momentum": 0.9, "nesterov": True}, params
     ) == {"optimizer": "adam"}
+    assert SEARCH_SPACE.canonicalize_conditional_params(
+        {"optimizer": "adam", "momentum": 0.9, "extra": "keep"}, params
+    ) == {"optimizer": "adam", "extra": "keep"}
 
 
 def test_conditional_sampling_omits_inactive_params_and_orders_dependencies() -> None:

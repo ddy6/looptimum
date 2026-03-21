@@ -277,6 +277,44 @@ def test_suggest_supports_conditional_param_activation_and_omission(
     assert decision["surrogate_backend"] == "rbf_proxy"
 
 
+def test_ingest_canonicalizes_inactive_conditional_params_and_duplicate_replay(
+    template_copy: Path,
+) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_conditional_parameter_space(), indent=2), encoding="utf-8"
+    )
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["seed"] = 0
+    cfg["initial_random_trials"] = 1
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["params"]["gate"] == 0
+    assert set(suggestion["params"]) == {"gate", "x"}
+
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": {**suggestion["params"], "momentum": 0.44},
+        "objectives": {"loss": 0.18},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_conditional_ingest_extra.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "ingest", "--results-file", str(path))
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    observation = state["observations"][0]
+    assert observation["params"] == suggestion["params"]
+    artifact_payload = json.loads(
+        (template_copy / observation["artifact_path"]).read_text(encoding="utf-8")
+    )
+    assert artifact_payload["params"] == suggestion["params"]
+
+    replay = run_cmd(template_copy, "ingest", "--results-file", str(path))
+    assert "No-op:" in replay.stdout
+
+
 def test_suggest_then_ingest(template_copy: Path) -> None:
     s = run_cmd(template_copy, "suggest")
     lines = [line for line in s.stdout.strip().splitlines() if line.strip()]
