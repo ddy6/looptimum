@@ -55,6 +55,8 @@ validate_against_schema = _CONTRACT.validate_against_schema
 
 normalize_constraints = _CONSTRAINTS.normalize_constraints
 apply_bound_tightening = _CONSTRAINTS.apply_bound_tightening
+build_constraint_error_reason = _CONSTRAINTS.build_constraint_error_reason
+build_constraint_status = _CONSTRAINTS.build_constraint_status
 format_reject_summary = _CONSTRAINTS.format_reject_summary
 sample_feasible_candidates = _CONSTRAINTS.sample_feasible_candidates
 
@@ -81,6 +83,12 @@ normalized_numeric_distance = _SEARCH_SPACE.normalized_numeric_distance
 normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
 denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
 canonicalize_conditional_params = _SEARCH_SPACE.canonicalize_conditional_params
+
+
+class ConstraintSamplingFailure(ValueError):
+    def __init__(self, message: str, *, decision: dict) -> None:
+        super().__init__(message)
+        self.decision = decision
 
 
 def load_cfg(path: Path) -> dict:
@@ -218,16 +226,41 @@ def _sample_random_candidates(
     )
 
 
-def _require_feasible_candidates(sampled: dict, *, phase: str) -> list[dict]:
+def _decision_with_constraint_status(decision: dict, status: dict) -> dict:
+    enriched = dict(decision)
+    enriched["constraint_status"] = status
+    return enriched
+
+
+def _require_feasible_candidates(
+    sampled: dict,
+    constraints: dict | None,
+    *,
+    strategy: str,
+    surrogate_backend: str | None,
+    phase: str,
+    requested: int,
+    fallback_reason: str | None = None,
+) -> tuple[list[dict], dict]:
+    status = build_constraint_status(
+        constraints,
+        sampled,
+        phase=phase,
+        requested=requested,
+    )
     candidates = sampled["candidates"]
     if candidates:
-        return candidates
-    attempts = int(sampled["attempts"])
-    reject_summary = format_reject_summary(sampled["reject_counts"])
-    raise ValueError(
-        f"constraints eliminated all {attempts} {phase} attempts "
-        f"(dominant rejects: {reject_summary})"
-    )
+        return candidates, status
+
+    decision = {
+        "strategy": strategy,
+        "surrogate_backend": surrogate_backend,
+        "constraint_status": status,
+    }
+    if fallback_reason is not None:
+        decision["fallback_reason"] = fallback_reason
+    decision["constraint_error_reason"] = build_constraint_error_reason(status)
+    raise ConstraintSamplingFailure(str(decision["constraint_error_reason"]), decision=decision)
 
 
 def propose_with_proxy(
@@ -244,14 +277,23 @@ def propose_with_proxy(
     acq_cfg = cfg["acquisition"]
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
+    requested = int(cfg["candidate_pool_size"])
     sampled = _sample_random_candidates(
         rng,
         cfg,
         params,
         constraints,
-        target_count=int(cfg["candidate_pool_size"]),
+        target_count=requested,
     )
-    for candidate in _require_feasible_candidates(sampled, phase="candidate-pool"):
+    candidates, status = _require_feasible_candidates(
+        sampled,
+        constraints,
+        strategy="surrogate_acquisition",
+        surrogate_backend="rbf_proxy",
+        phase="candidate-pool",
+        requested=requested,
+    )
+    for candidate in candidates:
         mean, std = predict_rbf_proxy(
             candidate,
             observations,
@@ -262,14 +304,17 @@ def propose_with_proxy(
         scored.append((acq_score(mean, std, best, direction, acq_cfg), candidate, mean, std))
     scored.sort(key=lambda row: row[0], reverse=True)
     score, candidate, mean, std = scored[0]
-    return candidate, {
-        "strategy": "surrogate_acquisition",
-        "surrogate_backend": "rbf_proxy",
-        "acquisition_type": acq_cfg.get("type", "ucb"),
-        "predicted_mean": mean,
-        "predicted_std": std,
-        "acquisition_score": score,
-    }
+    return candidate, _decision_with_constraint_status(
+        {
+            "strategy": "surrogate_acquisition",
+            "surrogate_backend": "rbf_proxy",
+            "acquisition_type": acq_cfg.get("type", "ucb"),
+            "predicted_mean": mean,
+            "predicted_std": std,
+            "acquisition_score": score,
+        },
+        status,
+    )
 
 
 def propose_with_botorch(
@@ -303,14 +348,23 @@ def propose_with_botorch(
 
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
+    requested = int(cfg["candidate_pool_size"])
     sampled = _sample_random_candidates(
         rng,
         cfg,
         params,
         constraints,
-        target_count=int(cfg["candidate_pool_size"]),
+        target_count=requested,
     )
-    for candidate in _require_feasible_candidates(sampled, phase="candidate-pool"):
+    candidates, status = _require_feasible_candidates(
+        sampled,
+        constraints,
+        strategy="surrogate_acquisition",
+        surrogate_backend="botorch_gp",
+        phase="candidate-pool",
+        requested=requested,
+    )
+    for candidate in candidates:
         x = torch.tensor([normalize_numeric_point(candidate, params)], dtype=torch.double)
         posterior = model.posterior(x)
         mean_tensor = posterior.mean.detach().cpu().view(-1)[0].item()
@@ -329,14 +383,17 @@ def propose_with_botorch(
 
     scored.sort(key=lambda row: row[0], reverse=True)
     score, candidate, mean, std = scored[0]
-    return candidate, {
-        "strategy": "surrogate_acquisition",
-        "surrogate_backend": "botorch_gp",
-        "acquisition_type": acq_cfg.get("type", "ucb"),
-        "predicted_mean": mean,
-        "predicted_std": std,
-        "acquisition_score": score,
-    }
+    return candidate, _decision_with_constraint_status(
+        {
+            "strategy": "surrogate_acquisition",
+            "surrogate_backend": "botorch_gp",
+            "acquisition_type": acq_cfg.get("type", "ucb"),
+            "predicted_mean": mean,
+            "predicted_std": std,
+            "acquisition_score": score,
+        },
+        status,
+    )
 
 
 def use_botorch_backend(args: argparse.Namespace, cfg: dict) -> bool:
@@ -357,19 +414,42 @@ def propose(
     objective = obj_cfg["primary_objective"]
     if len(observations) < int(cfg["initial_random_trials"]):
         sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
-        return _require_feasible_candidates(sampled, phase="initial-random")[0], {
-            "strategy": "initial_random",
-            "surrogate_backend": None,
-        }
+        candidates, status = _require_feasible_candidates(
+            sampled,
+            constraints,
+            strategy="initial_random",
+            surrogate_backend=None,
+            phase="initial-random",
+            requested=1,
+        )
+        return candidates[0], _decision_with_constraint_status(
+            {
+                "strategy": "initial_random",
+                "surrogate_backend": None,
+            },
+            status,
+        )
     objective_name = str(objective["name"])
     usable_obs = [row for row in observations if _is_usable_observation(row, objective_name)]
     if not usable_obs:
         sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
-        return _require_feasible_candidates(sampled, phase="fallback-random")[0], {
-            "strategy": "initial_random",
-            "surrogate_backend": None,
-            "fallback_reason": "no_usable_observations",
-        }
+        candidates, status = _require_feasible_candidates(
+            sampled,
+            constraints,
+            strategy="initial_random",
+            surrogate_backend=None,
+            phase="fallback-random",
+            requested=1,
+            fallback_reason="no_usable_observations",
+        )
+        return candidates[0], _decision_with_constraint_status(
+            {
+                "strategy": "initial_random",
+                "surrogate_backend": None,
+                "fallback_reason": "no_usable_observations",
+            },
+            status,
+        )
 
     if use_botorch_backend(args, cfg):
         surrogate_cfg = cfg.get("surrogate", {})
@@ -378,16 +458,31 @@ def propose(
         )
         if len(usable_obs) < min_botorch_fit_observations:
             sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
-            return _require_feasible_candidates(sampled, phase="fallback-random")[0], {
-                "strategy": "initial_random",
-                "surrogate_backend": None,
-                "fallback_reason": (
-                    "insufficient_usable_observations_for_botorch_gp"
-                    f"({len(usable_obs)}/{min_botorch_fit_observations})"
-                ),
-            }
+            fallback_reason = (
+                "insufficient_usable_observations_for_botorch_gp"
+                f"({len(usable_obs)}/{min_botorch_fit_observations})"
+            )
+            candidates, status = _require_feasible_candidates(
+                sampled,
+                constraints,
+                strategy="initial_random",
+                surrogate_backend=None,
+                phase="fallback-random",
+                requested=1,
+                fallback_reason=fallback_reason,
+            )
+            return candidates[0], _decision_with_constraint_status(
+                {
+                    "strategy": "initial_random",
+                    "surrogate_backend": None,
+                    "fallback_reason": fallback_reason,
+                },
+                status,
+            )
         try:
             return propose_with_botorch(rng, usable_obs, state, cfg, params, objective, constraints)
+        except ConstraintSamplingFailure:
+            raise
         except Exception as exc:
             flags = cfg.get("feature_flags", {})
             if flags.get("fallback_to_proxy_if_unavailable", True):
@@ -398,6 +493,15 @@ def propose(
                 return candidate, decision
             raise
     return propose_with_proxy(rng, usable_obs, state, cfg, params, objective, constraints)
+
+
+def _emit_constraint_warning(decision: dict) -> None:
+    status = decision.get("constraint_status")
+    if not isinstance(status, dict):
+        return
+    warning = status.get("warning")
+    if isinstance(warning, str) and warning:
+        print(f"WARNING: {warning}", file=sys.stderr)
 
 
 def update_best(state: dict, objective: dict) -> None:
@@ -1324,8 +1428,18 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
             seed = int(state["meta"]["seed"]) + int(state["next_trial_id"])
             rng = random.Random(seed)
-            cand, decision = propose(rng, state, cfg, params, obj_cfg, args, constraints)
             trial_id = int(state["next_trial_id"])
+            try:
+                cand, decision = propose(rng, state, cfg, params, obj_cfg, args, constraints)
+            except ConstraintSamplingFailure as exc:
+                append_jsonl(
+                    paths["acquisition_log_file"],
+                    {"trial_id": trial_id, "decision": exc.decision, "timestamp": time.time()},
+                )
+                save_state(paths["state_file"], state)
+                if stale_observations:
+                    write_obs_csv(paths["observations_csv"], _observation_rows(state))
+                raise
             suggestion = {
                 "schema_version": state_schema_version(state),
                 "trial_id": trial_id,
@@ -1359,6 +1473,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 paths["acquisition_log_file"],
                 {"trial_id": trial_id, "decision": decision, "timestamp": time.time()},
             )
+            _emit_constraint_warning(decision)
             _append_event(paths, "suggestion_created", trial_id=trial_id)
 
             save_state(paths["state_file"], state)

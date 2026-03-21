@@ -543,3 +543,45 @@ def format_reject_summary(reject_counts: JSONDict, *, limit: int = 3) -> str:
         key=lambda item: (-item[1], item[0]),
     )
     return ", ".join(f"{rule_id}={count}" for rule_id, count in ranked[: max(1, limit)])
+
+
+def build_constraint_status(
+    constraints: JSONDict | None,
+    sampled: JSONDict,
+    *,
+    phase: str,
+    requested: int,
+) -> JSONDict:
+    attempts = int(sampled["attempts"])
+    accepted = len(cast(list[JSONDict], sampled["candidates"]))
+    rejected = int(sampled["infeasible_attempts"])
+    reject_counts = cast(JSONDict, sampled["reject_counts"])
+    feasible_ratio = 1.0 if attempts <= 0 else float(accepted) / float(attempts)
+
+    warning: str | None = None
+    if constraints and 0 < accepted < requested:
+        warning = (
+            f"constraints reduced {phase.replace('_', '-')} feasible candidates to "
+            f"{accepted}/{requested} (dominant rejects: {format_reject_summary(reject_counts)})"
+        )
+
+    return {
+        "enabled": bool(constraints),
+        "phase": phase,
+        "requested": int(requested),
+        "accepted": accepted,
+        "attempted": attempts,
+        "rejected": rejected,
+        "feasible_ratio": feasible_ratio,
+        "reject_counts": dict(reject_counts),
+        "warning": warning,
+    }
+
+
+def build_constraint_error_reason(status: JSONDict) -> str:
+    phase_label = str(status["phase"]).replace("_", "-")
+    summary = format_reject_summary(cast(JSONDict, status["reject_counts"]))
+    return (
+        f"constraints eliminated all {int(status['attempted'])} {phase_label} attempts "
+        f"(dominant rejects: {summary})"
+    )

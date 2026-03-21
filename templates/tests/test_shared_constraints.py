@@ -345,3 +345,55 @@ def test_sample_feasible_candidates_tracks_attempts_and_reject_counts() -> None:
     assert (
         CONSTRAINTS.format_reject_summary(result["reject_counts"]) == "forbidden_combinations[0]=2"
     )
+
+
+def test_constraint_status_and_error_reason_capture_partial_and_total_rejects() -> None:
+    partial = CONSTRAINTS.build_constraint_status(
+        {
+            "bound_tightening": [],
+            "linear_inequalities": [],
+            "forbidden_combinations": [],
+        },
+        {
+            "candidates": [{"x": 1}],
+            "attempts": 4,
+            "infeasible_attempts": 3,
+            "reject_counts": {"linear_inequalities[0]": 3},
+        },
+        phase="candidate-pool",
+        requested=3,
+    )
+    assert partial == {
+        "enabled": True,
+        "phase": "candidate-pool",
+        "requested": 3,
+        "accepted": 1,
+        "attempted": 4,
+        "rejected": 3,
+        "feasible_ratio": 0.25,
+        "reject_counts": {"linear_inequalities[0]": 3},
+        "warning": (
+            "constraints reduced candidate-pool feasible candidates to 1/3 "
+            "(dominant rejects: linear_inequalities[0]=3)"
+        ),
+    }
+
+    total = CONSTRAINTS.build_constraint_status(
+        {
+            "bound_tightening": [],
+            "linear_inequalities": [],
+            "forbidden_combinations": [],
+        },
+        {
+            "candidates": [],
+            "attempts": 5,
+            "infeasible_attempts": 5,
+            "reject_counts": {"forbidden_combinations[0]": 5},
+        },
+        phase="initial-random",
+        requested=1,
+    )
+    assert CONSTRAINTS.build_constraint_error_reason(total) == (
+        "constraints eliminated all 5 initial-random attempts "
+        "(dominant rejects: forbidden_combinations[0]=5)"
+    )

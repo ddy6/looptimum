@@ -52,7 +52,7 @@ def _parse_suggestion(stdout: str) -> dict:
     return json.loads("\n".join(lines[:-1]))
 
 
-def _latest_decision(template_copy: Path) -> dict:
+def _latest_log_record(template_copy: Path) -> dict:
     lines = [
         line
         for line in (template_copy / "state" / "acquisition_log.jsonl")
@@ -61,8 +61,25 @@ def _latest_decision(template_copy: Path) -> dict:
         if line.strip()
     ]
     assert lines
-    payload = json.loads(lines[-1])
-    return payload["decision"]
+    return json.loads(lines[-1])
+
+
+def _latest_decision(template_copy: Path) -> dict:
+    return _latest_log_record(template_copy)["decision"]
+
+
+def _assert_constraint_status(decision: dict, *, enabled: bool, phase: str) -> dict:
+    status = decision["constraint_status"]
+    assert status["enabled"] is enabled
+    assert status["phase"] == phase
+    assert isinstance(status["requested"], int)
+    assert isinstance(status["accepted"], int)
+    assert isinstance(status["attempted"], int)
+    assert isinstance(status["rejected"], int)
+    assert isinstance(status["feasible_ratio"], float)
+    assert isinstance(status["reject_counts"], dict)
+    assert status["rejected"] == status["attempted"] - status["accepted"]
+    return status
 
 
 def _mixed_parameter_space() -> dict:
@@ -199,9 +216,13 @@ def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
 
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
     assert isinstance(decision["predicted_mean"], float)
     assert isinstance(decision["predicted_std"], float)
     assert isinstance(decision["acquisition_score"], float)
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
+    assert status["warning"] is None
 
 
 def test_suggest_supports_conditional_param_activation_and_omission(
@@ -275,6 +296,9 @@ def test_suggest_supports_conditional_param_activation_and_omission(
 
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
 
 
 def test_suggest_applies_constraints_to_initial_random_and_surrogate_pool(
@@ -321,6 +345,11 @@ def test_suggest_applies_constraints_to_initial_random_and_surrogate_pool(
     assert second["params"]["x1"] + second["params"]["x2"] <= 1.1 + 1e-9
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+    status = _assert_constraint_status(decision, enabled=True, phase="candidate-pool")
+    assert status["requested"] == 100
+    assert 1 <= status["accepted"] <= status["requested"]
+    assert status["warning"] is None
 
 
 def test_suggest_hard_fails_when_constraints_eliminate_all_candidates(
@@ -343,7 +372,22 @@ def test_suggest_hard_fails_when_constraints_eliminate_all_candidates(
         "ERROR: constraints eliminated all 25 initial-random attempts "
         "(dominant rejects: forbidden_combinations[0]=25)" in out.stderr
     )
-    assert not (template_copy / "state" / "acquisition_log.jsonl").exists()
+    record = _latest_log_record(template_copy)
+    assert record["trial_id"] == 1
+    decision = record["decision"]
+    assert decision["strategy"] == "initial_random"
+    assert decision["surrogate_backend"] is None
+    assert (
+        decision["constraint_error_reason"]
+        == "constraints eliminated all 25 initial-random attempts "
+        "(dominant rejects: forbidden_combinations[0]=25)"
+    )
+    status = _assert_constraint_status(decision, enabled=True, phase="initial-random")
+    assert status["requested"] == 1
+    assert status["accepted"] == 0
+    assert status["attempted"] == 25
+    assert status["warning"] is None
+    assert status["reject_counts"] == {"forbidden_combinations[0]": 25}
 
 
 def test_ingest_canonicalizes_inactive_conditional_params_and_duplicate_replay(
@@ -607,7 +651,10 @@ def test_suggest_surrogate_falls_back_with_only_non_ok_observations(template_cop
     assert suggestion["trial_id"] == initial + 1
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "initial_random"
+    assert decision["surrogate_backend"] is None
     assert decision["fallback_reason"] == "no_usable_observations"
+    status = _assert_constraint_status(decision, enabled=False, phase="fallback-random")
+    assert status["accepted"] == status["requested"] == 1
 
 
 def test_suggest_surrogate_ignores_non_ok_rows_when_usable_rows_exist(template_copy: Path) -> None:
@@ -642,6 +689,9 @@ def test_suggest_surrogate_ignores_non_ok_rows_when_usable_rows_exist(template_c
     assert suggestion["trial_id"] == initial + 1
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "rbf_proxy"
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
 
 
 def test_resume_restores_state_and_trial_ids(template_copy: Path) -> None:

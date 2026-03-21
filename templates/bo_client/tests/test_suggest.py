@@ -11,7 +11,7 @@ import pytest
 from conftest import parse_suggestion, run_cmd
 
 
-def _latest_decision(template_copy: Path) -> dict:
+def _latest_log_record(template_copy: Path) -> dict:
     lines = [
         line
         for line in (template_copy / "state" / "acquisition_log.jsonl")
@@ -20,8 +20,25 @@ def _latest_decision(template_copy: Path) -> dict:
         if line.strip()
     ]
     assert lines
-    payload = json.loads(lines[-1])
-    return payload["decision"]
+    return json.loads(lines[-1])
+
+
+def _latest_decision(template_copy: Path) -> dict:
+    return _latest_log_record(template_copy)["decision"]
+
+
+def _assert_constraint_status(decision: dict, *, enabled: bool, phase: str) -> dict:
+    status = decision["constraint_status"]
+    assert status["enabled"] is enabled
+    assert status["phase"] == phase
+    assert isinstance(status["requested"], int)
+    assert isinstance(status["accepted"], int)
+    assert isinstance(status["attempted"], int)
+    assert isinstance(status["rejected"], int)
+    assert isinstance(status["feasible_ratio"], float)
+    assert isinstance(status["reject_counts"], dict)
+    assert status["rejected"] == status["attempted"] - status["accepted"]
+    return status
 
 
 def _mixed_parameter_space() -> dict:
@@ -170,6 +187,10 @@ def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     assert isinstance(decision["predicted_mean"], float)
     assert isinstance(decision["predicted_std"], float)
     assert isinstance(decision["acquisition_score"], float)
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
+    assert status["warning"] is None
+    assert status["reject_counts"] == {}
 
 
 def test_suggest_supports_conditional_param_activation_and_omission(
@@ -244,6 +265,9 @@ def test_suggest_supports_conditional_param_activation_and_omission(
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
     assert decision["surrogate_backend"] == "rbf_proxy"
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
+    assert status["warning"] is None
 
 
 def test_suggest_applies_constraints_to_initial_random_and_surrogate_pool(template_copy) -> None:
@@ -289,6 +313,14 @@ def test_suggest_applies_constraints_to_initial_random_and_surrogate_pool(templa
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
     assert decision["surrogate_backend"] == "rbf_proxy"
+    status = _assert_constraint_status(decision, enabled=True, phase="candidate-pool")
+    assert status["requested"] == 100
+    assert 1 <= status["accepted"] <= status["requested"]
+    assert status["attempted"] >= status["accepted"]
+    assert status["warning"] is None
+    assert all(
+        key in {"linear_inequalities[0]", "bound_tightening[0]"} for key in status["reject_counts"]
+    )
 
 
 def test_suggest_hard_fails_when_constraints_eliminate_all_candidates(template_copy) -> None:
@@ -309,7 +341,22 @@ def test_suggest_hard_fails_when_constraints_eliminate_all_candidates(template_c
         "ERROR: constraints eliminated all 25 initial-random attempts "
         "(dominant rejects: forbidden_combinations[0]=25)" in out.stderr
     )
-    assert not (template_copy / "state" / "acquisition_log.jsonl").exists()
+    record = _latest_log_record(template_copy)
+    assert record["trial_id"] == 1
+    decision = record["decision"]
+    assert decision["strategy"] == "initial_random"
+    assert decision["surrogate_backend"] is None
+    assert (
+        decision["constraint_error_reason"]
+        == "constraints eliminated all 25 initial-random attempts "
+        "(dominant rejects: forbidden_combinations[0]=25)"
+    )
+    status = _assert_constraint_status(decision, enabled=True, phase="initial-random")
+    assert status["requested"] == 1
+    assert status["accepted"] == 0
+    assert status["attempted"] == 25
+    assert status["warning"] is None
+    assert status["reject_counts"] == {"forbidden_combinations[0]": 25}
 
 
 def test_suggest_surrogate_falls_back_with_only_non_ok_observations(template_copy) -> None:
@@ -335,6 +382,8 @@ def test_suggest_surrogate_falls_back_with_only_non_ok_observations(template_cop
     assert decision["strategy"] == "initial_random"
     assert decision["surrogate_backend"] is None
     assert decision["fallback_reason"] == "no_usable_observations"
+    status = _assert_constraint_status(decision, enabled=False, phase="fallback-random")
+    assert status["accepted"] == status["requested"] == 1
 
 
 def test_suggest_surrogate_ignores_non_ok_rows_when_usable_rows_exist(template_copy) -> None:
@@ -370,6 +419,8 @@ def test_suggest_surrogate_ignores_non_ok_rows_when_usable_rows_exist(template_c
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
     assert decision["surrogate_backend"] == "rbf_proxy"
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
 
 
 def test_gp_backend_falls_back_when_usable_observations_insufficient(template_copy) -> None:
@@ -397,6 +448,8 @@ def test_gp_backend_falls_back_when_usable_observations_insufficient(template_co
     assert decision["strategy"] == "initial_random"
     assert decision["surrogate_backend"] is None
     assert decision["fallback_reason"].startswith("insufficient_usable_observations_for_gp")
+    status = _assert_constraint_status(decision, enabled=False, phase="fallback-random")
+    assert status["accepted"] == status["requested"] == 1
 
 
 @pytest.mark.skipif(
@@ -448,6 +501,9 @@ def test_suggest_gp_backend_respects_constraints(template_copy) -> None:
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
     assert decision["surrogate_backend"] == "gp"
+    status = _assert_constraint_status(decision, enabled=True, phase="candidate-pool")
+    assert status["requested"] == 60
+    assert 1 <= status["accepted"] <= status["requested"]
 
 
 @pytest.mark.skipif(
@@ -484,6 +540,55 @@ def test_suggest_supports_mixed_search_space_with_gp_backend(template_copy) -> N
     decision = _latest_decision(template_copy)
     assert decision["strategy"] == "surrogate_acquisition"
     assert decision["surrogate_backend"] == "gp"
+    status = _assert_constraint_status(decision, enabled=False, phase="candidate-pool")
+    assert status["accepted"] == status["requested"]
+
+
+def test_suggest_warns_when_constraints_reduce_but_do_not_eliminate_candidate_pool(
+    template_copy,
+) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["initial_random_trials"] = 1
+    cfg["candidate_pool_size"] = 25
+    cfg["seed"] = 0
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": first["trial_id"],
+        "params": first["params"],
+        "objectives": {"loss": 0.3},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_constraints_warning_seed.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    _write_constraints(
+        template_copy,
+        {
+            "linear_inequalities": [
+                {
+                    "terms": [
+                        {"param": "x1", "coefficient": 1.0},
+                        {"param": "x2", "coefficient": 1.0},
+                    ],
+                    "operator": "<=",
+                    "rhs": 0.25,
+                }
+            ]
+        },
+    )
+
+    out = run_cmd(template_copy, "suggest")
+    suggestion = parse_suggestion(out.stdout)
+    assert suggestion["trial_id"] == 2
+    decision = _latest_decision(template_copy)
+    status = _assert_constraint_status(decision, enabled=True, phase="candidate-pool")
+    assert 0 < status["accepted"] < status["requested"] == 25
+    assert status["warning"] in out.stderr
+    assert "constraints reduced candidate-pool feasible candidates to" in out.stderr
 
 
 @pytest.mark.skipif(

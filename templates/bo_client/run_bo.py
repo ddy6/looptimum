@@ -57,6 +57,8 @@ validate_against_schema = _CONTRACT.validate_against_schema
 
 normalize_constraints = _CONSTRAINTS.normalize_constraints
 apply_bound_tightening = _CONSTRAINTS.apply_bound_tightening
+build_constraint_error_reason = _CONSTRAINTS.build_constraint_error_reason
+build_constraint_status = _CONSTRAINTS.build_constraint_status
 format_reject_summary = _CONSTRAINTS.format_reject_summary
 sample_feasible_candidates = _CONSTRAINTS.sample_feasible_candidates
 
@@ -80,6 +82,12 @@ STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
 normalize_search_space = _SEARCH_SPACE.normalize_search_space
 sample_random_point = _SEARCH_SPACE.sample_random_point
 canonicalize_conditional_params = _SEARCH_SPACE.canonicalize_conditional_params
+
+
+class ConstraintSamplingFailure(ValueError):
+    def __init__(self, message: str, *, decision: JSONDict) -> None:
+        super().__init__(message)
+        self.decision = decision
 
 
 def load_cfg(path: Path) -> JSONDict:
@@ -176,16 +184,44 @@ def _sample_random_candidates(
     )
 
 
-def _require_feasible_candidates(sampled: JSONDict, *, phase: str) -> list[JSONDict]:
+def _decision_with_constraint_status(decision: JSONDict, status: JSONDict) -> JSONDict:
+    enriched = dict(decision)
+    enriched["constraint_status"] = status
+    return enriched
+
+
+def _require_feasible_candidates(
+    sampled: JSONDict,
+    constraints: JSONDict | None,
+    *,
+    strategy: str,
+    surrogate_backend: str | None,
+    phase: str,
+    requested: int,
+    fallback_reason: str | None = None,
+) -> tuple[list[JSONDict], JSONDict]:
+    status = cast(
+        JSONDict,
+        build_constraint_status(
+            constraints,
+            sampled,
+            phase=phase,
+            requested=requested,
+        ),
+    )
     candidates = cast(list[JSONDict], sampled["candidates"])
     if candidates:
-        return candidates
-    attempts = int(sampled["attempts"])
-    reject_summary = format_reject_summary(cast(JSONDict, sampled["reject_counts"]))
-    raise ValueError(
-        f"constraints eliminated all {attempts} {phase} attempts "
-        f"(dominant rejects: {reject_summary})"
-    )
+        return candidates, status
+
+    decision: JSONDict = {
+        "strategy": strategy,
+        "surrogate_backend": surrogate_backend,
+        "constraint_status": status,
+    }
+    if fallback_reason is not None:
+        decision["fallback_reason"] = fallback_reason
+    decision["constraint_error_reason"] = build_constraint_error_reason(status)
+    raise ConstraintSamplingFailure(str(decision["constraint_error_reason"]), decision=decision)
 
 
 def propose(
@@ -202,18 +238,41 @@ def propose(
     objective_name = str(objective["name"])
     if len(obs) < int(cfg["initial_random_trials"]):
         sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
-        return _require_feasible_candidates(sampled, phase="initial-random")[0], {
-            "strategy": "initial_random",
-            "surrogate_backend": None,
-        }
+        candidates, status = _require_feasible_candidates(
+            sampled,
+            constraints,
+            strategy="initial_random",
+            surrogate_backend=None,
+            phase="initial-random",
+            requested=1,
+        )
+        return candidates[0], _decision_with_constraint_status(
+            {
+                "strategy": "initial_random",
+                "surrogate_backend": None,
+            },
+            status,
+        )
     usable_obs = [row for row in obs if _is_usable_observation(row, objective_name)]
     if not usable_obs:
         sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
-        return _require_feasible_candidates(sampled, phase="fallback-random")[0], {
-            "strategy": "initial_random",
-            "surrogate_backend": None,
-            "fallback_reason": "no_usable_observations",
-        }
+        candidates, status = _require_feasible_candidates(
+            sampled,
+            constraints,
+            strategy="initial_random",
+            surrogate_backend=None,
+            phase="fallback-random",
+            requested=1,
+            fallback_reason="no_usable_observations",
+        )
+        return candidates[0], _decision_with_constraint_status(
+            {
+                "strategy": "initial_random",
+                "surrogate_backend": None,
+                "fallback_reason": "no_usable_observations",
+            },
+            status,
+        )
 
     surrogate_cfg = cfg["surrogate"]
     acq_cfg = cfg["acquisition"]
@@ -226,26 +285,59 @@ def propose(
         constraints,
         target_count=int(cfg["candidate_pool_size"]),
     )
-    candidates = _require_feasible_candidates(sampled, phase="candidate-pool")
+    candidates, status = _require_feasible_candidates(
+        sampled,
+        constraints,
+        strategy="surrogate_acquisition",
+        surrogate_backend=backend,
+        phase="candidate-pool",
+        requested=int(cfg["candidate_pool_size"]),
+    )
 
     if backend == "rbf_proxy":
-        return propose_with_proxy(
+        candidate, decision = propose_with_proxy(
             candidates, usable_obs, params, objective, surrogate_cfg, acq_cfg, best
         )
+        return candidate, _decision_with_constraint_status(cast(JSONDict, decision), status)
     if backend == "gp":
         gp_min_fit_observations = max(2, int(surrogate_cfg.get("gp_min_fit_observations", 2)))
         if len(usable_obs) < gp_min_fit_observations:
             sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
-            return _require_feasible_candidates(sampled, phase="fallback-random")[0], {
-                "strategy": "initial_random",
-                "surrogate_backend": None,
-                "fallback_reason": (
-                    "insufficient_usable_observations_for_gp"
-                    f"({len(usable_obs)}/{gp_min_fit_observations})"
-                ),
-            }
-        return propose_with_gp(candidates, usable_obs, params, objective, acq_cfg, best, seed)
+            fallback_reason = (
+                "insufficient_usable_observations_for_gp"
+                f"({len(usable_obs)}/{gp_min_fit_observations})"
+            )
+            candidates, status = _require_feasible_candidates(
+                sampled,
+                constraints,
+                strategy="initial_random",
+                surrogate_backend=None,
+                phase="fallback-random",
+                requested=1,
+                fallback_reason=fallback_reason,
+            )
+            return candidates[0], _decision_with_constraint_status(
+                {
+                    "strategy": "initial_random",
+                    "surrogate_backend": None,
+                    "fallback_reason": fallback_reason,
+                },
+                status,
+            )
+        candidate, decision = propose_with_gp(
+            candidates, usable_obs, params, objective, acq_cfg, best, seed
+        )
+        return candidate, _decision_with_constraint_status(cast(JSONDict, decision), status)
     raise ValueError(f"Unsupported surrogate.type '{backend}'. Supported values: rbf_proxy | gp")
+
+
+def _emit_constraint_warning(decision: JSONDict) -> None:
+    status = decision.get("constraint_status")
+    if not isinstance(status, dict):
+        return
+    warning = status.get("warning")
+    if isinstance(warning, str) and warning:
+        print(f"WARNING: {warning}", file=sys.stderr)
 
 
 def update_best(state: JSONDict, objective: JSONDict) -> None:
@@ -1160,8 +1252,18 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
             seed = int(state["meta"]["seed"]) + int(state["next_trial_id"])
             rng = random.Random(seed)
-            cand, decision = propose(rng, state, cfg, params, obj_cfg, seed, constraints)
             trial_id = int(state["next_trial_id"])
+            try:
+                cand, decision = propose(rng, state, cfg, params, obj_cfg, seed, constraints)
+            except ConstraintSamplingFailure as exc:
+                append_jsonl(
+                    paths["acquisition_log_file"],
+                    {"trial_id": trial_id, "decision": exc.decision, "timestamp": time.time()},
+                )
+                save_state(paths["state_file"], state)
+                if stale_observations:
+                    write_obs_csv(paths["observations_csv"], _observation_rows(state))
+                raise
             suggestion = {
                 "schema_version": state_schema_version(state),
                 "trial_id": trial_id,
@@ -1195,6 +1297,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 paths["acquisition_log_file"],
                 {"trial_id": trial_id, "decision": decision, "timestamp": time.time()},
             )
+            _emit_constraint_warning(decision)
             _append_event(paths, "suggestion_created", trial_id=trial_id)
 
             save_state(paths["state_file"], state)
