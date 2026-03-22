@@ -46,6 +46,7 @@ _OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py"
 _ARCHIVES = _load_shared_module("looptimum_shared_archives", "archives.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
+_OBSERVATIONS_IO = _load_shared_module("looptimum_shared_observations_io", "observations_io.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -114,6 +115,11 @@ normalized_numeric_distance = _SEARCH_SPACE.normalized_numeric_distance
 normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
 denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
 canonicalize_conditional_params = _SEARCH_SPACE.canonicalize_conditional_params
+
+infer_observation_format = _OBSERVATIONS_IO.infer_observation_format
+load_observation_rows = _OBSERVATIONS_IO.load_observation_rows
+normalize_import_record = _OBSERVATIONS_IO.normalize_import_record
+plan_import_trial_ids = _OBSERVATIONS_IO.plan_import_trial_ids
 
 
 class ConstraintSamplingFailure(ValueError):
@@ -787,6 +793,27 @@ def _ensure_terminal_manifest(
     save_trial_manifest(paths["trials_dir"], trial_id, manifest)
 
 
+def _annotate_import_manifest(
+    paths: dict[str, Path],
+    *,
+    trial_id: int,
+    import_source: str,
+    row_format: str,
+    imported_at: float,
+    source_trial_id: int | str | None,
+) -> None:
+    manifest = load_trial_manifest(paths["trials_dir"], trial_id)
+    manifest["import_source"] = import_source
+    manifest["import_format"] = row_format
+    manifest["imported_at"] = imported_at
+    if source_trial_id is not None:
+        manifest["source_trial_id"] = source_trial_id
+    else:
+        manifest.pop("source_trial_id", None)
+    manifest["updated_at"] = imported_at
+    save_trial_manifest(paths["trials_dir"], trial_id, manifest)
+
+
 def _observation_rows(state: dict) -> list[dict]:
     rows = []
     for obs in state["observations"]:
@@ -795,6 +822,8 @@ def _observation_rows(state: dict) -> list[dict]:
             "status": obs["status"],
             "completed_at": obs["completed_at"],
         }
+        if "source_trial_id" in obs:
+            row["source_trial_id"] = obs["source_trial_id"]
         row.update({f"param_{k}": v for k, v in obs["params"].items()})
         row.update({f"objective_{k}": v for k, v in obs["objectives"].items()})
         if "penalty_objective" in obs:
@@ -1888,6 +1917,102 @@ def cmd_ingest(args: argparse.Namespace) -> None:
             _append_event(paths, "lock_released", command="ingest", pid=os.getpid())
 
 
+def cmd_import_observations(args: argparse.Namespace) -> None:
+    if not args.input_file:
+        raise ValueError("import-observations requires --input-file")
+
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    space_cfg, space_path = load_contract_document(root, "parameter_space")
+    if not isinstance(space_cfg, dict):
+        raise ValueError(f"parameter_space must be an object: {space_path}")
+    params = normalize_search_space(space_cfg)
+    obj_cfg = _load_objective_config(root, cfg)
+
+    input_path = Path(args.input_file).resolve()
+    row_format = args.format or infer_observation_format(input_path)
+    raw_rows = load_observation_rows(input_path, row_format)
+    if not raw_rows:
+        raise ValueError(f"No observation rows found in {input_path}")
+
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="import-observations",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            state = load_state(paths["state_file"])
+            planned_trial_ids = plan_import_trial_ids(state, len(raw_rows))
+            imported_at = time.time()
+            import_source = _relative_path(root, input_path)
+
+            normalized_rows = [
+                normalize_import_record(
+                    raw_row,
+                    row_format=row_format,
+                    params=params,
+                    objective_cfg=obj_cfg,
+                    local_trial_id=planned_trial_ids[index],
+                    imported_at=imported_at,
+                )
+                for index, raw_row in enumerate(raw_rows)
+            ]
+
+            imported_observations = [record["observation"] for record in normalized_rows]
+            for observation, record in zip(imported_observations, normalized_rows, strict=True):
+                source_trial_id = record.get("source_trial_id")
+                if source_trial_id is not None:
+                    observation["source_trial_id"] = source_trial_id
+                state["observations"].append(observation)
+                _ensure_terminal_manifest(
+                    root,
+                    paths,
+                    observation,
+                    objective_cfg=obj_cfg,
+                    payload_copy_path=None,
+                    now=imported_at,
+                )
+                _annotate_import_manifest(
+                    paths,
+                    trial_id=int(observation["trial_id"]),
+                    import_source=import_source,
+                    row_format=row_format,
+                    imported_at=imported_at,
+                    source_trial_id=source_trial_id,
+                )
+
+            if planned_trial_ids:
+                state["next_trial_id"] = planned_trial_ids[-1] + 1
+            update_best(state, obj_cfg)
+            _save_state_and_rows(paths, state)
+            _append_event(
+                paths,
+                "observations_imported",
+                import_source=import_source,
+                imported_at=imported_at,
+                row_format=row_format,
+                accepted_count=len(imported_observations),
+                rejected_count=0,
+            )
+            print(f"Imported {len(imported_observations)} observation(s) from {import_source}.")
+            print(
+                f"Format: {row_format}. Observations={len(state['observations'])} "
+                f"Next trial id={state['next_trial_id']}"
+            )
+        finally:
+            _append_event(paths, "lock_released", command="import-observations", pid=os.getpid())
+
+
 def cmd_cancel(args: argparse.Namespace) -> None:
     if args.trial_id is None:
         raise ValueError("cancel requires --trial-id")
@@ -2683,6 +2808,7 @@ def parse_args() -> argparse.Namespace:
         choices=[
             "suggest",
             "ingest",
+            "import-observations",
             "status",
             "demo",
             "cancel",
@@ -2699,6 +2825,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--results-file", default="examples/example_results.json")
+    parser.add_argument("--input-file", help="For import-observations: CSV/JSONL input file.")
+    parser.add_argument(
+        "--format",
+        choices=["csv", "jsonl"],
+        help="For import-observations: input format override.",
+    )
     parser.add_argument("--steps", type=int, default=8)
     parser.add_argument("--trial-id", type=int)
     parser.add_argument(
@@ -2796,6 +2928,7 @@ def main() -> None:
     commands = {
         "suggest": cmd_suggest,
         "ingest": cmd_ingest,
+        "import-observations": cmd_import_observations,
         "status": cmd_status,
         "demo": cmd_demo,
         "cancel": cmd_cancel,

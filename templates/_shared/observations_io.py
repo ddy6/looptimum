@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
 import json
 import math
@@ -31,6 +32,7 @@ _KNOWN_ROW_FIELDS = {
 }
 _EXPORT_FIELD_ORDER = [
     "trial_id",
+    "source_trial_id",
     "params",
     "objectives",
     "status",
@@ -377,6 +379,35 @@ def infer_observation_format(path: Path) -> str:
     raise ValueError(
         f"Unsupported observation file format for '{path}'; expected .csv, .jsonl, or .ndjson"
     )
+
+
+def load_observation_rows(path: Path, row_format: str) -> list[JSONDict]:
+    normalized_format = _require_supported_format(row_format)
+    if not path.exists():
+        raise ValueError(f"Observation input file does not exist: {path}")
+
+    if normalized_format == "jsonl":
+        rows: list[JSONDict] = []
+        for line_number, raw_line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{path}: jsonl line {line_number} invalid JSON: {exc}") from exc
+            if not isinstance(payload, dict):
+                raise ValueError(f"{path}: jsonl line {line_number} must decode to an object")
+            rows.append(cast(JSONDict, payload))
+        return rows
+
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None:
+            return []
+        return [cast(JSONDict, row) for row in reader]
 
 
 def plan_import_trial_ids(state: JSONDict, row_count: int) -> list[int]:

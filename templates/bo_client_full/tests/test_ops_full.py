@@ -124,6 +124,25 @@ def _write_weighted_sum_objective_schema(project_root: Path) -> None:
     )
 
 
+def _write_import_csv(
+    path: Path,
+    *,
+    fieldnames: list[str],
+    rows: list[dict[str, object]],
+) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_import_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
 def test_report_generates_json_and_markdown(template_copy: Path) -> None:
     suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -389,6 +408,76 @@ def test_reset_requires_yes_in_non_interactive_mode(template_copy: Path) -> None
     assert out.returncode != 0
     assert "re-run with --yes" in out.stderr
     assert (template_copy / "state" / "bo_state.json").exists()
+
+
+def test_import_observations_csv_updates_multi_objective_best_and_manifests(
+    template_copy: Path,
+) -> None:
+    _write_weighted_sum_objective_schema(template_copy)
+    import_path = template_copy / "examples" / "_import_multi_objective.csv"
+    _write_import_csv(
+        import_path,
+        fieldnames=[
+            "source_trial_id",
+            "status",
+            "suggested_at",
+            "completed_at",
+            "param_x1",
+            "param_x2",
+            "objective_loss",
+            "objective_throughput",
+        ],
+        rows=[
+            {
+                "source_trial_id": "full-1",
+                "status": "ok",
+                "suggested_at": "100.0",
+                "completed_at": "120.0",
+                "param_x1": "0.25",
+                "param_x2": "0.75",
+                "objective_loss": "0.3",
+                "objective_throughput": "2.0",
+            },
+            {
+                "source_trial_id": "full-2",
+                "status": "ok",
+                "suggested_at": "200.0",
+                "completed_at": "230.0",
+                "param_x1": "0.4",
+                "param_x2": "0.6",
+                "objective_loss": "0.2",
+                "objective_throughput": "1.0",
+            },
+        ],
+    )
+
+    out = run_cmd(template_copy, "import-observations", "--input-file", str(import_path))
+    assert "Imported 2 observation(s) from examples/_import_multi_objective.csv." in out.stdout
+    assert "Format: csv. Observations=2 Next trial id=3" in out.stdout
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["best"]["trial_id"] == 1
+    assert status["best"]["objective_name"] == "scalarized"
+    assert status["best"]["scalarization_policy"] == "weighted_sum"
+    assert status["best"]["objective_vector"] == {"loss": 0.3, "throughput": 2.0}
+    assert status["best"]["objective_value"] == pytest.approx(-0.85)
+
+    manifest = json.loads(
+        (template_copy / "state" / "trials" / "trial_1" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["objective_name"] == "loss"
+    assert manifest["objective_vector"] == {"loss": 0.3, "throughput": 2.0}
+    assert manifest["scalarization_policy"] == "weighted_sum"
+    assert manifest["source_trial_id"] == "full-1"
+
+    with (template_copy / "state" / "observations.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = {int(row["trial_id"]): row for row in csv.DictReader(handle)}
+    assert rows[1]["objective_throughput"] == "2.0"
+    assert rows[1]["source_trial_id"] == "full-1"
 
 
 def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy: Path) -> None:

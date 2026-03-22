@@ -124,6 +124,25 @@ def _write_weighted_sum_objective_schema(project_root: Path) -> None:
     )
 
 
+def _write_import_csv(
+    path: Path,
+    *,
+    fieldnames: list[str],
+    rows: list[dict[str, object]],
+) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_import_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
 def test_report_generates_json_and_markdown(template_copy: Path) -> None:
     suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -389,6 +408,49 @@ def test_reset_requires_yes_in_non_interactive_mode(template_copy: Path) -> None
     assert out.returncode != 0
     assert "re-run with --yes" in out.stderr
     assert (template_copy / "state" / "bo_state.json").exists()
+
+
+def test_import_observations_jsonl_canonicalizes_conditional_params(template_copy: Path) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_conditional_parameter_space(), indent=2), encoding="utf-8"
+    )
+    import_path = template_copy / "examples" / "_import_seed.jsonl"
+    _write_import_jsonl(
+        import_path,
+        [
+            {
+                "source_trial_id": "demo-41",
+                "status": "ok",
+                "suggested_at": 100.0,
+                "completed_at": 105.0,
+                "params": {"gate": 0, "x": 0.25, "momentum": 0.9},
+                "objectives": {"loss": 0.3},
+            }
+        ],
+    )
+
+    out = run_cmd(template_copy, "import-observations", "--input-file", str(import_path))
+    assert "Imported 1 observation(s) from examples/_import_seed.jsonl." in out.stdout
+    assert "Format: jsonl. Observations=1 Next trial id=2" in out.stdout
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert state["observations"][0]["params"] == {"gate": 0, "x": 0.25}
+    assert state["observations"][0]["source_trial_id"] == "demo-41"
+
+    manifest = json.loads(
+        (template_copy / "state" / "trials" / "trial_1" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["source_trial_id"] == "demo-41"
+    assert manifest["import_format"] == "jsonl"
+
+    with (template_copy / "state" / "observations.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        row = next(csv.DictReader(handle))
+    assert "param_momentum" not in row
+    assert row["source_trial_id"] == "demo-41"
 
 
 def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy: Path) -> None:

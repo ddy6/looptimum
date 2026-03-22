@@ -82,6 +82,25 @@ def _write_weighted_sum_objective_schema(project_root: Path) -> None:
     )
 
 
+def _write_import_csv(
+    path: Path,
+    *,
+    fieldnames: list[str],
+    rows: list[dict[str, object]],
+) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_import_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
 def test_report_generates_json_and_markdown(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -347,6 +366,134 @@ def test_reset_requires_yes_in_non_interactive_mode(template_copy) -> None:
     assert out.returncode != 0
     assert "re-run with --yes" in out.stderr
     assert (template_copy / "state" / "bo_state.json").exists()
+
+
+def test_import_observations_strict_csv_recomputes_best_and_writes_manifests(
+    template_copy,
+) -> None:
+    import_path = template_copy / "examples" / "_import_seed.csv"
+    _write_import_csv(
+        import_path,
+        fieldnames=[
+            "source_trial_id",
+            "status",
+            "suggested_at",
+            "completed_at",
+            "param_x1",
+            "param_x2",
+            "objective_loss",
+            "terminal_reason",
+            "penalty_objective",
+            "artifact_path",
+        ],
+        rows=[
+            {
+                "source_trial_id": "legacy-1",
+                "status": "ok",
+                "suggested_at": "100.0",
+                "completed_at": "125.0",
+                "param_x1": "0.25",
+                "param_x2": "0.75",
+                "objective_loss": "0.12",
+                "terminal_reason": "",
+                "penalty_objective": "",
+                "artifact_path": "legacy/trial-1",
+            },
+            {
+                "source_trial_id": "legacy-2",
+                "status": "failed",
+                "suggested_at": "200.0",
+                "completed_at": "",
+                "param_x1": "0.9",
+                "param_x2": "0.1",
+                "objective_loss": "",
+                "terminal_reason": "",
+                "penalty_objective": "",
+                "artifact_path": "",
+            },
+        ],
+    )
+
+    out = run_cmd(template_copy, "import-observations", "--input-file", str(import_path))
+    assert "Imported 2 observation(s) from examples/_import_seed.csv." in out.stdout
+    assert "Format: csv. Observations=2 Next trial id=3" in out.stdout
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 2
+    assert status["pending"] == 0
+    assert status["next_trial_id"] == 3
+    assert status["best"]["trial_id"] == 1
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [obs["trial_id"] for obs in state["observations"]] == [1, 2]
+    assert state["observations"][0]["source_trial_id"] == "legacy-1"
+    assert state["observations"][1]["source_trial_id"] == "legacy-2"
+
+    manifest_one = json.loads(
+        (template_copy / "state" / "trials" / "trial_1" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest_one["import_source"] == "examples/_import_seed.csv"
+    assert manifest_one["import_format"] == "csv"
+    assert manifest_one["source_trial_id"] == "legacy-1"
+
+    manifest_two = json.loads(
+        (template_copy / "state" / "trials" / "trial_2" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest_two["status"] == "failed"
+    assert manifest_two["terminal_reason"] == "status=failed"
+    assert isinstance(manifest_two["completed_at"], float)
+    assert manifest_two["source_trial_id"] == "legacy-2"
+
+    with (template_copy / "state" / "observations.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = {int(row["trial_id"]): row for row in csv.DictReader(handle)}
+    assert rows[1]["source_trial_id"] == "legacy-1"
+    assert rows[2]["source_trial_id"] == "legacy-2"
+
+    event_lines = (
+        (template_copy / "state" / "event_log.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    import_events = [
+        json.loads(line) for line in event_lines if '"event": "observations_imported"' in line
+    ]
+    assert len(import_events) == 1
+    assert import_events[0]["accepted_count"] == 2
+    assert import_events[0]["rejected_count"] == 0
+
+
+def test_import_observations_rejects_when_pending_trials_exist(template_copy) -> None:
+    parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    import_path = template_copy / "examples" / "_import_pending_block.jsonl"
+    _write_import_jsonl(
+        import_path,
+        [
+            {
+                "source_trial_id": "legacy-3",
+                "status": "ok",
+                "params": {"x1": 0.5, "x2": 0.5},
+                "objectives": {"loss": 0.4},
+            }
+        ],
+    )
+
+    out = run_cmd(
+        template_copy,
+        "import-observations",
+        "--input-file",
+        str(import_path),
+        expect_ok=False,
+    )
+    assert out.returncode != 0
+    assert "requires zero pending trials" in out.stderr
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 0
+    assert status["pending"] == 1
 
 
 def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy) -> None:
