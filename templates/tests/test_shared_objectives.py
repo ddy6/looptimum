@@ -163,6 +163,57 @@ def test_build_best_record_includes_vector_and_policy_for_multi_objective() -> N
     }
 
 
+def test_build_objective_metadata_keeps_primary_and_scalarized_values() -> None:
+    objective_cfg = OBJECTIVES.normalize_objective_schema(
+        {
+            "primary_objective": {"name": "loss", "direction": "minimize"},
+            "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+            "scalarization": {
+                "policy": "weighted_sum",
+                "weights": {"loss": 1.0, "throughput": 1.0},
+            },
+        }
+    )
+
+    metadata = OBJECTIVES.build_objective_metadata(
+        {"loss": 0.2, "throughput": 3.0},
+        objective_cfg,
+    )
+
+    assert metadata == {
+        "objective_name": "loss",
+        "objective_value": 0.2,
+        "objective_vector": {"loss": 0.2, "throughput": 3.0},
+        "scalarized_objective": pytest.approx(-1.4),
+        "scalarization_policy": "weighted_sum",
+    }
+
+
+def test_pareto_front_records_filters_dominated_trials_and_sorts_deterministically() -> None:
+    objective_cfg = OBJECTIVES.normalize_objective_schema(
+        {
+            "primary_objective": {"name": "loss", "direction": "minimize"},
+            "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+            "scalarization": {
+                "policy": "weighted_sum",
+                "weights": {"loss": 1.0, "throughput": 1.0},
+            },
+        }
+    )
+
+    frontier = OBJECTIVES.pareto_front_records(
+        [
+            {"trial_id": 1, "objectives": {"loss": 0.4, "throughput": 1.0}},
+            {"trial_id": 2, "objectives": {"loss": 0.3, "throughput": 2.0}},
+            {"trial_id": 3, "objectives": {"loss": 0.2, "throughput": 1.0}},
+            {"trial_id": 4, "objectives": {"loss": 0.25, "throughput": 0.9}},
+        ],
+        objective_cfg,
+    )
+
+    assert [row["trial_id"] for row in frontier] == [2, 3]
+
+
 @pytest.mark.parametrize(
     ("objective_cfg", "pattern"),
     [

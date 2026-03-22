@@ -64,6 +64,23 @@ def _conditional_parameter_space() -> dict:
     }
 
 
+def _write_weighted_sum_objective_schema(project_root: Path) -> None:
+    (project_root / "objective_schema.json").write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+                "scalarization": {
+                    "policy": "weighted_sum",
+                    "weights": {"loss": 1.0, "throughput": 1.0},
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_report_generates_json_and_markdown(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -95,6 +112,66 @@ def test_report_generates_json_and_markdown(template_copy) -> None:
     assert report["terminal_trials"] == []
     assert report["objective_trace"][0]["artifact_path"] == report["top_trials"][0]["artifact_path"]
     assert "Looptimum Report" in report_md.read_text(encoding="utf-8")
+
+
+def test_report_includes_multi_objective_pareto_and_manifest_metadata(template_copy) -> None:
+    _write_weighted_sum_objective_schema(template_copy)
+
+    first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    first_payload = {
+        "trial_id": first["trial_id"],
+        "params": first["params"],
+        "objectives": {"loss": 0.3, "throughput": 2.0},
+        "status": "ok",
+    }
+    first_path = template_copy / "examples" / "_report_multi_objective_first.json"
+    first_path.write_text(json.dumps(first_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(first_path))
+
+    second = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    second_payload = {
+        "trial_id": second["trial_id"],
+        "params": second["params"],
+        "objectives": {"loss": 0.2, "throughput": 1.0},
+        "status": "ok",
+    }
+    second_path = template_copy / "examples" / "_report_multi_objective_second.json"
+    second_path.write_text(json.dumps(second_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(second_path))
+
+    run_cmd(template_copy, "report", "--top-n", "5")
+    report = json.loads((template_copy / "state" / "report.json").read_text(encoding="utf-8"))
+    report_md = (template_copy / "state" / "report.md").read_text(encoding="utf-8")
+
+    assert report["objective"]["best_objective_name"] == "scalarized"
+    assert report["objective"]["scalarization_policy"] == "weighted_sum"
+    assert report["objective_config"]["objective_names"] == ["loss", "throughput"]
+    assert report["best"]["trial_id"] == first["trial_id"]
+    assert report["best"]["objective_vector"] == first_payload["objectives"]
+
+    top_by_trial = {int(row["trial_id"]): row for row in report["top_trials"]}
+    assert top_by_trial[first["trial_id"]]["objective_value"] == 0.3
+    assert top_by_trial[first["trial_id"]]["scalarized_objective"] == pytest.approx(-0.85)
+    assert top_by_trial[first["trial_id"]]["objective_vector"] == first_payload["objectives"]
+    assert top_by_trial[second["trial_id"]]["objective_vector"] == second_payload["objectives"]
+
+    assert report["pareto_front"]["trial_ids"] == [first["trial_id"], second["trial_id"]]
+    trace_by_trial = {int(row["trial_id"]): row for row in report["objective_trace"]}
+    assert trace_by_trial[first["trial_id"]]["objective_vector"] == first_payload["objectives"]
+    assert trace_by_trial[second["trial_id"]]["objective_vector"] == second_payload["objectives"]
+
+    manifest = json.loads(
+        (
+            template_copy / "state" / "trials" / f"trial_{first['trial_id']}" / "manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert manifest["objective_name"] == "loss"
+    assert manifest["objective_vector"] == first_payload["objectives"]
+    assert manifest["scalarization_policy"] == "weighted_sum"
+    assert manifest["scalarized_objective"] == pytest.approx(-0.85)
+
+    assert "Pareto Front" in report_md
+    assert "weighted_sum" in report_md
 
 
 def test_report_carries_traceability_for_failed_or_ejected_trials(template_copy) -> None:

@@ -67,10 +67,14 @@ normalize_objective_schema = _OBJECTIVES.normalize_objective_schema
 best_objective_name = _OBJECTIVES.best_objective_name
 best_rank_key = _OBJECTIVES.best_rank_key
 build_best_record = _OBJECTIVES.build_best_record
+build_objective_metadata = _OBJECTIVES.build_objective_metadata
 canonical_objective_vector = _OBJECTIVES.canonical_objective_vector
 objective_names = _OBJECTIVES.objective_names
+objective_config_snapshot = _OBJECTIVES.objective_config_snapshot
+pareto_front_records = _OBJECTIVES.pareto_front_records
 primary_objective_name = _OBJECTIVES.primary_objective_name
 scalarize_objectives = _OBJECTIVES.scalarize_objectives
+scalarization_policy = _OBJECTIVES.scalarization_policy
 scalarized_direction = _OBJECTIVES.scalarized_direction
 
 append_jsonl = _RUNTIME.append_jsonl
@@ -486,17 +490,24 @@ def _pop_pending(state: JSONDict, trial_id: int) -> JSONDict | None:
 
 
 def _ensure_pending_manifest(
-    paths: PathMap, pending_entry: JSONDict, *, objective_name: str, now: float
+    paths: PathMap, pending_entry: JSONDict, *, objective_cfg: JSONDict, now: float
 ) -> None:
     trial_id = int(pending_entry["trial_id"])
     manifest = load_trial_manifest(paths["trials_dir"], trial_id)
+    objective_meta = build_objective_metadata(None, objective_cfg)
     manifest.setdefault("created_at", now)
     manifest["trial_id"] = trial_id
     manifest["status"] = "pending"
     manifest["terminal_reason"] = None
     manifest["params"] = pending_entry["params"]
-    manifest["objective_name"] = objective_name
-    manifest["objective_value"] = None
+    manifest["objective_name"] = objective_meta["objective_name"]
+    manifest["objective_value"] = objective_meta["objective_value"]
+    manifest["objective_vector"] = objective_meta["objective_vector"]
+    manifest["scalarized_objective"] = objective_meta["scalarized_objective"]
+    if "scalarization_policy" in objective_meta:
+        manifest["scalarization_policy"] = objective_meta["scalarization_policy"]
+    else:
+        manifest.pop("scalarization_policy", None)
     manifest["penalty_objective"] = None
     manifest["suggested_at"] = float(pending_entry.get("suggested_at", now))
     manifest["completed_at"] = None
@@ -520,19 +531,26 @@ def _ensure_terminal_manifest(
     paths: PathMap,
     observation: JSONDict,
     *,
-    objective_name: str,
+    objective_cfg: JSONDict,
     payload_copy_path: Path | None,
     now: float,
 ) -> None:
     trial_id = int(observation["trial_id"])
     manifest = load_trial_manifest(paths["trials_dir"], trial_id)
+    objective_meta = build_objective_metadata(observation.get("objectives"), objective_cfg)
     manifest.setdefault("created_at", now)
     manifest["trial_id"] = trial_id
     manifest["status"] = observation["status"]
     manifest["terminal_reason"] = observation.get("terminal_reason")
     manifest["params"] = observation["params"]
-    manifest["objective_name"] = objective_name
-    manifest["objective_value"] = observation["objectives"].get(objective_name)
+    manifest["objective_name"] = objective_meta["objective_name"]
+    manifest["objective_value"] = objective_meta["objective_value"]
+    manifest["objective_vector"] = objective_meta["objective_vector"]
+    manifest["scalarized_objective"] = objective_meta["scalarized_objective"]
+    if "scalarization_policy" in objective_meta:
+        manifest["scalarization_policy"] = objective_meta["scalarization_policy"]
+    else:
+        manifest.pop("scalarization_policy", None)
     manifest["penalty_objective"] = observation.get("penalty_objective")
     manifest["suggested_at"] = observation.get("suggested_at", manifest.get("suggested_at"))
     manifest["completed_at"] = observation.get("completed_at")
@@ -716,74 +734,72 @@ def _runtime_summary(observations: list[JSONDict]) -> JSONDict | None:
     }
 
 
+def _build_observation_report_row(
+    observation: JSONDict,
+    objective_cfg: JSONDict,
+    *,
+    include_params: bool,
+) -> JSONDict:
+    objective_meta = build_objective_metadata(observation.get("objectives"), objective_cfg)
+    row: JSONDict = {
+        "trial_id": int(observation["trial_id"]),
+        "status": observation.get("status"),
+        "objective_name": objective_meta["objective_name"],
+        "objective_value": objective_meta["objective_value"],
+        "objective_vector": objective_meta["objective_vector"],
+        "scalarized_objective": objective_meta["scalarized_objective"],
+        "penalty_objective": observation.get("penalty_objective"),
+        "suggested_at": observation.get("suggested_at"),
+        "completed_at": observation.get("completed_at"),
+        "artifact_path": observation.get("artifact_path"),
+        "terminal_reason": observation.get("terminal_reason"),
+    }
+    if "scalarization_policy" in objective_meta:
+        row["scalarization_policy"] = objective_meta["scalarization_policy"]
+    if include_params:
+        row["params"] = observation.get("params")
+    return row
+
+
 def _build_report_payload(
     *,
     state: JSONDict,
-    objective: JSONDict,
+    objective_cfg: JSONDict,
     top_n: int,
 ) -> JSONDict:
+    objective = cast(JSONDict, objective_cfg["primary_objective"])
     objective_name = str(objective["name"])
     objective_direction = str(objective["direction"])
     observations = list(state.get("observations", []))
     status_counts = _status_counts(observations)
 
     ok_observations = [obs for obs in observations if str(obs.get("status", "")) == "ok"]
-    if objective_direction == "minimize":
-        ranked_ok = sorted(
-            ok_observations, key=lambda obs: float(obs["objectives"][objective_name])
-        )
-    else:
-        ranked_ok = sorted(
-            ok_observations, key=lambda obs: float(obs["objectives"][objective_name]), reverse=True
-        )
+    ranked_ok = sorted(
+        ok_observations,
+        key=lambda obs: best_rank_key(
+            cast(JSONDict, obs["objectives"]),
+            objective_cfg,
+            trial_id=int(obs["trial_id"]),
+        ),
+    )
 
-    top_trials = []
-    for obs in ranked_ok[: max(1, int(top_n))]:
-        top_trials.append(
-            {
-                "trial_id": int(obs["trial_id"]),
-                "status": obs.get("status"),
-                "objective_value": float(obs["objectives"][objective_name]),
-                "penalty_objective": obs.get("penalty_objective"),
-                "suggested_at": obs.get("suggested_at"),
-                "completed_at": obs.get("completed_at"),
-                "artifact_path": obs.get("artifact_path"),
-                "params": obs.get("params"),
-                "terminal_reason": obs.get("terminal_reason"),
-            }
-        )
-
-    terminal_trials = []
-    for obs in sorted(observations, key=lambda row: int(row.get("trial_id", 0))):
-        status = str(obs.get("status", ""))
-        if status not in {"failed", "killed", "timeout"}:
-            continue
-        terminal_trials.append(
-            {
-                "trial_id": int(obs["trial_id"]),
-                "status": status,
-                "terminal_reason": obs.get("terminal_reason"),
-                "suggested_at": obs.get("suggested_at"),
-                "completed_at": obs.get("completed_at"),
-                "penalty_objective": obs.get("penalty_objective"),
-                "artifact_path": obs.get("artifact_path"),
-            }
-        )
-
-    objective_trace = []
-    for obs in sorted(observations, key=lambda row: int(row.get("trial_id", 0))):
-        objective_trace.append(
-            {
-                "trial_id": int(obs["trial_id"]),
-                "status": obs.get("status"),
-                "objective_value": obs.get("objectives", {}).get(objective_name),
-                "terminal_reason": obs.get("terminal_reason"),
-                "penalty_objective": obs.get("penalty_objective"),
-                "suggested_at": obs.get("suggested_at"),
-                "completed_at": obs.get("completed_at"),
-                "artifact_path": obs.get("artifact_path"),
-            }
-        )
+    top_trials = [
+        _build_observation_report_row(obs, objective_cfg, include_params=True)
+        for obs in ranked_ok[: max(1, int(top_n))]
+    ]
+    terminal_trials = [
+        _build_observation_report_row(obs, objective_cfg, include_params=False)
+        for obs in sorted(observations, key=lambda row: int(row.get("trial_id", 0)))
+        if str(obs.get("status", "")) in {"failed", "killed", "timeout"}
+    ]
+    objective_trace = [
+        _build_observation_report_row(obs, objective_cfg, include_params=False)
+        for obs in sorted(observations, key=lambda row: int(row.get("trial_id", 0)))
+    ]
+    pareto_records = pareto_front_records(
+        [cast(JSONDict, obs) for obs in ok_observations],
+        objective_cfg,
+    )
 
     total_observations = len(observations)
     non_ok = total_observations - status_counts.get("ok", 0)
@@ -795,7 +811,10 @@ def _build_report_payload(
         "objective": {
             "name": objective_name,
             "direction": objective_direction,
+            "best_objective_name": best_objective_name(objective_cfg),
+            "scalarization_policy": scalarization_policy(objective_cfg),
         },
+        "objective_config": objective_config_snapshot(objective_cfg),
         "counts": {
             "observations": total_observations,
             "pending": len(state.get("pending", [])),
@@ -807,6 +826,14 @@ def _build_report_payload(
         "top_trials": top_trials,
         "terminal_trials": terminal_trials,
         "objective_trace": objective_trace,
+        "pareto_front": {
+            "count": len(pareto_records),
+            "trial_ids": [int(obs["trial_id"]) for obs in pareto_records],
+            "trials": [
+                _build_observation_report_row(obs, objective_cfg, include_params=True)
+                for obs in pareto_records
+            ],
+        },
         "runtime_summary": _runtime_summary(observations),
     }
     return report
@@ -815,11 +842,15 @@ def _build_report_payload(
 def _render_report_markdown(report: JSONDict) -> str:
     objective = report["objective"]
     counts = report["counts"]
+    objective_config = report["objective_config"]
     lines = [
         "# Looptimum Report",
         "",
         f"- Generated at: `{report['generated_at']}`",
         f"- Objective: `{objective['name']}` ({objective['direction']})",
+        f"- Best ranking target: `{objective['best_objective_name']}`",
+        f"- Scalarization policy: `{objective['scalarization_policy']}`",
+        f"- Objectives: `{json.dumps(objective_config['objective_names'])}`",
         f"- Observations: `{counts['observations']}`",
         f"- Pending: `{counts['pending']}`",
         f"- Failure rate: `{counts['failure_rate']:.4f}`",
@@ -832,9 +863,31 @@ def _render_report_markdown(report: JSONDict) -> str:
         lines.append("No best trial yet.")
     else:
         lines.append(f"- trial_id: `{best['trial_id']}`")
+        lines.append(f"- objective_name: `{best['objective_name']}`")
         lines.append(f"- objective_value: `{best['objective_value']}`")
+        if "scalarization_policy" in best:
+            lines.append(f"- scalarization_policy: `{best['scalarization_policy']}`")
+        if "objective_vector" in best:
+            lines.append(
+                f"- objective_vector: `{json.dumps(best['objective_vector'], sort_keys=True)}`"
+            )
         best_params = report.get("best_params")
         lines.append(f"- params: `{json.dumps(best_params, sort_keys=True)}`")
+
+    lines.extend(["", "## Pareto Front", ""])
+    pareto_front = report.get("pareto_front", {})
+    pareto_trials = pareto_front.get("trials", [])
+    lines.append(f"- count: `{pareto_front.get('count', 0)}`")
+    lines.append(f"- trial_ids: `{json.dumps(pareto_front.get('trial_ids', []))}`")
+    if pareto_trials:
+        for row in pareto_trials:
+            lines.append(
+                f"- trial `{row['trial_id']}`: objective={row['objective_value']}, "
+                f"scalarized={row['scalarized_objective']}, "
+                f"vector={json.dumps(row['objective_vector'], sort_keys=True)}"
+            )
+    else:
+        lines.append("No completed ok trials yet.")
 
     lines.extend(["", "## Top Trials", ""])
     top_trials = report.get("top_trials", [])
@@ -842,9 +895,15 @@ def _render_report_markdown(report: JSONDict) -> str:
         lines.append("No completed ok trials yet.")
     else:
         for row in top_trials:
-            lines.append(
-                f"- trial `{row['trial_id']}`: objective={row['objective_value']}, status={row['status']}"
-            )
+            if row.get("scalarization_policy") is not None:
+                lines.append(
+                    f"- trial `{row['trial_id']}`: objective={row['objective_value']}, "
+                    f"scalarized={row['scalarized_objective']}, status={row['status']}"
+                )
+            else:
+                lines.append(
+                    f"- trial `{row['trial_id']}`: objective={row['objective_value']}, status={row['status']}"
+                )
 
     runtime_summary = report.get("runtime_summary")
     lines.extend(["", "## Runtime Summary", ""])
@@ -1107,7 +1166,7 @@ def _validate_jsonl_file_hard(path: Path, *, label: str) -> list[str]:
     return errors
 
 
-def _validate_trial_manifests_hard(trials_dir: Path) -> list[str]:
+def _validate_trial_manifests_hard(trials_dir: Path, objective_cfg: JSONDict) -> list[str]:
     if not trials_dir.exists():
         return []
     if not trials_dir.is_dir():
@@ -1190,6 +1249,13 @@ def _validate_trial_manifests_hard(trials_dir: Path) -> list[str]:
         if status in {"failed", "killed", "timeout"} and "penalty_objective" not in manifest:
             errors.append(f"manifest missing required field 'penalty_objective': {manifest_path}")
 
+        objective_vector = manifest.get("objective_vector")
+        if objective_vector is not None:
+            try:
+                build_objective_metadata(objective_vector, objective_cfg)
+            except ValueError as exc:
+                errors.append(f"manifest objective_vector invalid: {manifest_path} ({exc})")
+
     return errors
 
 
@@ -1223,8 +1289,6 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
     obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
-    objective_name = primary_objective_name(obj_cfg)
-
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
     max_pending_age = resolve_max_pending_age_seconds(cfg)
@@ -1259,7 +1323,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                         root,
                         paths,
                         obs,
-                        objective_name=objective_name,
+                        objective_cfg=obj_cfg,
                         payload_copy_path=None,
                         now=now,
                     )
@@ -1320,7 +1384,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
             _ensure_pending_manifest(
                 paths,
                 suggestion,
-                objective_name=objective_name,
+                objective_cfg=obj_cfg,
                 now=time.time(),
             )
 
@@ -1353,8 +1417,6 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     params = normalize_search_space(space_cfg)
 
     obj_cfg = _load_objective_config(root, cfg)
-    objective_name = primary_objective_name(obj_cfg)
-
     ingest_schema, _ = load_schema_from_paths(
         root,
         cfg["paths"],
@@ -1475,7 +1537,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 root,
                 paths,
                 observation,
-                objective_name=objective_name,
+                objective_cfg=obj_cfg,
                 payload_copy_path=payload_copy_path,
                 now=now,
             )
@@ -1496,8 +1558,6 @@ def cmd_cancel(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective_name = primary_objective_name(obj_cfg)
-
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
 
@@ -1531,7 +1591,7 @@ def cmd_cancel(args: argparse.Namespace) -> None:
                 root,
                 paths,
                 observation,
-                objective_name=objective_name,
+                objective_cfg=obj_cfg,
                 payload_copy_path=None,
                 now=now,
             )
@@ -1556,8 +1616,6 @@ def cmd_retire(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective_name = primary_objective_name(obj_cfg)
-
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
 
@@ -1630,7 +1688,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
                     root,
                     paths,
                     observation,
-                    objective_name=objective_name,
+                    objective_cfg=obj_cfg,
                     payload_copy_path=None,
                     now=now,
                 )
@@ -1657,9 +1715,6 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective = obj_cfg["primary_objective"]
-    objective_name = str(objective["name"])
-
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
 
@@ -1696,7 +1751,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
             _ensure_pending_manifest(
                 paths,
                 pending_entry,
-                objective_name=objective_name,
+                objective_cfg=obj_cfg,
                 now=time.time(),
             )
             save_state(paths["state_file"], state)
@@ -1728,8 +1783,6 @@ def cmd_report(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective = obj_cfg["primary_objective"]
-
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
 
@@ -1746,9 +1799,7 @@ def cmd_report(args: argparse.Namespace) -> None:
         try:
             state = load_state(paths["state_file"])
             report = _build_report_payload(
-                state=state,
-                objective=objective,
-                top_n=max(1, int(args.top_n)),
+                state=state, objective_cfg=obj_cfg, top_n=max(1, int(args.top_n))
             )
             atomic_write_json(paths["report_json_file"], report, indent=2)
             atomic_write_text(paths["report_md_file"], _render_report_markdown(report))
@@ -1933,7 +1984,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         _validate_jsonl_file_hard(paths["acquisition_log_file"], label="acquisition_log_file")
     )
     hard_errors.extend(_validate_jsonl_file_hard(paths["event_log_file"], label="event_log_file"))
-    hard_errors.extend(_validate_trial_manifests_hard(paths["trials_dir"]))
+    hard_errors.extend(_validate_trial_manifests_hard(paths["trials_dir"], obj_cfg))
     warnings_out.extend(
         _validate_state_warnings(
             state=state,
@@ -1963,7 +2014,6 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
     obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
-
     paths = _runtime_paths(root, cfg)
     state = load_state(paths["state_file"])
     max_pending_age = resolve_max_pending_age_seconds(cfg)

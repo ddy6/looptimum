@@ -387,3 +387,128 @@ def build_best_record(
         record["scalarization_policy"] = scalarization_policy(objective_cfg)
         record["objective_vector"] = vector
     return record
+
+
+def objective_config_snapshot(objective_cfg: JSONDict) -> JSONDict:
+    primary = _require_object(
+        objective_cfg.get("primary_objective"),
+        field_name="objective_cfg.primary_objective",
+    )
+    secondary = [
+        _require_object(item, field_name=f"objective_cfg.secondary_objectives[{index}]")
+        for index, item in enumerate(objective_cfg.get("secondary_objectives", []))
+    ]
+    objectives = [
+        _require_object(item, field_name=f"objective_cfg.objectives[{index}]")
+        for index, item in enumerate(objective_cfg.get("objectives", []))
+    ]
+    scalarization = _require_object(
+        objective_cfg.get("scalarization"),
+        field_name="objective_cfg.scalarization",
+    )
+    return {
+        "primary_objective": dict(primary),
+        "secondary_objectives": [dict(item) for item in secondary],
+        "objectives": [dict(item) for item in objectives],
+        "objective_names": objective_names(objective_cfg),
+        "scalarization": dict(scalarization),
+    }
+
+
+def nullable_objective_vector(raw_objectives: Any, objective_cfg: JSONDict) -> JSONDict:
+    names = objective_names(objective_cfg)
+    if raw_objectives is None:
+        return {name: None for name in names}
+
+    objectives = _require_object(raw_objectives, field_name="objectives")
+    missing = [name for name in names if name not in objectives]
+    if missing:
+        raise ValueError(f"objectives missing configured names {missing}")
+
+    extras = sorted(set(objectives) - set(names))
+    if extras:
+        raise ValueError(f"objectives include unknown names {extras}")
+
+    out: JSONDict = {}
+    for name in names:
+        value = objectives.get(name)
+        out[name] = (
+            None
+            if value is None
+            else _numeric_objective_value(value, field_name=f"objectives.{name}")
+        )
+    return out
+
+
+def build_objective_metadata(raw_objectives: Any, objective_cfg: JSONDict) -> JSONDict:
+    vector = nullable_objective_vector(raw_objectives, objective_cfg)
+    primary_name = primary_objective_name(objective_cfg)
+    metadata: JSONDict = {
+        "objective_name": primary_name,
+        "objective_value": vector[primary_name],
+        "objective_vector": vector,
+        "scalarized_objective": None,
+    }
+
+    if all(value is not None for value in vector.values()):
+        canonical = {name: float(value) for name, value in vector.items()}
+        metadata["scalarized_objective"] = float(scalarize_objectives(canonical, objective_cfg))
+
+    if (
+        len(objective_names(objective_cfg)) > 1
+        or scalarization_policy(objective_cfg) != _PRIMARY_ONLY_POLICY
+    ):
+        metadata["scalarization_policy"] = scalarization_policy(objective_cfg)
+    return metadata
+
+
+def _transformed_vector(raw_objectives: Any, objective_cfg: JSONDict) -> JSONDict:
+    vector = canonical_objective_vector(raw_objectives, objective_cfg)
+    return {
+        str(objective["name"]): _transformed_value(
+            float(vector[str(objective["name"])]),
+            direction=str(objective["direction"]),
+        )
+        for objective in objective_descriptors(objective_cfg)
+    }
+
+
+def _dominates(left: JSONDict, right: JSONDict, objective_cfg: JSONDict) -> bool:
+    transformed_left = _transformed_vector(left, objective_cfg)
+    transformed_right = _transformed_vector(right, objective_cfg)
+    names = objective_names(objective_cfg)
+    return all(
+        float(transformed_left[name]) <= float(transformed_right[name]) for name in names
+    ) and any(float(transformed_left[name]) < float(transformed_right[name]) for name in names)
+
+
+def pareto_front_records(records: list[JSONDict], objective_cfg: JSONDict) -> list[JSONDict]:
+    prepared: list[tuple[JSONDict, JSONDict]] = []
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError(f"records[{index}] must be an object")
+        trial_id = record.get("trial_id")
+        if not isinstance(trial_id, int):
+            raise ValueError(f"records[{index}].trial_id must be an integer")
+        prepared.append(
+            (record, canonical_objective_vector(record.get("objectives"), objective_cfg))
+        )
+
+    frontier: list[tuple[JSONDict, JSONDict]] = []
+    for index, (record, vector) in enumerate(prepared):
+        dominated = any(
+            _dominates(other_vector, vector, objective_cfg)
+            for other_index, (_, other_vector) in enumerate(prepared)
+            if other_index != index
+        )
+        if not dominated:
+            frontier.append((record, vector))
+
+    frontier.sort(
+        key=lambda item: best_rank_key(
+            item[1],
+            objective_cfg,
+            trial_id=int(item[0]["trial_id"]),
+        )
+    )
+    return [record for record, _ in frontier]
