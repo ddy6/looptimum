@@ -16,6 +16,9 @@ Included:
   `status`, `report`, and trial-manifest outputs
 - `warm_start/`: permissive warm-start import report plus JSONL/CSV observation
   export examples captured from a temp campaign
+- `starterkit/`: webhook config/payload examples, rendered Airflow/Slurm
+  assets, queue-worker plan output, and tracker payload snapshots for the
+  optional starter-kit helpers
 - `state_snapshots/`: sample state/log/CSV snapshots captured from a temp run
   of `templates/bo_client_demo`
 - snapshots include both `status: "ok"` and non-`ok` ingest examples

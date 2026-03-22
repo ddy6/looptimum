@@ -382,6 +382,8 @@ The `examples/` folder shows integration patterns, not benchmark leaderboards.
   with weighted-sum and lexicographic objective-schema examples
 - `docs/examples/batch_async/`: batch bundle, JSONL handoff, lease-token, and
   pending-state example pack
+- `docs/examples/starterkit/`: webhook config/payload examples, rendered
+  Airflow/Slurm assets, queue-worker plan output, and tracker payload examples
 - [`docs/examples/warm_start/README.md`](docs/examples/warm_start/README.md):
   permissive import report, JSONL/CSV export, and manifest/state example pack
   for warm-start workflows
@@ -435,6 +437,7 @@ feedback source of truth).
 
 - `docs/how-it-works.md`
 - `docs/integration-guide.md`
+- `docs/integration-starter-kit.md`
 - `docs/aws-batch-integration.md`
 - `docs/operational-semantics.md`
 - `docs/recovery-playbook.md`
@@ -502,3 +505,5 @@ python3 templates/bo_client_demo/run_bo.py suggest \
 
 Bundle JSON, JSONL handoff, `max_pending_trials`, and lease-token examples are
 captured in `docs/examples/batch_async/README.md`.
+Starter webhook, scheduler, and tracker adapter examples are captured in
+`docs/examples/starterkit/README.md`.

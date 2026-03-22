@@ -38,6 +38,10 @@ The loop does not need raw data or internal model internals. It just needs:
 - `templates/`: runnable optimization harness variants
   (`bo_client_demo`, `bo_client`, `bo_client_full`)
 - `client_harness_template/`: starter adapter for one-evaluation integration
+- `client_harness_template/starterkit_*.py`: optional scheduler, sidecar, and
+  tracker helpers layered on the same public contracts
+- `docs/integration-starter-kit.md`: safe topology and retry guidance for those
+  starter-kit helpers
 - `docs/aws-batch-integration.md`: optional AWS Batch executor path and recovery
   sidecar design
 - `examples/toy-objectives/`: reference integration patterns
@@ -157,6 +161,11 @@ Reference example pack:
 
 - `docs/examples/batch_async/README.md`
 
+Starter-kit examples for controller/worker wrappers, webhook-sidecar config,
+and tracker payloads:
+
+- `docs/examples/starterkit/README.md`
+
 ### Warm-Start Import / Export
 
 Use this when you already have completed historical trials and want them to
@@ -226,6 +235,31 @@ Optional AWS path:
   canonical result, use
   [`docs/aws-batch-integration.md`](./aws-batch-integration.md)
 - AWS metadata stays out of canonical Looptimum state/report surfaces
+
+## Starter-Kit Sidecars and Safe Topology
+
+The optional starter-kit helpers under `client_harness_template/` sit on top of
+the same public contracts. They do not introduce a second runtime authority
+path.
+
+Use them when you want:
+
+- a queue-worker wrapper for `suggest -> run_one_eval.py -> ingest`
+- rendered Airflow or Slurm starter assets
+- an event-log-driven webhook sidecar
+- post-hoc MLflow or W&B synchronization based on canonical state/report files
+
+Safe boundary rules:
+
+- keep one controller per campaign root for `suggest`
+- let workers own only the trial they were handed
+- keep webhook delivery out of the mutating CLI path
+- keep tracker synchronization read-only with respect to optimizer state
+
+Detailed deployment and retry guidance:
+
+- [`docs/integration-starter-kit.md`](./integration-starter-kit.md)
+- [`docs/examples/starterkit/README.md`](./examples/starterkit/README.md)
 
 ## Copy-Paste Evaluator Stub (Fuller Version)
 

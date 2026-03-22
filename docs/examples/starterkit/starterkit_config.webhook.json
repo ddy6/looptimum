@@ -1,0 +1,22 @@
+{
+  "runtime": {
+    "event_log_file": "/campaign/state/event_log.jsonl",
+    "cursor_file": "/campaign/runtime/starterkit_cursor.json"
+  },
+  "webhook": {
+    "enabled": true,
+    "target_url": "https://hooks.example.test/looptimum",
+    "timeout_seconds": 10.0,
+    "topics": [
+      "suggested",
+      "ingested",
+      "failed",
+      "reset",
+      "restore"
+    ],
+    "headers": {
+      "X-Looptimum-Source": "starterkit-demo"
+    },
+    "secret_env_var": "LOOPTIMUM_WEBHOOK_SECRET"
+  }
+}

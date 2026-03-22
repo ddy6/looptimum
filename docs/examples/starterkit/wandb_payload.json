@@ -1,0 +1,79 @@
+{
+  "snapshot": {
+    "snapshot_version": 1,
+    "project_root": "/campaign",
+    "counts": {
+      "observations": 2,
+      "pending": 0,
+      "failure_rate": 0.0
+    },
+    "best": {
+      "trial_id": 2,
+      "objective_name": "loss",
+      "objective_value": 0.082,
+      "updated_at": 1774185347.571292
+    },
+    "top_trials": [
+      {
+        "trial_id": 2,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.082,
+        "objective_vector": {
+          "loss": 0.082
+        }
+      },
+      {
+        "trial_id": 1,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.115,
+        "objective_vector": {
+          "loss": 0.115
+        }
+      }
+    ],
+    "recent_events": [
+      {
+        "topic": "suggested",
+        "trial_id": 2
+      },
+      {
+        "topic": "ingested",
+        "trial_id": 2,
+        "status": "ok"
+      }
+    ]
+  },
+  "summary": {
+    "looptimum/project_root": "/campaign",
+    "looptimum/top_trial_count": 2,
+    "looptimum/recent_event_count": 2,
+    "looptimum/best": {
+      "trial_id": 2,
+      "objective_name": "loss",
+      "objective_value": 0.082,
+      "updated_at": 1774185347.571292
+    }
+  },
+  "config": {
+    "project_root": "/campaign",
+    "objective_names": [
+      "loss"
+    ],
+    "scalarization_policy": "primary_only"
+  },
+  "history": {
+    "looptimum/observations": 2.0,
+    "looptimum/pending": 0.0,
+    "looptimum/failure_rate": 0.0,
+    "looptimum/best_objective": 0.082
+  },
+  "artifact_paths": [
+    "/campaign/state/bo_state.json",
+    "/campaign/state/report.json",
+    "/campaign/state/report.md",
+    "/campaign/state/event_log.jsonl",
+    "/campaign/state/trials/trial_2/manifest.json"
+  ]
+}

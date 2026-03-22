@@ -14,6 +14,7 @@ TYPE_SAFETY_DOC = REPO_ROOT / "docs" / "type-safety.md"
 MULTI_OBJECTIVE_EXAMPLE = REPO_ROOT / "docs" / "examples" / "multi_objective"
 BATCH_ASYNC_EXAMPLE = REPO_ROOT / "docs" / "examples" / "batch_async"
 WARM_START_EXAMPLE = REPO_ROOT / "docs" / "examples" / "warm_start"
+STARTERKIT_EXAMPLE = REPO_ROOT / "docs" / "examples" / "starterkit"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -266,3 +267,78 @@ def test_warm_start_example_pack_has_expected_artifacts() -> None:
     event_names = [row["event"] for row in event_rows]
     assert "observations_imported" in event_names
     assert "observations_exported" in event_names
+
+
+def test_starterkit_example_pack_has_expected_artifacts() -> None:
+    assert STARTERKIT_EXAMPLE.exists(), f"missing starter-kit example pack: {STARTERKIT_EXAMPLE}"
+
+    readme_path = STARTERKIT_EXAMPLE / "README.md"
+    config_path = STARTERKIT_EXAMPLE / "starterkit_config.webhook.json"
+    webhook_payload_path = STARTERKIT_EXAMPLE / "webhook_payload.json"
+    suggestions_path = STARTERKIT_EXAMPLE / "starterkit_suggestions.jsonl"
+    worker_plan_path = STARTERKIT_EXAMPLE / "queue_worker_plan.json"
+    airflow_path = STARTERKIT_EXAMPLE / "airflow_dag.py"
+    slurm_path = STARTERKIT_EXAMPLE / "slurm_worker_array.sh"
+    mlflow_path = STARTERKIT_EXAMPLE / "mlflow_payload.json"
+    wandb_path = STARTERKIT_EXAMPLE / "wandb_payload.json"
+
+    for path in (
+        readme_path,
+        config_path,
+        webhook_payload_path,
+        suggestions_path,
+        worker_plan_path,
+        airflow_path,
+        slurm_path,
+        mlflow_path,
+        wandb_path,
+    ):
+        assert path.exists(), f"missing starter-kit example artifact: {path}"
+
+    config_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    assert config_payload["runtime"]["event_log_file"] == "/campaign/state/event_log.jsonl"
+    assert config_payload["webhook"]["enabled"] is True
+    assert config_payload["webhook"]["topics"] == [
+        "suggested",
+        "ingested",
+        "failed",
+        "reset",
+        "restore",
+    ]
+
+    webhook_payload = json.loads(webhook_payload_path.read_text(encoding="utf-8"))
+    assert webhook_payload["topic"] == "ingested"
+    assert webhook_payload["trial_id"] == 2
+    assert webhook_payload["payload"]["event"] == "ingest_applied"
+
+    suggestions = [
+        json.loads(line)
+        for line in suggestions_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert [item["trial_id"] for item in suggestions] == [1, 2]
+    assert all(item["lease_token"] for item in suggestions)
+
+    worker_plan = json.loads(worker_plan_path.read_text(encoding="utf-8"))
+    assert worker_plan["trial_id"] == 2
+    assert worker_plan["lease_token"] == suggestions[1]["lease_token"]
+    assert "--lease-token" in worker_plan["commands"]["ingest"]
+
+    airflow_text = airflow_path.read_text(encoding="utf-8")
+    assert "max_active_runs=1" in airflow_text
+    assert "controller_suggest" in airflow_text
+    assert "starterkit_queue_worker.py" in airflow_text
+
+    slurm_text = slurm_path.read_text(encoding="utf-8")
+    assert "SLURM_ARRAY_TASK_ID" in slurm_text
+    assert "starterkit_queue_worker.py" in slurm_text
+
+    mlflow_payload = json.loads(mlflow_path.read_text(encoding="utf-8"))
+    assert mlflow_payload["metrics"]["looptimum.best_objective"] == 0.082
+    assert mlflow_payload["tags"]["looptimum.best_trial_id"] == "2"
+    assert mlflow_payload["snapshot"]["top_trials"][0]["trial_id"] == 2
+
+    wandb_payload = json.loads(wandb_path.read_text(encoding="utf-8"))
+    assert wandb_payload["config"]["objective_names"] == ["loss"]
+    assert wandb_payload["summary"]["looptimum/top_trial_count"] == 2
+    assert wandb_payload["history"]["looptimum/observations"] == 2.0

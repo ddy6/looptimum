@@ -121,6 +121,25 @@ Default file-backed artifacts under each template's `state/` path:
 - `report.json` and `report.md`: explicit `report` command outputs, including
   objective-config and Pareto summaries for multi-objective campaigns
 
+## Optional Starter-Kit Sidecars
+
+The public starter-kit modules under `client_harness_template/` are optional
+wrappers around the same file-backed runtime:
+
+- `starterkit_queue_worker.py`, `starterkit_airflow.py`, and
+  `starterkit_slurm.py` wrap the canonical `suggest -> run_one_eval.py ->
+  ingest` flow for common scheduler topologies
+- `starterkit_config.py` plus `starterkit_events.py` normalize
+  `state/event_log.jsonl` into webhook-sidecar payloads without coupling
+  network delivery into mutating CLI commands
+- `starterkit_mlflow.py` and `starterkit_wandb.py` read canonical state/report
+  artifacts post-hoc and do not mutate optimizer state
+
+Reference assets:
+
+- `docs/integration-starter-kit.md`
+- `docs/examples/starterkit/README.md`
+
 ## Observability and Governance
 
 - `health [--strict]` is the read-only machine-readable health surface; it

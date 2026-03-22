@@ -1,0 +1,56 @@
+{
+  "trial_id": 2,
+  "lease_token": "111961171b99931d6d33fef722eb1d06",
+  "suggestion": {
+    "schema_version": "0.3.0",
+    "trial_id": 2,
+    "params": {
+      "x1": 0.6771258268002703,
+      "x2": 0.7849113560871108
+    },
+    "suggested_at": 1774185347.316996,
+    "lease_token": "111961171b99931d6d33fef722eb1d06"
+  },
+  "paths": {
+    "project_root": "/campaign",
+    "suggestions_file": "/campaign/state/starterkit_suggestions.jsonl",
+    "selected_suggestion_file": "/campaign/state/starterkit_worker_runs/trial_2/suggestion.json",
+    "result_file": "/campaign/state/starterkit_worker_runs/trial_2/result.json",
+    "work_dir": "/campaign/state/starterkit_worker_runs",
+    "run_bo_script": "/campaign/run_bo.py",
+    "run_one_eval_script": "/campaign/client_harness_template/run_one_eval.py",
+    "objective_schema": "/campaign/objective_schema.json",
+    "objective_module": "/campaign/client_harness_template/objective.py",
+    "aws_config": null
+  },
+  "commands": {
+    "run_one_eval": [
+      "python3",
+      "/campaign/client_harness_template/run_one_eval.py",
+      "/campaign/state/starterkit_worker_runs/trial_2/suggestion.json",
+      "/campaign/state/starterkit_worker_runs/trial_2/result.json",
+      "--objective-schema",
+      "/campaign/objective_schema.json",
+      "--executor",
+      "local",
+      "--objective-module",
+      "/campaign/client_harness_template/objective.py"
+    ],
+    "ingest": [
+      "python3",
+      "/campaign/run_bo.py",
+      "ingest",
+      "--project-root",
+      "/campaign",
+      "--results-file",
+      "/campaign/state/starterkit_worker_runs/trial_2/result.json",
+      "--lease-token",
+      "111961171b99931d6d33fef722eb1d06",
+      "--fail-fast"
+    ]
+  },
+  "shell_commands": {
+    "run_one_eval": "python3 /campaign/client_harness_template/run_one_eval.py /campaign/state/starterkit_worker_runs/trial_2/suggestion.json /campaign/state/starterkit_worker_runs/trial_2/result.json --objective-schema /campaign/objective_schema.json --executor local --objective-module /campaign/client_harness_template/objective.py",
+    "ingest": "python3 /campaign/run_bo.py ingest --project-root /campaign --results-file /campaign/state/starterkit_worker_runs/trial_2/result.json --lease-token 111961171b99931d6d33fef722eb1d06 --fail-fast"
+  }
+}

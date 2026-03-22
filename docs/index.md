@@ -16,6 +16,7 @@ python3 templates/bo_client_demo/run_bo.py demo \
 For full command sequences and resume behavior:
 
 - [Integration Guide](./integration-guide.md)
+- [Integration Starter Kit](./integration-starter-kit.md)
 - [AWS Batch Integration](./aws-batch-integration.md)
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
@@ -48,6 +49,7 @@ For full command sequences and resume behavior:
 - [Batch + Async Worker Example Pack](./examples/batch_async/README.md)
 - [Multi-Objective Example Pack](./examples/multi_objective/README.md)
 - [Warm-Start Import/Export Example Pack](./examples/warm_start/README.md)
+- [Starter-Kit Integration Example Pack](./examples/starterkit/README.md)
 - [Constraints Examples](./examples/constraints/README.md)
 - [State Snapshot References](./examples/state_snapshots/README.md)
 - [Decision-Trace References](./examples/decision_trace/README.md)
@@ -61,6 +63,8 @@ Repository paths used during integration:
 - `docs/aws-batch-integration.md`
 - `client_harness_template/README.md`
 - `client_harness_template/README_INTEGRATION.md`
+- `client_harness_template/starterkit_queue_worker.py`
+- `client_harness_template/starterkit_tracking.py`
 - `client_harness_template/objective_aws_batch_example.py`
 - `client_harness_template/aws_batch_config.example.json`
 - `examples/README.md`

@@ -12,6 +12,8 @@ Included files:
   failure semantics, state definitions, compatibility posture)
 - `integration-guide.md`: end-to-end `suggest -> evaluate -> ingest` integration
   workflow plus lifecycle/ops command usage
+- `integration-starter-kit.md`: optional scheduler, webhook-sidecar, and
+  tracker-adapter deployment guidance for the starter-kit helpers
 - `aws-batch-integration.md`: optional AWS Batch evaluator path, config, sidecar
   recovery records, and scope boundaries
 - `operational-semantics.md`: idempotency, pending semantics, lifecycle
@@ -49,6 +51,7 @@ Reference artifacts:
 - `examples/batch_async/README.md`
 - `examples/multi_objective/README.md`
 - `examples/warm_start/README.md`
+- `examples/starterkit/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`
 - `examples/constraints/README.md`

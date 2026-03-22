@@ -1,0 +1,185 @@
+{
+  "snapshot": {
+    "snapshot_version": 1,
+    "project_root": "/campaign",
+    "paths": {
+      "bo_state": "/campaign/state/bo_state.json",
+      "report_json": "/campaign/state/report.json",
+      "report_md": "/campaign/state/report.md",
+      "event_log": "/campaign/state/event_log.jsonl",
+      "acquisition_log": "/campaign/state/acquisition_log.jsonl"
+    },
+    "counts": {
+      "observations": 2,
+      "pending": 0,
+      "failure_rate": 0.0
+    },
+    "next_trial_id": 3,
+    "objective": {
+      "name": "loss",
+      "direction": "minimize",
+      "best_objective_name": "loss",
+      "scalarization_policy": "primary_only"
+    },
+    "objective_config": {
+      "primary_objective": {
+        "name": "loss",
+        "direction": "minimize"
+      },
+      "secondary_objectives": [],
+      "objective_names": [
+        "loss"
+      ],
+      "scalarization": {
+        "policy": "primary_only"
+      }
+    },
+    "best": {
+      "trial_id": 2,
+      "objective_name": "loss",
+      "objective_value": 0.082,
+      "updated_at": 1774185347.571292
+    },
+    "best_params": {
+      "x1": 0.6771258268002703,
+      "x2": 0.7849113560871108
+    },
+    "top_trials": [
+      {
+        "trial_id": 2,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.082,
+        "objective_vector": {
+          "loss": 0.082
+        },
+        "scalarized_objective": 0.082,
+        "artifact_path": "state/trials/trial_2/ingest_payload.json",
+        "params": {
+          "x1": 0.6771258268002703,
+          "x2": 0.7849113560871108
+        }
+      },
+      {
+        "trial_id": 1,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.115,
+        "objective_vector": {
+          "loss": 0.115
+        },
+        "scalarized_objective": 0.115,
+        "artifact_path": "state/trials/trial_1/ingest_payload.json",
+        "params": {
+          "x1": 0.18126486333322134,
+          "x2": 0.6614305484952444
+        }
+      }
+    ],
+    "recent_events": [
+      {
+        "topic": "suggested",
+        "event_id": "13:suggestion_created:1774185347316996",
+        "source_event": "suggestion_created",
+        "occurred_at": 1774185347.316996,
+        "cursor": {
+          "line_number": 13,
+          "byte_offset": 1760
+        },
+        "payload": {
+          "event": "suggestion_created",
+          "timestamp": 1774185347.316996,
+          "trial_id": 2,
+          "command": "suggest"
+        },
+        "command": "suggest",
+        "trial_id": 2
+      },
+      {
+        "topic": "ingested",
+        "event_id": "15:ingest_applied:1774185347571264",
+        "source_event": "ingest_applied",
+        "occurred_at": 1774185347.571264,
+        "cursor": {
+          "line_number": 15,
+          "byte_offset": 2048
+        },
+        "payload": {
+          "event": "ingest_applied",
+          "timestamp": 1774185347.571264,
+          "trial_id": 2,
+          "status": "ok",
+          "command": "ingest"
+        },
+        "command": "ingest",
+        "trial_id": 2,
+        "status": "ok"
+      }
+    ],
+    "manifests": {
+      "2": {
+        "trial_id": 2,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.082,
+        "objective_vector": {
+          "loss": 0.082
+        },
+        "scalarized_objective": 0.082,
+        "artifact_path": "state/trials/trial_2/ingest_payload.json"
+      }
+    },
+    "artifacts": [
+      {
+        "label": "bo_state_json",
+        "path": "/campaign/state/bo_state.json",
+        "exists": true
+      },
+      {
+        "label": "report_json",
+        "path": "/campaign/state/report.json",
+        "exists": true
+      },
+      {
+        "label": "report_md",
+        "path": "/campaign/state/report.md",
+        "exists": true
+      },
+      {
+        "label": "event_log_jsonl",
+        "path": "/campaign/state/event_log.jsonl",
+        "exists": true
+      },
+      {
+        "label": "trial_2_manifest",
+        "path": "/campaign/state/trials/trial_2/manifest.json",
+        "exists": true
+      }
+    ]
+  },
+  "metrics": {
+    "looptimum.observations": 2.0,
+    "looptimum.pending": 0.0,
+    "looptimum.failure_rate": 0.0,
+    "looptimum.best_objective": 0.082
+  },
+  "params": {
+    "looptimum.next_trial_id": "3",
+    "looptimum.top_trial_count": "2",
+    "looptimum.recent_event_count": "2"
+  },
+  "tags": {
+    "looptimum.project_root": "/campaign",
+    "looptimum.objective_names": "loss",
+    "looptimum.scalarization_policy": "primary_only",
+    "looptimum.best_trial_id": "2",
+    "looptimum.best_objective_name": "loss"
+  },
+  "artifact_paths": [
+    "/campaign/state/bo_state.json",
+    "/campaign/state/report.json",
+    "/campaign/state/report.md",
+    "/campaign/state/event_log.jsonl",
+    "/campaign/state/trials/trial_2/manifest.json"
+  ]
+}

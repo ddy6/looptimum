@@ -17,6 +17,13 @@ The optimization harness (`run_bo.py`) is file-backed:
   execution.
 - `run_one_eval.py`: thin adapter that reads a suggestion file and writes an
   ingest-ready result JSON.
+- `starterkit_queue_worker.py`, `starterkit_airflow.py`,
+  `starterkit_slurm.py`: optional scheduler starters built on the same
+  suggestion/result contract
+- `starterkit_config.py`, `starterkit_events.py`: optional event-log sidecar
+  helpers for webhook delivery
+- `starterkit_tracking.py`, `starterkit_mlflow.py`,
+  `starterkit_wandb.py`: optional post-hoc tracker adapters
 - `aws_config.py`, `aws_executor.py`, `aws_models.py`: optional AWS Batch
   executor path and recovery sidecars.
 - `aws_batch_config.example.json`: committed example config shape for the AWS path.
@@ -229,6 +236,45 @@ python3 client_harness_template/run_one_eval.py \
   --executor aws-batch \
   --objective-schema templates/bo_client_demo/objective_schema.json
 ```
+
+## Starter-Kit Sidecars (Optional)
+
+The starter-kit modules under `client_harness_template/` are convenience
+wrappers around the same public Looptimum contract.
+
+Use them when you want:
+
+- queue-worker execution for batch suggestions
+- rendered Airflow or Slurm starter assets
+- an event-log-driven webhook sidecar
+- post-hoc MLflow or W&B synchronization from canonical state/report files
+
+Boundary rules:
+
+- keep one controller responsible for `suggest`
+- let workers own only the trial payload they were handed
+- keep webhook delivery outside the mutating CLI path
+- keep tracker adapters read-only with respect to optimizer state
+
+Reference docs:
+
+- [`../docs/integration-starter-kit.md`](../docs/integration-starter-kit.md)
+- [`../docs/examples/starterkit/README.md`](../docs/examples/starterkit/README.md)
+
+## Retry and Ownership Guidance
+
+Recommended posture:
+
+1. Do not retry `suggest` from multiple controllers against the same campaign
+   root.
+2. Retrying evaluation work is safe before a successful `ingest` as long as the
+   suggestion payload stays unchanged.
+3. If an `ingest` outcome is uncertain, inspect `status`, the pending list, and
+   the trial manifest before replaying the same result payload.
+4. Webhook delivery retries belong in the sidecar, not in optimizer mutation
+   commands.
+5. Tracker synchronization retries are safe because they do not mutate campaign
+   state.
 
 ## Customization Checklist
 
