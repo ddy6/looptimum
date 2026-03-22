@@ -84,6 +84,7 @@ load_trial_manifest = _RUNTIME.load_trial_manifest
 pending_age_seconds = _RUNTIME.pending_age_seconds
 resolve_lock_timeout_seconds = _RUNTIME.resolve_lock_timeout_seconds
 resolve_max_pending_age_seconds = _RUNTIME.resolve_max_pending_age_seconds
+resolve_max_pending_trials = _RUNTIME.resolve_max_pending_trials
 resolve_runtime_paths = _RUNTIME.resolve_runtime_paths
 save_trial_manifest = _RUNTIME.save_trial_manifest
 state_for_persist = _RUNTIME.state_for_persist
@@ -1317,6 +1318,7 @@ def _validate_state_warnings(
     state: dict,
     paths: dict[str, Path],
     max_pending_age: float | None,
+    max_pending_trials: int | None,
 ) -> list[str]:
     warnings_out: list[str] = []
 
@@ -1330,6 +1332,14 @@ def _validate_state_warnings(
             warnings_out.append(
                 f"{stale_count} pending trial(s) exceed max_pending_age_seconds={max_pending_age}"
             )
+    if (
+        isinstance(pending, list)
+        and max_pending_trials is not None
+        and len(pending) > max_pending_trials
+    ):
+        warnings_out.append(
+            f"{len(pending)} pending trial(s) exceed max_pending_trials={max_pending_trials}"
+        )
 
     for key in ("acquisition_log_file", "event_log_file", "observations_csv", "trials_dir"):
         if not paths[key].exists():
@@ -1487,6 +1497,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
     max_pending_age = resolve_max_pending_age_seconds(cfg)
+    max_pending_trials = resolve_max_pending_trials(cfg)
     requested_count = _resolve_effective_suggest_count(cfg, args)
 
     with hold_exclusive_lock(
@@ -1532,7 +1543,24 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                         reason=obs["terminal_reason"],
                     )
 
-            if len(state["observations"]) + len(state["pending"]) + requested_count > int(
+            current_pending = len(state["pending"])
+            if (
+                max_pending_trials is not None
+                and current_pending + requested_count > max_pending_trials
+            ):
+                if stale_observations:
+                    update_best(state, obj_cfg)
+                    _save_state_and_rows(paths, state)
+                elif state_schema_upgrade_pending(state):
+                    save_state(paths["state_file"], state)
+                print(
+                    "No suggestion generated: "
+                    f"max_pending_trials={max_pending_trials} would be exceeded "
+                    f"(current_pending={current_pending}, requested_count={requested_count})."
+                )
+                return
+
+            if len(state["observations"]) + current_pending + requested_count > int(
                 cfg["max_trials"]
             ):
                 if stale_observations:
@@ -2149,6 +2177,8 @@ def cmd_validate(args: argparse.Namespace) -> None:
     hard_errors: list[str] = []
     warnings_out: list[str] = []
     params: list[dict[str, Any]] | None = None
+    max_pending_age: float | None = None
+    max_pending_trials: int | None = None
 
     try:
         cfg, _ = load_contract_document(root, "bo_config")
@@ -2192,6 +2222,16 @@ def cmd_validate(args: argparse.Namespace) -> None:
     except Exception as exc:
         hard_errors.append(f"objective_schema validation failure: {exc}")
 
+    try:
+        max_pending_age = resolve_max_pending_age_seconds(cfg)
+    except Exception as exc:
+        hard_errors.append(f"config validation failure: {exc}")
+
+    try:
+        max_pending_trials = resolve_max_pending_trials(cfg)
+    except Exception as exc:
+        hard_errors.append(f"config validation failure: {exc}")
+
     if hard_errors:
         for err in hard_errors:
             print(f"ERROR: {err}")
@@ -2214,7 +2254,8 @@ def cmd_validate(args: argparse.Namespace) -> None:
         _validate_state_warnings(
             state=state,
             paths=paths,
-            max_pending_age=resolve_max_pending_age_seconds(cfg),
+            max_pending_age=max_pending_age,
+            max_pending_trials=max_pending_trials,
         )
     )
 

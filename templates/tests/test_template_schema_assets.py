@@ -67,6 +67,15 @@ def test_template_bo_configs_include_shared_schema_paths() -> None:
         )
 
 
+def test_template_bo_configs_expose_batch_guardrail_defaults() -> None:
+    for template in TEMPLATES:
+        cfg_path = REPO_ROOT / "templates" / template / "bo_config.json"
+        cfg = _load_json(cfg_path)
+        assert cfg.get("batch_size") == 1
+        assert "max_pending_trials" in cfg
+        assert cfg["max_pending_trials"] is None
+
+
 def test_objective_schema_exposes_multi_objective_fields() -> None:
     schema = _load_json(SHARED_SCHEMAS / "objective_schema.schema.json")
     properties = schema["properties"]

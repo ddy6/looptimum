@@ -385,6 +385,17 @@ def test_validate_hard_failure_for_malformed_bo_config(template_copy: Path) -> N
     assert "ERROR: config load failure:" in out.stdout
 
 
+def test_validate_hard_failure_for_invalid_max_pending_trials(template_copy: Path) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["max_pending_trials"] = 0
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: config validation failure: max_pending_trials must be >= 1" in out.stdout
+
+
 def test_validate_hard_failure_for_malformed_parameter_space(template_copy: Path) -> None:
     space_path = template_copy / "parameter_space.json"
     space_path.write_text("{}", encoding="utf-8")

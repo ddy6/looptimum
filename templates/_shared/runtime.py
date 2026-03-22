@@ -128,6 +128,14 @@ def _as_positive_float(value: Any, *, field_name: str) -> float:
     return out
 
 
+def _as_positive_int(value: Any, *, field_name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field_name} must be an integer >= 1, got: {value!r}")
+    if value <= 0:
+        raise ValueError(f"{field_name} must be >= 1, got: {value!r}")
+    return int(value)
+
+
 def resolve_runtime_paths(project_root: Path, paths_cfg: dict[str, Any]) -> dict[str, Path]:
     resolved: dict[str, Path] = {}
     for key, default_rel in DEFAULT_PATHS.items():
@@ -151,6 +159,13 @@ def resolve_max_pending_age_seconds(cfg: dict[str, Any]) -> float | None:
     if value == 0.0:
         return None
     return value
+
+
+def resolve_max_pending_trials(cfg: dict[str, Any]) -> int | None:
+    raw = cfg.get("max_pending_trials")
+    if raw is None:
+        return None
+    return _as_positive_int(raw, field_name="max_pending_trials")
 
 
 def atomic_write_text(path: Path, text: str) -> None:

@@ -189,6 +189,27 @@ def test_suggest_uses_configured_batch_size_when_count_omitted(template_copy) ->
     assert [item["trial_id"] for item in bundle["suggestions"]] == [1, 2]
 
 
+def test_suggest_rejects_batch_when_max_pending_trials_would_be_exceeded(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["max_pending_trials"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    first = run_cmd(template_copy, "suggest", "--count", "2", "--json-only")
+    bundle = parse_suggestion_bundle(first.stdout)
+    assert bundle["count"] == 2
+
+    out = run_cmd(template_copy, "suggest")
+
+    assert (
+        "No suggestion generated: max_pending_trials=2 would be exceeded "
+        "(current_pending=2, requested_count=1)." in out.stdout
+    )
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [item["trial_id"] for item in state["pending"]] == [1, 2]
+    assert state["next_trial_id"] == 3
+
+
 def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     template_copy, tmp_path
 ) -> None:

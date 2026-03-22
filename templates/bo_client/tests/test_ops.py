@@ -339,6 +339,37 @@ def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy) -> None:
     assert state_after["pending"][0]["trial_id"] == suggestion["trial_id"]
 
 
+def test_validate_warns_when_pending_exceeds_max_pending_trials(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["max_pending_trials"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "suggest", "--count", "2", "--json-only")
+
+    cfg["max_pending_trials"] = 1
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate")
+    assert out.returncode == 0
+    assert "WARNING: 2 pending trial(s) exceed max_pending_trials=1" in out.stdout
+
+    strict = run_cmd(template_copy, "validate", "--strict", expect_ok=False)
+    assert strict.returncode != 0
+    assert "WARNING: 2 pending trial(s) exceed max_pending_trials=1" in strict.stdout
+
+
+def test_validate_hard_failure_for_invalid_max_pending_trials(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["max_pending_trials"] = 0
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: config validation failure: max_pending_trials must be >= 1" in out.stdout
+
+
 def test_validate_hard_failure_for_corrupt_state_file(template_copy) -> None:
     state_path = template_copy / "state" / "bo_state.json"
     state_path.write_text("{not valid json", encoding="utf-8")
