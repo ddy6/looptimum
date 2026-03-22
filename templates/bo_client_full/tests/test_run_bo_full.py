@@ -114,6 +114,23 @@ def _write_constraints(project_root: Path, payload: dict) -> None:
     (project_root / "constraints.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _write_weighted_sum_objective_schema(project_root: Path) -> None:
+    (project_root / "objective_schema.json").write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+                "scalarization": {
+                    "policy": "weighted_sum",
+                    "weights": {"loss": 1.0, "throughput": 1.0},
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_status_initial(template_copy: Path) -> None:
     out = run_cmd(template_copy, "status")
     payload = json.loads(out.stdout)
@@ -492,7 +509,7 @@ def test_ingest_rejects_missing_primary_objective(template_copy: Path) -> None:
     out = run_cmd(template_copy, "ingest", "--results-file", str(bad_path), expect_ok=False)
     assert out.returncode != 0
     assert "field=$.objectives.loss" in out.stderr
-    assert "required primary objective present" in out.stderr
+    assert "required configured objective present" in out.stderr
 
 
 def test_duplicate_ingest_identical_replay_is_noop(template_copy: Path) -> None:
@@ -819,6 +836,56 @@ def test_botorch_backend_respects_constraints(template_copy: Path) -> None:
     status = _assert_constraint_status(decision, enabled=True, phase="candidate-pool")
     assert status["requested"] == 60
     assert 1 <= status["accepted"] <= status["requested"]
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_GP_TESTS") != "1" or importlib.util.find_spec("botorch") is None,
+    reason="set RUN_GP_TESTS=1 and install botorch to run BoTorch backend tests",
+)
+def test_multi_objective_weighted_sum_uses_botorch_and_updates_best(template_copy: Path) -> None:
+    _write_weighted_sum_objective_schema(template_copy)
+
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["initial_random_trials"] = 2
+    cfg["feature_flags"]["enable_botorch_gp"] = True
+    cfg["surrogate"]["botorch_min_fit_observations"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    for trial_id, objective_values in enumerate(
+        [
+            {"loss": 0.2, "throughput": 1.0},
+            {"loss": 0.3, "throughput": 2.0},
+        ],
+        start=1,
+    ):
+        suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+        assert suggestion["trial_id"] == trial_id
+        payload = {
+            "trial_id": suggestion["trial_id"],
+            "params": suggestion["params"],
+            "objectives": objective_values,
+            "status": "ok",
+        }
+        path = template_copy / "examples" / f"_multi_objective_full_seed_{trial_id}.json"
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        run_cmd(template_copy, "ingest", "--results-file", str(path))
+
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    assert suggestion["trial_id"] == 3
+    decision = _latest_decision(template_copy)
+    assert decision["strategy"] == "surrogate_acquisition"
+    assert decision["surrogate_backend"] == "botorch_gp"
+    assert isinstance(decision["predicted_mean"], float)
+    assert isinstance(decision["predicted_std"], float)
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    best = status["best"]
+    assert best["trial_id"] == 2
+    assert best["objective_name"] == "scalarized"
+    assert best["scalarization_policy"] == "weighted_sum"
+    assert best["objective_vector"] == {"loss": 0.3, "throughput": 2.0}
+    assert best["objective_value"] == pytest.approx(-0.85)
 
 
 def test_resume_restores_state_and_trial_ids(template_copy: Path) -> None:

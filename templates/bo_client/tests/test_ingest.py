@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+from pathlib import Path
 
 from conftest import parse_suggestion, run_cmd
 
@@ -32,6 +33,23 @@ def _configure_conditional_space(
     cfg["seed"] = seed
     cfg["initial_random_trials"] = initial_random_trials
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+
+def _write_weighted_sum_objective_schema(project_root: Path) -> None:
+    (project_root / "objective_schema.json").write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+                "scalarization": {
+                    "policy": "weighted_sum",
+                    "weights": {"loss": 1.0, "throughput": 1.0},
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_ingest_accepts_valid_payload(template_copy) -> None:
@@ -372,3 +390,42 @@ def test_non_ok_numeric_primary_objective_is_rejected(template_copy) -> None:
     assert out.returncode != 0
     assert "field=$.objectives.loss" in out.stderr
     assert "null for non-ok status" in out.stderr
+
+
+def test_ingest_rejects_missing_secondary_objective_for_multi_objective_ok_payload(
+    template_copy,
+) -> None:
+    _write_weighted_sum_objective_schema(template_copy)
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.1},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_ingest_multi_missing_secondary.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert "$.objectives.throughput" in out.stderr
+    assert "required configured objective present" in out.stderr
+
+
+def test_ingest_rejects_non_null_objectives_for_multi_objective_non_ok_payload(
+    template_copy,
+) -> None:
+    _write_weighted_sum_objective_schema(template_copy)
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None, "throughput": 5.0},
+        "status": "failed",
+        "penalty_objective": 99.0,
+    }
+    path = template_copy / "examples" / "_ingest_multi_non_ok_non_null.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert "$.objectives.throughput" in out.stderr
+    assert "null for non-ok status on all configured objectives" in out.stderr

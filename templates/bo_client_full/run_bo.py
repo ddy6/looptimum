@@ -62,6 +62,14 @@ format_reject_summary = _CONSTRAINTS.format_reject_summary
 sample_feasible_candidates = _CONSTRAINTS.sample_feasible_candidates
 
 normalize_objective_schema = _OBJECTIVES.normalize_objective_schema
+best_objective_name = _OBJECTIVES.best_objective_name
+best_rank_key = _OBJECTIVES.best_rank_key
+build_best_record = _OBJECTIVES.build_best_record
+canonical_objective_vector = _OBJECTIVES.canonical_objective_vector
+objective_names = _OBJECTIVES.objective_names
+primary_objective_name = _OBJECTIVES.primary_objective_name
+scalarize_objectives = _OBJECTIVES.scalarize_objectives
+scalarized_direction = _OBJECTIVES.scalarized_direction
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -138,7 +146,7 @@ def norm_dist(a: dict, b: dict, params: list[dict]) -> float:
 
 
 def predict_rbf_proxy(
-    x: dict, obs: list[dict], params: list[dict], objective_name: str, length_scale: float
+    x: dict, obs: list[dict], params: list[dict], objective_cfg: dict, length_scale: float
 ) -> tuple[float, float]:
     if not obs:
         return 0.0, 1.0
@@ -147,7 +155,7 @@ def predict_rbf_proxy(
     for row in obs:
         distance = norm_dist(x, row["params"], params)
         weight = math.exp(-(distance * distance) / (2.0 * max(length_scale, 1e-6) ** 2))
-        ys.append(float(row["objectives"][objective_name]))
+        ys.append(float(scalarize_objectives(row["objectives"], objective_cfg)))
         ws.append(weight)
     total_weight = sum(ws)
     if total_weight < 1e-9:
@@ -177,16 +185,14 @@ def _candidate_pool(rng: random.Random, params: list[dict], n: int) -> list[dict
     return [sample_random_point(rng, params) for _ in range(int(n))]
 
 
-def _is_usable_observation(row: dict, objective_name: str) -> bool:
+def _is_usable_observation(row: dict, objective_cfg: dict) -> bool:
     if str(row.get("status", "ok")) != "ok":
         return False
-    objectives = row.get("objectives")
-    if not isinstance(objectives, dict):
+    try:
+        canonical_objective_vector(row.get("objectives"), objective_cfg)
+    except ValueError:
         return False
-    value = objectives.get(objective_name)
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        return False
-    return math.isfinite(float(value))
+    return True
 
 
 def _load_objective_config(root: Path, cfg: dict) -> dict:
@@ -286,13 +292,13 @@ def propose_with_proxy(
     state: dict,
     cfg: dict,
     params: list[dict],
-    objective: dict,
+    objective_cfg: dict,
     constraints: dict | None = None,
 ) -> tuple[dict, dict]:
-    objective_name, direction = objective["name"], objective["direction"]
     surrogate_cfg = cfg["surrogate"]
     acq_cfg = cfg["acquisition"]
     best = state["best"]["objective_value"] if state["best"] else None
+    direction = scalarized_direction(objective_cfg)
     scored = []
     requested = int(cfg["candidate_pool_size"])
     sampled = _sample_random_candidates(
@@ -315,7 +321,7 @@ def propose_with_proxy(
             candidate,
             observations,
             params,
-            objective_name,
+            objective_cfg,
             float(surrogate_cfg.get("length_scale", 0.2)),
         )
         scored.append((acq_score(mean, std, best, direction, acq_cfg), candidate, mean, std))
@@ -340,7 +346,7 @@ def propose_with_botorch(
     state: dict,
     cfg: dict,
     params: list[dict],
-    objective: dict,
+    objective_cfg: dict,
     constraints: dict | None = None,
 ) -> tuple[dict, dict]:
     import torch
@@ -348,13 +354,13 @@ def propose_with_botorch(
     from botorch.models import SingleTaskGP
     from gpytorch.mlls import ExactMarginalLogLikelihood
 
-    objective_name, direction = objective["name"], objective["direction"]
     acq_cfg = cfg["acquisition"]
+    direction = scalarized_direction(objective_cfg)
 
     x_train = torch.tensor(
         [normalize_numeric_point(obs["params"], params) for obs in observations], dtype=torch.double
     )
-    y_raw = [float(obs["objectives"][objective_name]) for obs in observations]
+    y_raw = [float(scalarize_objectives(obs["objectives"], objective_cfg)) for obs in observations]
     y_train = torch.tensor(
         [[-value] if direction == "maximize" else [value] for value in y_raw], dtype=torch.double
     )
@@ -428,7 +434,6 @@ def propose(
     constraints: dict | None = None,
 ) -> tuple[dict, dict]:
     observations = state["observations"]
-    objective = obj_cfg["primary_objective"]
     if len(observations) < int(cfg["initial_random_trials"]):
         sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
         candidates, status = _require_feasible_candidates(
@@ -446,8 +451,7 @@ def propose(
             },
             status,
         )
-    objective_name = str(objective["name"])
-    usable_obs = [row for row in observations if _is_usable_observation(row, objective_name)]
+    usable_obs = [row for row in observations if _is_usable_observation(row, obj_cfg)]
     if not usable_obs:
         sampled = _sample_random_candidates(rng, cfg, params, constraints, target_count=1)
         candidates, status = _require_feasible_candidates(
@@ -497,19 +501,19 @@ def propose(
                 status,
             )
         try:
-            return propose_with_botorch(rng, usable_obs, state, cfg, params, objective, constraints)
+            return propose_with_botorch(rng, usable_obs, state, cfg, params, obj_cfg, constraints)
         except ConstraintSamplingFailure:
             raise
         except Exception as exc:
             flags = cfg.get("feature_flags", {})
             if flags.get("fallback_to_proxy_if_unavailable", True):
                 candidate, decision = propose_with_proxy(
-                    rng, usable_obs, state, cfg, params, objective, constraints
+                    rng, usable_obs, state, cfg, params, obj_cfg, constraints
                 )
                 decision["fallback_reason"] = str(exc)
                 return candidate, decision
             raise
-    return propose_with_proxy(rng, usable_obs, state, cfg, params, objective, constraints)
+    return propose_with_proxy(rng, usable_obs, state, cfg, params, obj_cfg, constraints)
 
 
 def _emit_constraint_warning(decision: dict) -> None:
@@ -521,20 +525,18 @@ def _emit_constraint_warning(decision: dict) -> None:
         print(f"WARNING: {warning}", file=sys.stderr)
 
 
-def update_best(state: dict, objective: dict) -> None:
+def update_best(state: dict, objective_cfg: dict) -> None:
     ok = [r for r in state["observations"] if str(r.get("status", "ok")) == "ok"]
     if not ok:
         state["best"] = None
         return
-    name, direction = objective["name"], objective["direction"]
-    picker = min if direction == "minimize" else max
-    row = picker(ok, key=lambda r: float(r["objectives"][name]))
-    state["best"] = {
-        "trial_id": int(row["trial_id"]),
-        "objective_name": name,
-        "objective_value": float(row["objectives"][name]),
-        "updated_at": time.time(),
-    }
+    row = min(
+        ok,
+        key=lambda r: best_rank_key(
+            r.get("objectives", {}), objective_cfg, trial_id=int(r["trial_id"])
+        ),
+    )
+    state["best"] = build_best_record(row, objective_cfg, updated_at=time.time())
 
 
 def _runtime_paths(root: Path, cfg: dict) -> dict[str, Path]:
@@ -748,14 +750,14 @@ def _save_state_and_rows(paths: dict[str, Path], state: dict) -> None:
 def _new_terminal_observation(
     pending: dict,
     *,
-    objective_name: str,
+    objective_cfg: dict,
     terminal_reason: str,
     now: float,
 ) -> dict:
     observation = {
         "trial_id": int(pending["trial_id"]),
         "params": pending["params"],
-        "objectives": {str(objective_name): None},
+        "objectives": {name: None for name in objective_names(objective_cfg)},
         "status": "killed",
         "terminal_reason": terminal_reason,
         "penalty_objective": None,
@@ -777,7 +779,7 @@ def _new_terminal_observation(
 def _retire_stale_pending(
     state: dict,
     *,
-    objective_name: str,
+    objective_cfg: dict,
     max_pending_age_seconds: float,
     now: float,
     reason: str,
@@ -794,7 +796,7 @@ def _retire_stale_pending(
             continue
         obs = _new_terminal_observation(
             pending,
-            objective_name=objective_name,
+            objective_cfg=objective_cfg,
             terminal_reason=reason,
             now=now,
         )
@@ -1031,10 +1033,10 @@ def _render_report_markdown(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _validate_state_hard_checks(
-    state: dict, objective_name: str, objective_direction: str
-) -> list[str]:
+def _validate_state_hard_checks(state: dict, objective_cfg: dict) -> list[str]:
     errors: list[str] = []
+    configured_names = objective_names(objective_cfg)
+    expected_best_name = best_objective_name(objective_cfg)
 
     required_keys = ("schema_version", "meta", "observations", "pending", "next_trial_id", "best")
     for key in required_keys:
@@ -1054,7 +1056,7 @@ def _validate_state_hard_checks(
 
     observations = state.get("observations")
     observation_ids: list[int] = []
-    ok_objective_sequence: list[tuple[int, float]] = []
+    ok_ranked: list[tuple[int, tuple[object, ...], dict]] = []
     if isinstance(observations, list):
         for idx, observation in enumerate(observations):
             if not isinstance(observation, dict):
@@ -1069,32 +1071,37 @@ def _validate_state_hard_checks(
             objectives = observation.get("objectives")
             if not isinstance(objectives, dict):
                 errors.append(f"state.observations[{idx}].objectives must be an object")
-            elif objective_name not in objectives:
-                errors.append(
-                    f"state.observations[{idx}].objectives missing primary objective '{objective_name}'"
-                )
             else:
                 status = str(observation.get("status", "ok"))
-                primary = objectives.get(objective_name)
                 if status not in {"ok", "failed", "killed", "timeout"}:
                     errors.append(
                         f"state.observations[{idx}].status must be one of ok|failed|killed|timeout"
                     )
                 if status == "ok":
-                    if (
-                        not isinstance(primary, (int, float))
-                        or isinstance(primary, bool)
-                        or not math.isfinite(float(primary))
-                    ):
-                        errors.append(
-                            f"state.observations[{idx}] primary objective must be finite numeric when status=ok"
-                        )
-                    elif isinstance(observation.get("trial_id"), int):
-                        ok_objective_sequence.append((int(observation["trial_id"]), float(primary)))
-                elif primary is not None:
-                    errors.append(
-                        f"state.observations[{idx}] primary objective must be null when status={status}"
-                    )
+                    try:
+                        canonical = canonical_objective_vector(objectives, objective_cfg)
+                    except ValueError as exc:
+                        errors.append(f"state.observations[{idx}].objectives invalid: {exc}")
+                    else:
+                        if isinstance(observation.get("trial_id"), int):
+                            ok_ranked.append(
+                                (
+                                    int(observation["trial_id"]),
+                                    best_rank_key(
+                                        canonical,
+                                        objective_cfg,
+                                        trial_id=int(observation["trial_id"]),
+                                    ),
+                                    canonical,
+                                )
+                            )
+                else:
+                    for objective_name in configured_names:
+                        if objectives.get(objective_name) is not None:
+                            errors.append(
+                                "state.observations"
+                                f"[{idx}] objective '{objective_name}' must be null when status={status}"
+                            )
         if len(observation_ids) != len(set(observation_ids)):
             errors.append("state.observations contains duplicate trial_id values")
 
@@ -1143,11 +1150,9 @@ def _validate_state_hard_checks(
                 errors.append("state.best.trial_id must be an integer")
             else:
                 best_trial_id_valid = int(best_trial_id)
-            best_objective_name = best.get("objective_name")
-            if best_objective_name != objective_name:
-                errors.append(
-                    f"state.best.objective_name must equal primary objective '{objective_name}'"
-                )
+            actual_best_name = best.get("objective_name")
+            if actual_best_name != expected_best_name:
+                errors.append(f"state.best.objective_name must equal '{expected_best_name}'")
             best_objective_value = best.get("objective_value")
             if (
                 not isinstance(best_objective_value, (int, float))
@@ -1174,46 +1179,48 @@ def _validate_state_hard_checks(
                 errors.append("state.best.trial_id must reference an observed ok trial")
             elif matching_ok_observation is not None:
                 objectives = matching_ok_observation.get("objectives")
-                observed_primary = (
-                    objectives.get(objective_name) if isinstance(objectives, dict) else None
-                )
-                if (
-                    not isinstance(observed_primary, (int, float))
-                    or isinstance(observed_primary, bool)
-                    or not math.isfinite(float(observed_primary))
-                ):
+                try:
+                    canonical = canonical_objective_vector(objectives, objective_cfg)
+                except ValueError as exc:
                     errors.append(
-                        "state.best references an observation with non-numeric primary objective"
+                        f"state.best references an observation with invalid objectives: {exc}"
                     )
-                elif (
-                    isinstance(best_objective_value, (int, float))
-                    and not isinstance(best_objective_value, bool)
-                    and abs(float(observed_primary) - float(best_objective_value)) > 1e-12
-                ):
-                    errors.append(
-                        "state.best.objective_value must match referenced observed objective"
-                    )
+                else:
+                    expected_scalar = float(scalarize_objectives(canonical, objective_cfg))
+                    if (
+                        isinstance(best_objective_value, (int, float))
+                        and not isinstance(best_objective_value, bool)
+                        and abs(expected_scalar - float(best_objective_value)) > 1e-12
+                    ):
+                        errors.append(
+                            "state.best.objective_value must match the scalarized objective of the referenced observation"
+                        )
+                    best_vector = best.get("objective_vector")
+                    if best_vector is not None and best_vector != canonical:
+                        errors.append(
+                            "state.best.objective_vector must match the referenced observation objectives"
+                        )
+                    if len(configured_names) > 1 and not isinstance(best_vector, dict):
+                        errors.append(
+                            "state.best.objective_vector must be present for multi-objective campaigns"
+                        )
 
-    if objective_direction not in {"minimize", "maximize"}:
-        errors.append("objective direction must be either minimize or maximize")
-    elif ok_objective_sequence:
-        expected_best = (
-            max(ok_objective_sequence, key=lambda item: item[1])
-            if objective_direction == "maximize"
-            else min(ok_objective_sequence, key=lambda item: item[1])
-        )
-        expected_trial_id, expected_objective_value = expected_best
+    if ok_ranked:
+        expected_trial_id, _, expected_vector = min(ok_ranked, key=lambda item: item[1])
+        expected_objective_value = float(scalarize_objectives(expected_vector, objective_cfg))
         if best is None:
             errors.append("state.best must be set when at least one ok observation exists")
         elif best_trial_id_valid is not None and best_trial_id_valid != expected_trial_id:
             errors.append(
-                "state.best.trial_id must reference the optimal ok trial for objective direction"
+                "state.best.trial_id must reference the optimal ok trial for the configured scalarization policy"
             )
         elif (
             best_objective_value_valid is not None
             and abs(best_objective_value_valid - expected_objective_value) > 1e-12
         ):
-            errors.append("state.best.objective_value must match the optimal ok objective value")
+            errors.append(
+                "state.best.objective_value must match the optimal scalarized objective value"
+            )
 
     return errors
 
@@ -1383,7 +1390,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
     obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
-    objective_name = str(objective["name"])
+    objective_name = primary_objective_name(obj_cfg)
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
@@ -1409,7 +1416,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
             if max_pending_age is not None:
                 stale_observations = _retire_stale_pending(
                     state,
-                    objective_name=objective_name,
+                    objective_cfg=obj_cfg,
                     max_pending_age_seconds=max_pending_age,
                     now=now,
                     reason="retired_stale_auto",
@@ -1434,7 +1441,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
             if len(state["observations"]) + len(state["pending"]) >= int(cfg["max_trials"]):
                 if stale_observations:
-                    update_best(state, objective)
+                    update_best(state, obj_cfg)
                     _save_state_and_rows(paths, state)
                 elif state_schema_upgrade_pending(state):
                     save_state(paths["state_file"], state)
@@ -1513,8 +1520,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     params = normalize_search_space(space_cfg)
 
     obj_cfg = _load_objective_config(root, cfg)
-    objective = obj_cfg["primary_objective"]
-    objective_name = str(objective["name"])
+    objective_name = primary_objective_name(obj_cfg)
 
     ingest_schema, _ = load_schema_from_paths(
         root,
@@ -1547,7 +1553,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
             validate_against_schema(payload, ingest_schema, source_path=payload_path)
             payload, trial_id = normalize_ingest_payload(
                 payload,
-                objective_name=objective_name,
+                objective_cfg=obj_cfg,
                 source_path=payload_path,
             )
             payload["params"] = canonicalize_conditional_params(payload["params"], params)
@@ -1565,9 +1571,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 prior_for_compare["params"] = canonicalize_conditional_params(
                     prior.get("params", {}), params
                 )
-                expected = build_observation_contract(
-                    prior_for_compare, objective_name=objective_name
-                )
+                expected = build_observation_contract(prior_for_compare, objective_cfg=obj_cfg)
                 received = {
                     "trial_id": trial_id,
                     "params": payload["params"],
@@ -1627,7 +1631,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
             observation.update(heartbeat_fields)
             state["observations"].append(observation)
-            update_best(state, objective)
+            update_best(state, obj_cfg)
 
             payload_copy_path = trial_dir(paths["trials_dir"], trial_id) / "ingest_payload.json"
             atomic_write_json(payload_copy_path, payload, indent=2)
@@ -1657,8 +1661,7 @@ def cmd_cancel(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective = obj_cfg["primary_objective"]
-    objective_name = str(objective["name"])
+    objective_name = primary_objective_name(obj_cfg)
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
@@ -1683,12 +1686,12 @@ def cmd_cancel(args: argparse.Namespace) -> None:
             terminal_reason = args.reason or "canceled"
             observation = _new_terminal_observation(
                 pending_entry,
-                objective_name=objective_name,
+                objective_cfg=obj_cfg,
                 terminal_reason=terminal_reason,
                 now=now,
             )
             state["observations"].append(observation)
-            update_best(state, objective)
+            update_best(state, obj_cfg)
             _ensure_terminal_manifest(
                 root,
                 paths,
@@ -1718,8 +1721,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective = obj_cfg["primary_objective"]
-    objective_name = str(objective["name"])
+    objective_name = primary_objective_name(obj_cfg)
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
@@ -1776,7 +1778,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
                 )
                 observation = _new_terminal_observation(
                     pending_entry,
-                    objective_name=objective_name,
+                    objective_cfg=obj_cfg,
                     terminal_reason=terminal_reason,
                     now=now,
                 )
@@ -1787,7 +1789,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
                 print("No pending trials retired.")
                 return
 
-            update_best(state, objective)
+            update_best(state, obj_cfg)
             for observation in retired:
                 _ensure_terminal_manifest(
                     root,
@@ -1820,8 +1822,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
     obj_cfg = _load_objective_config(root, cfg)
-    objective = obj_cfg["primary_objective"]
-    objective_name = str(objective["name"])
+    objective_name = primary_objective_name(obj_cfg)
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
@@ -2074,13 +2075,16 @@ def cmd_validate(args: argparse.Namespace) -> None:
         except Exception as exc:
             hard_errors.append(f"constraints validation failure: {exc}")
 
-    objective_name = "loss"
-    objective_direction = "minimize"
+    obj_cfg = normalize_objective_schema(
+        {
+            "primary_objective": {
+                "name": "loss",
+                "direction": "minimize",
+            }
+        }
+    )
     try:
         obj_cfg = _load_objective_config(root, cfg)
-        objective = obj_cfg["primary_objective"]
-        objective_name = str(objective["name"])
-        objective_direction = str(objective["direction"])
     except Exception as exc:
         hard_errors.append(f"objective_schema validation failure: {exc}")
 
@@ -2096,7 +2100,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         print(f"ERROR: state load failure: {exc}")
         raise SystemExit(1) from exc
 
-    hard_errors.extend(_validate_state_hard_checks(state, objective_name, objective_direction))
+    hard_errors.extend(_validate_state_hard_checks(state, obj_cfg))
     hard_errors.extend(
         _validate_jsonl_file_hard(paths["acquisition_log_file"], label="acquisition_log_file")
     )

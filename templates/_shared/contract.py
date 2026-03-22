@@ -405,10 +405,10 @@ def _normalize_terminal_reason(
     return f"status={status}"
 
 
-def _normalize_primary_objective(
+def _normalize_objectives(
     *,
     payload: JSONDict,
-    objective_name: str,
+    objective_cfg: JSONDict,
     status: str,
     source_path: Path,
     trial_id: int | None,
@@ -422,27 +422,44 @@ def _normalize_primary_objective(
             received=objectives,
             trial_id=trial_id,
         )
-    if objective_name not in objectives:
+
+    normalized_objectives = dict(objectives)
+    names_raw = objective_cfg.get("objective_names", [])
+    objective_names = [str(name) for name in names_raw] if isinstance(names_raw, list) else []
+    if not objective_names:
+        raise ValueError("objective_cfg.objective_names must be a non-empty list")
+
+    for objective_name in objective_names:
+        if objective_name not in normalized_objectives:
+            raise _validation_error(
+                source_path=source_path,
+                field_path=f"$.objectives.{objective_name}",
+                expected="required configured objective present",
+                received=_MISSING,
+                trial_id=trial_id,
+            )
+
+    extras = sorted(set(normalized_objectives) - set(objective_names))
+    if extras:
         raise _validation_error(
             source_path=source_path,
-            field_path=f"$.objectives.{objective_name}",
-            expected="required primary objective present",
-            received=_MISSING,
+            field_path="$.objectives",
+            expected=f"no unknown objectives (unexpected: {extras})",
+            received=normalized_objectives,
             trial_id=trial_id,
         )
 
-    normalized_objectives = dict(objectives)
-    primary_value = normalized_objectives.get(objective_name)
     penalty_present = "penalty_objective" in payload
     penalty_value = payload.get("penalty_objective")
 
     if status == "ok":
-        normalized_objectives[objective_name] = _require_number(
-            primary_value,
-            source_path=source_path,
-            field_path=f"$.objectives.{objective_name}",
-            trial_id=trial_id,
-        )
+        for objective_name in objective_names:
+            normalized_objectives[objective_name] = _require_number(
+                normalized_objectives.get(objective_name),
+                source_path=source_path,
+                field_path=f"$.objectives.{objective_name}",
+                trial_id=trial_id,
+            )
         if penalty_present:
             raise _validation_error(
                 source_path=source_path,
@@ -454,7 +471,8 @@ def _normalize_primary_objective(
         return normalized_objectives, None
 
     # Non-ok statuses: new contract requires null primary objective.
-    normalized_objectives[objective_name] = None
+    for objective_name in objective_names:
+        normalized_objectives[objective_name] = None
     normalized_penalty: float | None = None
     if penalty_present:
         normalized_penalty = _require_number(
@@ -464,20 +482,24 @@ def _normalize_primary_objective(
             trial_id=trial_id,
         )
 
-    if primary_value is None:
+    offending_name = next(
+        (name for name in objective_names if objectives.get(name) is not None),
+        None,
+    )
+    if offending_name is None:
         return normalized_objectives, normalized_penalty
 
     raise _validation_error(
         source_path=source_path,
-        field_path=f"$.objectives.{objective_name}",
-        expected="null for non-ok status; use penalty_objective for numeric penalty",
+        field_path=f"$.objectives.{offending_name}",
+        expected="null for non-ok status on all configured objectives; use penalty_objective for numeric penalty",
         trial_id=trial_id,
-        received=primary_value,
+        received=objectives.get(offending_name),
     )
 
 
 def normalize_ingest_payload(
-    payload: JSONDict, *, objective_name: str, source_path: Path
+    payload: JSONDict, *, objective_cfg: JSONDict, source_path: Path
 ) -> tuple[JSONDict, int]:
     trial_id = _require_int(
         payload.get("trial_id"), source_path=source_path, field_path="$.trial_id"
@@ -501,9 +523,9 @@ def normalize_ingest_payload(
     normalized["status"] = status
     normalized["params"] = params
 
-    objectives, penalty = _normalize_primary_objective(
+    objectives, penalty = _normalize_objectives(
         payload=normalized,
-        objective_name=objective_name,
+        objective_cfg=objective_cfg,
         status=status,
         source_path=source_path,
         trial_id=trial_id,
@@ -528,7 +550,7 @@ def normalize_ingest_payload(
     return normalized, trial_id
 
 
-def build_observation_contract(observation: JSONDict, *, objective_name: str) -> JSONDict:
+def build_observation_contract(observation: JSONDict, *, objective_cfg: JSONDict) -> JSONDict:
     trial_id = int(observation["trial_id"])
     status = str(observation.get("status", "ok")).strip().lower()
     if status == SUCCESS_ALIAS:
@@ -547,9 +569,9 @@ def build_observation_contract(observation: JSONDict, *, objective_name: str) ->
     if "terminal_reason" in observation:
         payload_like["terminal_reason"] = observation["terminal_reason"]
 
-    objectives, penalty = _normalize_primary_objective(
+    objectives, penalty = _normalize_objectives(
         payload=payload_like,
-        objective_name=objective_name,
+        objective_cfg=objective_cfg,
         status=status,
         source_path=Path("<state>"),
         trial_id=trial_id,

@@ -8,6 +8,7 @@ JSONDict = dict[str, Any]
 _DIRECTIONS = {"minimize", "maximize"}
 _SCALARIZATION_POLICIES = {"weighted_sum", "weighted_tchebycheff", "lexicographic"}
 _WEIGHTED_POLICIES = {"weighted_sum", "weighted_tchebycheff"}
+_PRIMARY_ONLY_POLICY = "primary_only"
 
 
 def _require_object(value: Any, *, field_name: str) -> JSONDict:
@@ -195,3 +196,194 @@ def normalize_objective_schema(raw: Any) -> JSONDict:
         "objective_names": names,
         "scalarization": scalarization,
     }
+
+
+def primary_objective_name(objective_cfg: JSONDict) -> str:
+    primary = _require_object(
+        objective_cfg.get("primary_objective"),
+        field_name="objective_cfg.primary_objective",
+    )
+    return _require_string(primary.get("name"), field_name="objective_cfg.primary_objective.name")
+
+
+def primary_objective_direction(objective_cfg: JSONDict) -> str:
+    primary = _require_object(
+        objective_cfg.get("primary_objective"),
+        field_name="objective_cfg.primary_objective",
+    )
+    direction = _require_string(
+        primary.get("direction"),
+        field_name="objective_cfg.primary_objective.direction",
+    ).lower()
+    if direction not in _DIRECTIONS:
+        raise ValueError(f"objective_cfg.primary_objective.direction must be one of {_DIRECTIONS}")
+    return direction
+
+
+def objective_descriptors(objective_cfg: JSONDict) -> list[JSONDict]:
+    raw = objective_cfg.get("objectives")
+    if not isinstance(raw, list):
+        raise ValueError("objective_cfg.objectives must be a list")
+    out: list[JSONDict] = []
+    for index, item in enumerate(raw):
+        out.append(_require_object(item, field_name=f"objective_cfg.objectives[{index}]"))
+    return out
+
+
+def objective_names(objective_cfg: JSONDict) -> list[str]:
+    return [str(objective["name"]) for objective in objective_descriptors(objective_cfg)]
+
+
+def scalarization_policy(objective_cfg: JSONDict) -> str:
+    scalarization = _require_object(
+        objective_cfg.get("scalarization"),
+        field_name="objective_cfg.scalarization",
+    )
+    policy = _require_string(
+        scalarization.get("policy"),
+        field_name="objective_cfg.scalarization.policy",
+    ).lower()
+    valid = {*_SCALARIZATION_POLICIES, _PRIMARY_ONLY_POLICY}
+    if policy not in valid:
+        raise ValueError(f"objective_cfg.scalarization.policy must be one of {sorted(valid)}")
+    return policy
+
+
+def scalarized_direction(objective_cfg: JSONDict) -> str:
+    policy = scalarization_policy(objective_cfg)
+    if policy in _WEIGHTED_POLICIES:
+        return "minimize"
+    return primary_objective_direction(objective_cfg)
+
+
+def best_objective_name(objective_cfg: JSONDict) -> str:
+    policy = scalarization_policy(objective_cfg)
+    if policy == _PRIMARY_ONLY_POLICY or policy == "lexicographic":
+        return primary_objective_name(objective_cfg)
+    return "scalarized"
+
+
+def _numeric_objective_value(raw: Any, *, field_name: str) -> float:
+    return _require_finite_number(raw, field_name=field_name)
+
+
+def canonical_objective_vector(raw_objectives: Any, objective_cfg: JSONDict) -> JSONDict:
+    objectives = _require_object(raw_objectives, field_name="objectives")
+    names = objective_names(objective_cfg)
+    missing = [name for name in names if name not in objectives]
+    if missing:
+        raise ValueError(f"objectives missing configured names {missing}")
+
+    extras = sorted(set(objectives) - set(names))
+    if extras:
+        raise ValueError(f"objectives include unknown names {extras}")
+
+    out: JSONDict = {}
+    for name in names:
+        out[name] = _numeric_objective_value(
+            objectives.get(name),
+            field_name=f"objectives.{name}",
+        )
+    return out
+
+
+def _transformed_value(value: float, *, direction: str) -> float:
+    return value if direction == "minimize" else -value
+
+
+def lexicographic_key(raw_objectives: Any, objective_cfg: JSONDict) -> tuple[float, ...]:
+    vector = canonical_objective_vector(raw_objectives, objective_cfg)
+    return tuple(
+        _transformed_value(
+            float(vector[str(objective["name"])]), direction=str(objective["direction"])
+        )
+        for objective in objective_descriptors(objective_cfg)
+    )
+
+
+def scalarize_objectives(raw_objectives: Any, objective_cfg: JSONDict) -> float:
+    vector = canonical_objective_vector(raw_objectives, objective_cfg)
+    policy = scalarization_policy(objective_cfg)
+
+    if policy == _PRIMARY_ONLY_POLICY or policy == "lexicographic":
+        return float(vector[primary_objective_name(objective_cfg)])
+
+    scalarization = _require_object(
+        objective_cfg.get("scalarization"),
+        field_name="objective_cfg.scalarization",
+    )
+    weights = _require_object(
+        scalarization.get("weights"),
+        field_name="objective_cfg.scalarization.weights",
+    )
+
+    transformed: dict[str, float] = {}
+    for objective in objective_descriptors(objective_cfg):
+        name = str(objective["name"])
+        transformed[name] = _transformed_value(
+            float(vector[name]),
+            direction=str(objective["direction"]),
+        )
+
+    if policy == "weighted_sum":
+        return sum(
+            float(weights[name]) * transformed[name] for name in objective_names(objective_cfg)
+        )
+
+    if policy == "weighted_tchebycheff":
+        reference_raw = scalarization.get("reference_point")
+        if reference_raw is None:
+            reference_raw = {name: 0.0 for name in objective_names(objective_cfg)}
+        reference = _require_object(
+            reference_raw,
+            field_name="objective_cfg.scalarization.reference_point",
+        )
+        distances: list[float] = []
+        for objective in objective_descriptors(objective_cfg):
+            name = str(objective["name"])
+            ref_value = _numeric_objective_value(
+                reference.get(name, 0.0),
+                field_name=f"objective_cfg.scalarization.reference_point.{name}",
+            )
+            transformed_ref = _transformed_value(ref_value, direction=str(objective["direction"]))
+            distances.append(float(weights[name]) * abs(transformed[name] - transformed_ref))
+        return max(distances)
+
+    raise ValueError(f"Unsupported scalarization policy '{policy}'")
+
+
+def best_rank_key(
+    raw_objectives: Any,
+    objective_cfg: JSONDict,
+    *,
+    trial_id: int | None = None,
+) -> tuple[Any, ...]:
+    scalar_value = scalarize_objectives(raw_objectives, objective_cfg)
+    direction = scalarized_direction(objective_cfg)
+    scalar_key = scalar_value if direction == "minimize" else -scalar_value
+    key: list[Any] = [scalar_key, lexicographic_key(raw_objectives, objective_cfg)]
+    if trial_id is not None:
+        key.append(int(trial_id))
+    return tuple(key)
+
+
+def build_best_record(
+    observation: JSONDict,
+    objective_cfg: JSONDict,
+    *,
+    updated_at: float,
+) -> JSONDict:
+    vector = canonical_objective_vector(observation.get("objectives", {}), objective_cfg)
+    record: JSONDict = {
+        "trial_id": int(observation["trial_id"]),
+        "objective_name": best_objective_name(objective_cfg),
+        "objective_value": float(scalarize_objectives(vector, objective_cfg)),
+        "updated_at": float(updated_at),
+    }
+    if (
+        len(objective_names(objective_cfg)) > 1
+        or scalarization_policy(objective_cfg) != _PRIMARY_ONLY_POLICY
+    ):
+        record["scalarization_policy"] = scalarization_policy(objective_cfg)
+        record["objective_vector"] = vector
+    return record

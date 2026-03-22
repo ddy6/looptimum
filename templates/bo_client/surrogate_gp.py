@@ -23,9 +23,12 @@ def _load_shared_module(module_name: str, filename: str):
 
 
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
+_OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py")
 
 normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
 denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
+scalarize_objectives = _OBJECTIVES.scalarize_objectives
+scalarized_direction = _OBJECTIVES.scalarized_direction
 
 
 def _normalize(vec: dict, params: list[dict]) -> list[float]:
@@ -40,7 +43,7 @@ def propose_with_gp(
     candidates: list[dict],
     observations: list[dict],
     params: list[dict],
-    objective: dict,
+    objective_cfg: dict,
     acq_cfg: dict,
     best: float | None,
     seed: int,
@@ -55,11 +58,10 @@ def propose_with_gp(
         raise RuntimeError("GP backend requires botorch/gpytorch/torch to be installed") from exc
 
     torch.manual_seed(int(seed))
-    obj_name = str(objective["name"])
-    direction = str(objective["direction"])
+    direction = str(scalarized_direction(objective_cfg))
 
     X = torch.tensor([_normalize(o["params"], params) for o in observations], dtype=torch.double)
-    y_raw = [float(o["objectives"][obj_name]) for o in observations]
+    y_raw = [float(scalarize_objectives(o["objectives"], objective_cfg)) for o in observations]
     # Fit in a minimization frame so acquisition handling is consistent.
     y_min_frame = [y if direction == "minimize" else -y for y in y_raw]
     Y = torch.tensor([[y] for y in y_min_frame], dtype=torch.double)

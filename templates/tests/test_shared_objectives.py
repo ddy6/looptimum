@@ -92,6 +92,77 @@ def test_normalize_objective_schema_accepts_weighted_tchebycheff_reference_point
     }
 
 
+def test_scalarize_objectives_weighted_sum_respects_direction() -> None:
+    objective_cfg = OBJECTIVES.normalize_objective_schema(
+        {
+            "primary_objective": {"name": "loss", "direction": "minimize"},
+            "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+            "scalarization": {
+                "policy": "weighted_sum",
+                "weights": {"loss": 1.0, "throughput": 1.0},
+            },
+        }
+    )
+
+    assert OBJECTIVES.scalarize_objectives(
+        {"loss": 0.2, "throughput": 3.0},
+        objective_cfg,
+    ) == pytest.approx(-1.4)
+
+
+def test_best_rank_key_uses_lexicographic_tie_breaks() -> None:
+    objective_cfg = OBJECTIVES.normalize_objective_schema(
+        {
+            "primary_objective": {"name": "loss", "direction": "minimize"},
+            "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+            "scalarization": {"policy": "lexicographic"},
+        }
+    )
+
+    better = OBJECTIVES.best_rank_key(
+        {"loss": 0.2, "throughput": 3.0},
+        objective_cfg,
+        trial_id=1,
+    )
+    worse = OBJECTIVES.best_rank_key(
+        {"loss": 0.2, "throughput": 1.0},
+        objective_cfg,
+        trial_id=2,
+    )
+    assert better < worse
+
+
+def test_build_best_record_includes_vector_and_policy_for_multi_objective() -> None:
+    objective_cfg = OBJECTIVES.normalize_objective_schema(
+        {
+            "primary_objective": {"name": "loss", "direction": "minimize"},
+            "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+            "scalarization": {
+                "policy": "weighted_sum",
+                "weights": {"loss": 1.0, "throughput": 1.0},
+            },
+        }
+    )
+
+    record = OBJECTIVES.build_best_record(
+        {
+            "trial_id": 7,
+            "objectives": {"loss": 0.2, "throughput": 3.0},
+        },
+        objective_cfg,
+        updated_at=12.5,
+    )
+
+    assert record == {
+        "trial_id": 7,
+        "objective_name": "scalarized",
+        "objective_value": pytest.approx(-1.4),
+        "updated_at": 12.5,
+        "scalarization_policy": "weighted_sum",
+        "objective_vector": {"loss": 0.2, "throughput": 3.0},
+    }
+
+
 @pytest.mark.parametrize(
     ("objective_cfg", "pattern"),
     [

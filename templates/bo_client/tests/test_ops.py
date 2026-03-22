@@ -491,7 +491,7 @@ def test_validate_hard_failure_for_inconsistent_best_ranking(template_copy) -> N
     out = run_cmd(template_copy, "validate", expect_ok=False)
     assert out.returncode != 0
     assert (
-        "state.best.trial_id must reference the optimal ok trial for objective direction"
+        "state.best.trial_id must reference the optimal ok trial for the configured scalarization policy"
         in out.stdout
     )
 
