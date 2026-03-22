@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from conftest import parse_suggestion, run_cmd
+from conftest import parse_jsonl_suggestions, parse_suggestion, parse_suggestion_bundle, run_cmd
 
 
 def _latest_log_record(template_copy: Path) -> dict:
@@ -134,6 +134,59 @@ def test_deterministic_first_suggestion_under_fixed_seed(template_copy, tmp_path
     second = parse_suggestion(run_cmd(second_copy, "suggest").stdout)
     assert first["trial_id"] == second["trial_id"] == 1
     assert first["params"] == second["params"]
+
+
+def test_suggest_count_creates_batch_bundle_and_pending_state(template_copy) -> None:
+    out = run_cmd(template_copy, "suggest", "--count", "3", "--json-only")
+    bundle = parse_suggestion_bundle(out.stdout)
+    suggestions = bundle["suggestions"]
+
+    assert bundle["count"] == 3
+    assert [item["trial_id"] for item in suggestions] == [1, 2, 3]
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [item["trial_id"] for item in state["pending"]] == [1, 2, 3]
+    assert state["next_trial_id"] == 4
+
+    log_lines = [
+        line
+        for line in (template_copy / "state" / "acquisition_log.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    assert len(log_lines) == 3
+
+    for suggestion in suggestions:
+        manifest_path = (
+            template_copy / "state" / "trials" / f"trial_{suggestion['trial_id']}" / "manifest.json"
+        )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["trial_id"] == suggestion["trial_id"]
+        assert manifest["status"] == "pending"
+
+
+def test_suggest_jsonl_output_emits_one_suggestion_per_line(template_copy) -> None:
+    out = run_cmd(template_copy, "suggest", "--count", "2", "--jsonl")
+    suggestions = parse_jsonl_suggestions(out.stdout)
+
+    assert [item["trial_id"] for item in suggestions] == [1, 2]
+    assert "Objective direction:" not in out.stdout
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [item["trial_id"] for item in state["pending"]] == [1, 2]
+
+
+def test_suggest_uses_configured_batch_size_when_count_omitted(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["batch_size"] = 2
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "suggest", "--json-only")
+    bundle = parse_suggestion_bundle(out.stdout)
+    assert bundle["count"] == 2
+    assert [item["trial_id"] for item in bundle["suggestions"]] == [1, 2]
 
 
 def test_suggest_supports_mixed_search_space_with_surrogate_scoring(

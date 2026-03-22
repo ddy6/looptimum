@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import importlib.util
 import json
@@ -375,6 +376,40 @@ def _emit_constraint_warning(decision: dict) -> None:
     warning = status.get("warning")
     if isinstance(warning, str) and warning:
         print(f"WARNING: {warning}", file=sys.stderr)
+
+
+def _resolve_effective_suggest_count(cfg: dict, args: argparse.Namespace) -> int:
+    raw = args.count if args.count is not None else cfg.get("batch_size", 1)
+    if not isinstance(raw, int) or isinstance(raw, bool):
+        raise ValueError("suggest count must be an integer > 0")
+    count = int(raw)
+    if count <= 0:
+        raise ValueError("suggest count must be >= 1")
+    return count
+
+
+def _build_suggestion_bundle(suggestions: list[dict]) -> dict:
+    if not suggestions:
+        raise ValueError("suggestion bundle requires at least one suggestion")
+    return {
+        "schema_version": suggestions[0]["schema_version"],
+        "count": len(suggestions),
+        "suggestions": suggestions,
+    }
+
+
+def _emit_suggest_output(
+    suggestions: list[dict], objective: dict, args: argparse.Namespace
+) -> None:
+    if args.jsonl:
+        for suggestion in suggestions:
+            print(json.dumps(suggestion, sort_keys=True))
+        return
+
+    payload = suggestions[0] if len(suggestions) == 1 else _build_suggestion_bundle(suggestions)
+    print(json.dumps(payload, indent=2))
+    if not args.json_only:
+        print(f"Objective direction: {objective['direction']} ({objective['name']})")
 
 
 def update_best(state: dict, objective_cfg: dict) -> None:
@@ -1292,6 +1327,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
     max_pending_age = resolve_max_pending_age_seconds(cfg)
+    requested_count = _resolve_effective_suggest_count(cfg, args)
 
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
@@ -1336,7 +1372,9 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                         reason=obs["terminal_reason"],
                     )
 
-            if len(state["observations"]) + len(state["pending"]) >= int(cfg["max_trials"]):
+            if len(state["observations"]) + len(state["pending"]) + requested_count > int(
+                cfg["max_trials"]
+            ):
                 if stale_observations:
                     update_best(state, obj_cfg)
                     _save_state_and_rows(paths, state)
@@ -1345,63 +1383,83 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 print("No suggestion generated: budget exhausted.")
                 return
 
-            seed = int(state["meta"]["seed"]) + int(state["next_trial_id"])
-            rng = random.Random(seed)
-            trial_id = int(state["next_trial_id"])
-            try:
-                cand, decision = propose(rng, state, cfg, params, obj_cfg, constraints)
-            except ConstraintSamplingFailure as exc:
-                append_jsonl(
-                    paths["acquisition_log_file"],
-                    {"trial_id": trial_id, "decision": exc.decision, "timestamp": time.time()},
-                )
-                save_state(paths["state_file"], state)
-                if stale_observations:
-                    write_obs_csv(paths["observations_csv"], _observation_rows(state))
-                raise
-            suggestion = {
-                "schema_version": state_schema_version(state),
-                "trial_id": trial_id,
-                "params": cand,
-                "suggested_at": time.time(),
-            }
-
             suggestion_schema, _ = load_schema_from_paths(
                 root,
                 cfg["paths"],
                 key="suggestion_schema_file",
                 default_rel="../_shared/schemas/suggestion_payload.schema.json",
             )
-            validate_against_schema(
-                suggestion,
-                suggestion_schema,
-                source_path=Path("<generated_suggestion>"),
-                trial_id=trial_id,
-            )
 
-            state["pending"].append(suggestion)
-            state["next_trial_id"] = trial_id + 1
-            _ensure_pending_manifest(
-                paths,
-                suggestion,
-                objective_cfg=obj_cfg,
-                now=time.time(),
-            )
+            planning_state = copy.deepcopy(state)
+            planned_suggestions: list[dict] = []
+            planned_decisions: list[tuple[int, dict]] = []
+            try:
+                for _ in range(requested_count):
+                    seed = int(planning_state["meta"]["seed"]) + int(
+                        planning_state["next_trial_id"]
+                    )
+                    rng = random.Random(seed)
+                    trial_id = int(planning_state["next_trial_id"])
+                    cand, decision = propose(
+                        rng,
+                        planning_state,
+                        cfg,
+                        params,
+                        obj_cfg,
+                        constraints,
+                    )
+                    suggestion = {
+                        "schema_version": state_schema_version(planning_state),
+                        "trial_id": trial_id,
+                        "params": cand,
+                        "suggested_at": time.time(),
+                    }
+                    validate_against_schema(
+                        suggestion,
+                        suggestion_schema,
+                        source_path=Path("<generated_suggestion>"),
+                        trial_id=trial_id,
+                    )
+                    planning_state["pending"].append(suggestion)
+                    planning_state["next_trial_id"] = trial_id + 1
+                    planned_suggestions.append(suggestion)
+                    planned_decisions.append((trial_id, decision))
+            except ConstraintSamplingFailure as exc:
+                failed_trial_id = int(planning_state["next_trial_id"])
+                append_jsonl(
+                    paths["acquisition_log_file"],
+                    {
+                        "trial_id": failed_trial_id,
+                        "decision": exc.decision,
+                        "timestamp": time.time(),
+                    },
+                )
+                save_state(paths["state_file"], state)
+                if stale_observations:
+                    write_obs_csv(paths["observations_csv"], _observation_rows(state))
+                raise
 
-            append_jsonl(
-                paths["acquisition_log_file"],
-                {"trial_id": trial_id, "decision": decision, "timestamp": time.time()},
-            )
-            _emit_constraint_warning(decision)
-            _append_event(paths, "suggestion_created", trial_id=trial_id)
+            state = planning_state
+            for suggestion in planned_suggestions:
+                _ensure_pending_manifest(
+                    paths,
+                    suggestion,
+                    objective_cfg=obj_cfg,
+                    now=time.time(),
+                )
+            for trial_id, decision in planned_decisions:
+                append_jsonl(
+                    paths["acquisition_log_file"],
+                    {"trial_id": trial_id, "decision": decision, "timestamp": time.time()},
+                )
+                _emit_constraint_warning(decision)
+                _append_event(paths, "suggestion_created", trial_id=trial_id)
 
             save_state(paths["state_file"], state)
             if stale_observations:
                 write_obs_csv(paths["observations_csv"], _observation_rows(state))
 
-            print(json.dumps(suggestion, indent=2))
-            if not args.json_only:
-                print(f"Objective direction: {objective['direction']} ({objective['name']})")
+            _emit_suggest_output(planned_suggestions, objective, args)
         finally:
             _append_event(paths, "lock_released", command="suggest", pid=os.getpid())
 
@@ -2066,7 +2124,12 @@ def cmd_demo(args: argparse.Namespace) -> None:
         paths = _runtime_paths(root, cfg)
         state_before = load_state(paths["state_file"])
         pending_before = len(state_before["pending"])
-        cmd_suggest(args)
+        original_count = getattr(args, "count", None)
+        args.count = 1
+        try:
+            cmd_suggest(args)
+        finally:
+            args.count = original_count
         state = load_state(paths["state_file"])
         if len(state["pending"]) <= pending_before:
             print("Demo stopped: no pending suggestion generated.")
@@ -2128,6 +2191,16 @@ def parse_args() -> argparse.Namespace:
         "--json-only",
         action="store_true",
         help="For suggest: print only JSON (no trailing human-readable line).",
+    )
+    parser.add_argument(
+        "--jsonl",
+        action="store_true",
+        help="For suggest: emit one JSON suggestion per line and suppress summary text.",
+    )
+    parser.add_argument(
+        "--count",
+        type=int,
+        help="For suggest: number of suggestions to allocate in one locked batch.",
     )
     parser.add_argument(
         "--lock-timeout-seconds",

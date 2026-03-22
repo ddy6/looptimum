@@ -28,9 +28,36 @@ def run_cmd(
     return out
 
 
+def parse_json_output(stdout: str) -> object:
+    text = stdout.strip()
+    if not text:
+        raise AssertionError("Expected non-empty stdout payload.")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        lines = [line for line in text.splitlines() if line.strip()]
+        if len(lines) < 2:
+            raise
+        return json.loads("\n".join(lines[:-1]))
+
+
 def parse_suggestion(stdout: str) -> dict:
-    lines = [line for line in stdout.strip().splitlines() if line.strip()]
-    return json.loads("\n".join(lines[:-1]))
+    payload = parse_json_output(stdout)
+    assert isinstance(payload, dict)
+    assert "trial_id" in payload
+    return payload
+
+
+def parse_suggestion_bundle(stdout: str) -> dict:
+    payload = parse_json_output(stdout)
+    assert isinstance(payload, dict)
+    assert "suggestions" in payload
+    return payload
+
+
+def parse_jsonl_suggestions(stdout: str) -> list[dict]:
+    lines = [line for line in stdout.splitlines() if line.strip()]
+    return [json.loads(line) for line in lines]
 
 
 @pytest.fixture

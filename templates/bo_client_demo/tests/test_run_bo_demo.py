@@ -48,8 +48,35 @@ def template_copy(tmp_path: Path) -> Path:
 
 
 def _parse_suggestion(stdout: str) -> dict:
-    lines = [line for line in stdout.strip().splitlines() if line.strip()]
-    return json.loads("\n".join(lines[:-1]))
+    payload = _parse_json_output(stdout)
+    assert isinstance(payload, dict)
+    assert "trial_id" in payload
+    return payload
+
+
+def _parse_json_output(stdout: str) -> object:
+    text = stdout.strip()
+    if not text:
+        raise AssertionError("Expected non-empty stdout payload.")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        lines = [line for line in text.splitlines() if line.strip()]
+        if len(lines) < 2:
+            raise
+        return json.loads("\n".join(lines[:-1]))
+
+
+def _parse_suggestion_bundle(stdout: str) -> dict:
+    payload = _parse_json_output(stdout)
+    assert isinstance(payload, dict)
+    assert "suggestions" in payload
+    return payload
+
+
+def _parse_jsonl_suggestions(stdout: str) -> list[dict]:
+    lines = [line for line in stdout.splitlines() if line.strip()]
+    return [json.loads(line) for line in lines]
 
 
 def _latest_log_record(template_copy: Path) -> dict:
@@ -167,6 +194,30 @@ def test_deterministic_first_suggestion_under_fixed_seed(
     second = _parse_suggestion(run_cmd(second_copy, "suggest").stdout)
     assert first["trial_id"] == second["trial_id"] == 1
     assert first["params"] == second["params"]
+
+
+def test_suggest_count_creates_batch_bundle_and_pending_state(template_copy: Path) -> None:
+    out = run_cmd(template_copy, "suggest", "--count", "2", "--json-only")
+    bundle = _parse_suggestion_bundle(out.stdout)
+    suggestions = bundle["suggestions"]
+
+    assert bundle["count"] == 2
+    assert [item["trial_id"] for item in suggestions] == [1, 2]
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [item["trial_id"] for item in state["pending"]] == [1, 2]
+    assert state["next_trial_id"] == 3
+
+
+def test_suggest_jsonl_output_emits_one_suggestion_per_line(template_copy: Path) -> None:
+    out = run_cmd(template_copy, "suggest", "--count", "2", "--jsonl")
+    suggestions = _parse_jsonl_suggestions(out.stdout)
+
+    assert [item["trial_id"] for item in suggestions] == [1, 2]
+    assert "Objective direction:" not in out.stdout
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [item["trial_id"] for item in state["pending"]] == [1, 2]
 
 
 def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
