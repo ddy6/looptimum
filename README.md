@@ -474,7 +474,7 @@ python3 -m pip install ".[aws]"
 Run repo test suites:
 
 ```bash
-python3 -m pytest -q templates client_harness_template/tests
+python3 -m pytest -q templates client_harness_template/tests service/tests
 ```
 
 Optional GP backend validation for `bo_client`:

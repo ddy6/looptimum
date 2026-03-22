@@ -62,6 +62,8 @@ def test_ci_workflow_contains_blocking_mypy_job() -> None:
     assert "typecheck:" in text
     assert "Type Check (mypy, py3.12)" in text
     assert "python -m mypy" in text
+    assert "python -m pytest -q templates client_harness_template/tests service/tests" in text
+    assert "service/*.py" in text
 
 
 def test_mypy_scope_and_type_safety_doc_are_present() -> None:
@@ -71,6 +73,7 @@ def test_mypy_scope_and_type_safety_doc_are_present() -> None:
     mypy_cfg = tool_cfg.get("mypy", {})
     files = mypy_cfg.get("files")
     assert isinstance(files, list)
+    assert "service/*.py" in files
     assert "templates/_shared/*.py" in files
     assert "templates/bo_client/run_bo.py" in files
     assert "client_harness_template/run_one_eval.py" in files
@@ -82,6 +85,7 @@ def test_mypy_scope_and_type_safety_doc_are_present() -> None:
     doc_text = TYPE_SAFETY_DOC.read_text(encoding="utf-8")
     assert "Type-checking tool: `mypy`." in doc_text
     assert "Initial blocking CI gate scope" in doc_text
+    assert "`service/*.py`" in doc_text
     assert "`client_harness_template/starterkit_*.py`" in doc_text
 
 

@@ -1,0 +1,92 @@
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import FastAPI, status
+from fastapi.responses import JSONResponse
+
+from service.config import ServiceConfig, build_service_config
+from service.models import (
+    CampaignListResponse,
+    CampaignRecord,
+    CampaignRegistrationRequest,
+    HealthResponse,
+)
+from service.registry import (
+    CampaignConflictError,
+    CampaignNotFoundError,
+    CampaignRegistry,
+    InvalidCampaignRootError,
+    PreviewDisabledError,
+    ServiceRegistryError,
+)
+
+
+def _error_payload(*, code: str, message: str) -> dict[str, Any]:
+    return {"error": {"code": code, "message": message}}
+
+
+def _error_response(exc: ServiceRegistryError) -> JSONResponse:
+    if isinstance(exc, InvalidCampaignRootError):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=_error_payload(code="invalid_campaign_root", message=str(exc)),
+        )
+    if isinstance(exc, PreviewDisabledError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=_error_payload(code="service_preview_disabled", message=str(exc)),
+        )
+    if isinstance(exc, CampaignConflictError):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=_error_payload(code="campaign_conflict", message=str(exc)),
+        )
+    if isinstance(exc, CampaignNotFoundError):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=_error_payload(code="campaign_not_found", message=str(exc)),
+        )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=_error_payload(code="registry_state_error", message=str(exc)),
+    )
+
+
+def create_app(config: ServiceConfig | None = None) -> FastAPI:
+    service_config = config or build_service_config()
+    registry = CampaignRegistry(service_config.registry_file)
+
+    app = FastAPI(
+        title="Looptimum Service API Preview",
+        version="0.4.0-preview",
+        docs_url="/docs",
+        redoc_url=None,
+    )
+
+    @app.exception_handler(ServiceRegistryError)
+    async def handle_registry_error(_request: Any, exc: ServiceRegistryError) -> JSONResponse:
+        return _error_response(exc)
+
+    @app.get("/health", response_model=HealthResponse)
+    def get_health() -> HealthResponse:
+        return HealthResponse(
+            ok=True,
+            preview="service_api_preview",
+            registry_file=str(service_config.registry_file),
+            campaign_count=len(registry.list_campaigns()),
+        )
+
+    @app.get("/campaigns", response_model=CampaignListResponse)
+    def list_campaigns() -> CampaignListResponse:
+        return CampaignListResponse(campaigns=registry.list_campaigns())
+
+    @app.post("/campaigns", response_model=CampaignRecord, status_code=status.HTTP_201_CREATED)
+    def create_campaign(payload: CampaignRegistrationRequest) -> CampaignRecord:
+        return registry.register_campaign(payload)
+
+    @app.get("/campaigns/{campaign_id}", response_model=CampaignRecord)
+    def get_campaign(campaign_id: str) -> CampaignRecord:
+        return registry.get_campaign(campaign_id)
+
+    return app

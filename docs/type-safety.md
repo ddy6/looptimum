@@ -9,6 +9,7 @@ Type-checking tool: `mypy`.
 
 Initial blocking CI gate scope (`v0.3.x` rollout phase 1):
 
+- `service/*.py`
 - `templates/_shared/*.py`
 - `templates/bo_client/run_bo.py`
 - `client_harness_template/aws_*.py`

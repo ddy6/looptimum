@@ -7,6 +7,11 @@ dependencies = []
 
 [project.optional-dependencies]
 aws = ["boto3>=1.35,<2"]
+service = [
+  "fastapi>=0.111,<1",
+  "httpx>=0.27,<1",
+  "uvicorn>=0.30,<1",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -19,6 +24,7 @@ ignore = ["E501", "E741"]
 [tool.mypy]
 python_version = "3.12"
 files = [
+  "service/*.py",
   "templates/_shared/*.py",
   "templates/bo_client/run_bo.py",
   "client_harness_template/aws_*.py",

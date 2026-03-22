@@ -56,6 +56,7 @@ jobs:
       - name: Syntax check critical scripts
         run: |
           python -m py_compile \
+            service/*.py \
             client_harness_template/aws_config.py \
             client_harness_template/aws_executor.py \
             client_harness_template/aws_models.py \
@@ -94,7 +95,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Run test suite
-        run: python -m pytest -q templates client_harness_template/tests
+        run: python -m pytest -q templates client_harness_template/tests service/tests
 
   typecheck:
     name: Type Check (mypy, py3.12)

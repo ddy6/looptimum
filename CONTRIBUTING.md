@@ -48,11 +48,13 @@ python3 -m mypy
 
 Current enforced scope is intentionally narrow and canonical-first:
 
+- `service/*.py`
 - `templates/_shared/*.py`
 - `templates/bo_client/run_bo.py`
 - `client_harness_template/aws_*.py`
 - `client_harness_template/objective_aws_batch_example.py`
 - `client_harness_template/run_one_eval.py`
+- `client_harness_template/starterkit_*.py`
 
 `Any` policy:
 
@@ -66,7 +68,7 @@ Current enforced scope is intentionally narrow and canonical-first:
 Run canonical tests from repo root:
 
 ```bash
-python3 -m pytest -q templates client_harness_template/tests
+python3 -m pytest -q templates client_harness_template/tests service/tests
 ```
 
 If `boto3` is installed, `client_harness_template/tests/test_aws_executor.py`
@@ -87,7 +89,7 @@ Run this full pre-push/pre-PR validation flow from repo root:
 python3 -m ruff format --check .
 python3 -m ruff check .
 python3 -m mypy
-python3 -m pytest -q templates client_harness_template/tests
+python3 -m pytest -q templates client_harness_template/tests service/tests
 python3 scripts/check_internal_links.py --paths README.md docs quickstart client_harness_template
 python3 scripts/check_docs_consistency.py
 python3 scripts/check_ci_playbook_sync.py
