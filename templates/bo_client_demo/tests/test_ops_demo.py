@@ -910,6 +910,27 @@ def test_health_json_reports_clean_campaign_state(template_copy: Path) -> None:
     assert health["lock"]["exclusive_lock_held"] is False
 
 
+def test_metrics_json_reports_clean_campaign_state(template_copy: Path) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.19},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_metrics_ok.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    out = run_cmd(template_copy, "metrics")
+    metrics = json.loads(out.stdout)
+
+    assert metrics["counts"]["observations"] == 1
+    assert metrics["counts"]["failure_rate"] == 0.0
+    assert metrics["suggestion_latency"]["count"] == 1
+    assert metrics["governance"]["violation_count"] == 0
+
+
 def test_ingest_atomic_write_injection_preserves_last_good_state(
     template_copy: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1071,17 +1092,21 @@ def test_read_commands_work_while_mutation_lock_is_held(template_copy: Path) -> 
         status = run_cmd(template_copy, "status")
         validate = run_cmd(template_copy, "validate")
         health = run_cmd(template_copy, "health")
+        metrics = run_cmd(template_copy, "metrics")
         doctor = run_cmd(template_copy, "doctor", "--json")
     finally:
         _stop_lock_holder(holder)
 
     status_payload = json.loads(status.stdout)
     health_payload = json.loads(health.stdout)
+    metrics_payload = json.loads(metrics.stdout)
     doctor_payload = json.loads(doctor.stdout)
     assert status_payload["observations"] == 0
     assert "Validation passed." in validate.stdout
     assert health_payload["status"]["observations"] == 0
     assert health_payload["lock"]["exclusive_lock_held"] is True
+    assert metrics_payload["counts"]["observations"] == 0
+    assert metrics_payload["suggestion_latency"]["count"] == 0
     assert doctor_payload["status"]["observations"] == 0
 
 

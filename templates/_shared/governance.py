@@ -14,6 +14,7 @@ _LOG_LIMIT_KEYS = {
     "acquisition_log_file": "acquisition_log_max_bytes",
     "event_log_file": "event_log_max_bytes",
 }
+_SUGGEST_LATENCY_FIELD = "telemetry.suggest_latency_seconds"
 
 
 def _require_object(value: Any, *, field_name: str) -> JSONDict:
@@ -235,6 +236,87 @@ def collect_log_footprint(root: Path, paths: dict[str, Path]) -> JSONDict:
         "root": _relative_path(root, paths["state_file"].parent),
         "files": files,
         "total_size_bytes": total_size_bytes,
+    }
+
+
+def summarize_suggestion_latency(acquisition_log_path: Path) -> JSONDict:
+    if not acquisition_log_path.exists():
+        return {
+            "field": _SUGGEST_LATENCY_FIELD,
+            "entry_count": 0,
+            "count": 0,
+            "missing_telemetry_count": 0,
+            "min_seconds": None,
+            "max_seconds": None,
+            "mean_seconds": None,
+            "total_seconds": 0.0,
+            "latest_seconds": None,
+        }
+
+    try:
+        lines = acquisition_log_path.read_text(encoding="utf-8").splitlines()
+    except Exception as exc:
+        raise ValueError(f"acquisition_log_file unreadable: {exc}") from exc
+
+    latencies: list[float] = []
+    entry_count = 0
+    for idx, raw_line in enumerate(lines, start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            payload = json.loads(line)
+        except Exception as exc:
+            raise ValueError(f"acquisition_log_file line {idx} invalid JSON: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError(f"acquisition_log_file line {idx} must be a JSON object")
+
+        entry_count += 1
+        telemetry = payload.get("telemetry")
+        if telemetry is None:
+            continue
+        if not isinstance(telemetry, dict):
+            raise ValueError(f"acquisition_log_file line {idx} telemetry must be an object")
+
+        raw_latency = telemetry.get("suggest_latency_seconds")
+        if raw_latency is None:
+            continue
+        if not isinstance(raw_latency, (int, float)) or isinstance(raw_latency, bool):
+            raise ValueError(
+                f"acquisition_log_file line {idx} telemetry.suggest_latency_seconds must be numeric"
+            )
+        latency = float(raw_latency)
+        if not math.isfinite(latency) or latency < 0.0:
+            raise ValueError(
+                "acquisition_log_file line "
+                f"{idx} telemetry.suggest_latency_seconds must be finite and >= 0"
+            )
+        latencies.append(latency)
+
+    if not latencies:
+        return {
+            "field": _SUGGEST_LATENCY_FIELD,
+            "entry_count": entry_count,
+            "count": 0,
+            "missing_telemetry_count": entry_count,
+            "min_seconds": None,
+            "max_seconds": None,
+            "mean_seconds": None,
+            "total_seconds": 0.0,
+            "latest_seconds": None,
+        }
+
+    total_seconds = sum(latencies)
+    return {
+        "field": _SUGGEST_LATENCY_FIELD,
+        "entry_count": entry_count,
+        "count": len(latencies),
+        "missing_telemetry_count": entry_count - len(latencies),
+        "min_seconds": min(latencies),
+        "max_seconds": max(latencies),
+        "mean_seconds": total_seconds / len(latencies),
+        "total_seconds": total_seconds,
+        "latest_seconds": latencies[-1],
     }
 
 

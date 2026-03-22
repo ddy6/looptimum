@@ -225,3 +225,63 @@ def test_build_governance_snapshot_reports_deterministic_findings(tmp_path: Path
             },
         }
     ]
+
+
+def test_summarize_suggestion_latency_is_deterministic(tmp_path: Path) -> None:
+    acquisition_log = tmp_path / "acquisition_log.jsonl"
+    acquisition_log.write_text(
+        "\n".join(
+            [
+                json.dumps({"trial_id": 1, "decision": {"kind": "random"}, "timestamp": 1.0}),
+                json.dumps(
+                    {
+                        "trial_id": 2,
+                        "decision": {"kind": "random"},
+                        "timestamp": 2.0,
+                        "telemetry": {"suggest_latency_seconds": 0.125},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "trial_id": 3,
+                        "decision": {"kind": "proxy"},
+                        "timestamp": 3.0,
+                        "telemetry": {"suggest_latency_seconds": 0.375},
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert GOVERNANCE.summarize_suggestion_latency(acquisition_log) == {
+        "field": "telemetry.suggest_latency_seconds",
+        "entry_count": 3,
+        "count": 2,
+        "missing_telemetry_count": 1,
+        "min_seconds": 0.125,
+        "max_seconds": 0.375,
+        "mean_seconds": 0.25,
+        "total_seconds": 0.5,
+        "latest_seconds": 0.375,
+    }
+
+
+def test_summarize_suggestion_latency_rejects_invalid_numeric_payload(tmp_path: Path) -> None:
+    acquisition_log = tmp_path / "acquisition_log.jsonl"
+    acquisition_log.write_text(
+        json.dumps(
+            {
+                "trial_id": 1,
+                "decision": {"kind": "random"},
+                "timestamp": 1.0,
+                "telemetry": {"suggest_latency_seconds": -1.0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must be finite and >= 0"):
+        GOVERNANCE.summarize_suggestion_latency(acquisition_log)

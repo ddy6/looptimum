@@ -1259,6 +1259,140 @@ def test_validate_hard_failure_for_missing_trial_manifest(template_copy) -> None
     assert "missing manifest for trial directory:" in out.stdout
 
 
+def test_metrics_reports_empty_campaign_state(template_copy) -> None:
+    out = run_cmd(template_copy, "metrics")
+    payload = json.loads(out.stdout)
+
+    assert payload["counts"]["observations"] == 0
+    assert payload["counts"]["pending"] == 0
+    assert payload["counts"]["failure_rate"] == 0.0
+    assert payload["counts"]["observations_by_status"] == {
+        "ok": 0,
+        "failed": 0,
+        "killed": 0,
+        "timeout": 0,
+    }
+    assert payload["suggestion_latency"]["count"] == 0
+    assert payload["suggestion_latency"]["entry_count"] == 0
+    assert payload["pending_age"]["pending_count"] == 0
+
+
+def test_metrics_reports_mixed_status_counts_pending_age_and_latency_summary(template_copy) -> None:
+    first = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    first_payload = {
+        "trial_id": first["trial_id"],
+        "params": first["params"],
+        "objectives": {"loss": 0.2},
+        "status": "ok",
+    }
+    first_path = template_copy / "examples" / "_metrics_first.json"
+    first_path.write_text(json.dumps(first_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(first_path))
+
+    second = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    second_payload = {
+        "trial_id": second["trial_id"],
+        "params": second["params"],
+        "objectives": {"loss": None},
+        "status": "failed",
+        "penalty_objective": 99.0,
+    }
+    second_path = template_copy / "examples" / "_metrics_second.json"
+    second_path.write_text(json.dumps(second_payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(second_path))
+
+    third = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+
+    state_path = template_copy / "state" / "bo_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    pending_by_id = {int(row["trial_id"]): row for row in state["pending"]}
+    pending_by_id[third["trial_id"]]["suggested_at"] = time.time() - 400.0
+    state["pending"] = list(sorted(pending_by_id.values(), key=lambda row: int(row["trial_id"])))
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "metrics")
+    payload = json.loads(out.stdout)
+
+    assert payload["counts"]["observations"] == 2
+    assert payload["counts"]["pending"] == 2
+    assert payload["counts"]["failure_rate"] == 0.5
+    assert payload["counts"]["observations_by_status"] == {
+        "ok": 1,
+        "failed": 1,
+        "killed": 0,
+        "timeout": 0,
+    }
+    pending_buckets = {
+        bucket["bucket_id"]: bucket["count"] for bucket in payload["pending_age"]["buckets"]
+    }
+    assert pending_buckets["bucket_0"] == 1
+    assert pending_buckets["bucket_2"] == 1
+    assert payload["suggestion_latency"]["count"] == 4
+    assert payload["suggestion_latency"]["missing_telemetry_count"] == 0
+    assert payload["suggestion_latency"]["mean_seconds"] >= 0.0
+    assert payload["suggestion_latency"]["latest_seconds"] is not None
+
+
+def test_metrics_derives_suggestion_latency_summary_from_explicit_telemetry(template_copy) -> None:
+    acquisition_log_path = template_copy / "state" / "acquisition_log.jsonl"
+    acquisition_log_path.parent.mkdir(parents=True, exist_ok=True)
+    acquisition_log_path.write_text(
+        "\n".join(
+            [
+                json.dumps({"trial_id": 1, "decision": {"strategy": "random"}, "timestamp": 1.0}),
+                json.dumps(
+                    {
+                        "trial_id": 2,
+                        "decision": {"strategy": "random"},
+                        "timestamp": 2.0,
+                        "telemetry": {"suggest_latency_seconds": 0.1},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "trial_id": 3,
+                        "decision": {"strategy": "proxy"},
+                        "timestamp": 3.0,
+                        "telemetry": {"suggest_latency_seconds": 0.4},
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "metrics")
+    payload = json.loads(out.stdout)
+
+    assert payload["suggestion_latency"] == {
+        "field": "telemetry.suggest_latency_seconds",
+        "source_path": "state/acquisition_log.jsonl",
+        "entry_count": 3,
+        "count": 2,
+        "missing_telemetry_count": 1,
+        "min_seconds": 0.1,
+        "max_seconds": 0.4,
+        "mean_seconds": 0.25,
+        "total_seconds": 0.5,
+        "latest_seconds": 0.4,
+    }
+
+
+def test_suggest_records_latency_telemetry_in_acquisition_log(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    acquisition_log_path = template_copy / "state" / "acquisition_log.jsonl"
+    entries = [
+        json.loads(line)
+        for line in acquisition_log_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert entries[-1]["trial_id"] == suggestion["trial_id"]
+    assert entries[-1]["telemetry"]["suggest_latency_seconds"] >= 0.0
+
+
 def test_health_reports_clean_campaign_state(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -1548,17 +1682,21 @@ def test_read_commands_work_while_mutation_lock_is_held(template_copy) -> None:
         status = run_cmd(template_copy, "status")
         validate = run_cmd(template_copy, "validate")
         health = run_cmd(template_copy, "health")
+        metrics = run_cmd(template_copy, "metrics")
         doctor = run_cmd(template_copy, "doctor", "--json")
     finally:
         _stop_lock_holder(holder)
 
     status_payload = json.loads(status.stdout)
     health_payload = json.loads(health.stdout)
+    metrics_payload = json.loads(metrics.stdout)
     doctor_payload = json.loads(doctor.stdout)
     assert status_payload["observations"] == 0
     assert "Validation passed." in validate.stdout
     assert health_payload["status"]["observations"] == 0
     assert health_payload["lock"]["exclusive_lock_held"] is True
+    assert metrics_payload["counts"]["observations"] == 0
+    assert metrics_payload["suggestion_latency"]["count"] == 0
     assert doctor_payload["status"]["observations"] == 0
 
 

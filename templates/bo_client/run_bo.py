@@ -95,6 +95,7 @@ write_archive_manifest = _ARCHIVES.write_archive_manifest
 
 build_governance_snapshot = _GOVERNANCE.build_governance_snapshot
 normalize_governance_config = _GOVERNANCE.normalize_governance_config
+summarize_suggestion_latency = _GOVERNANCE.summarize_suggestion_latency
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -395,6 +396,10 @@ def _emit_constraint_warning(decision: JSONDict) -> None:
     warning = status.get("warning")
     if isinstance(warning, str) and warning:
         print(f"WARNING: {warning}", file=sys.stderr)
+
+
+def _suggest_telemetry_payload(latency_seconds: float) -> JSONDict:
+    return {"suggest_latency_seconds": max(0.0, float(latency_seconds))}
 
 
 def _resolve_effective_suggest_count(cfg: JSONDict, args: argparse.Namespace) -> int:
@@ -1493,6 +1498,103 @@ def _build_health_payload(args: argparse.Namespace) -> tuple[JSONDict, int]:
     return payload, exit_code
 
 
+def _build_metrics_payload(args: argparse.Namespace) -> tuple[JSONDict, int]:
+    health_payload, exit_code = _build_health_payload(args)
+    root = Path(args.project_root).resolve()
+    cfg: JSONDict = {}
+    paths = cast(PathMap, resolve_runtime_paths(root, {}))
+
+    try:
+        cfg_doc, _ = load_contract_document(root, "bo_config")
+        if isinstance(cfg_doc, dict):
+            cfg = cast(JSONDict, cfg_doc)
+            paths = _runtime_paths(root, cfg)
+    except Exception:
+        pass
+
+    status_payload = health_payload.get("status")
+    counts_payload: JSONDict
+    if isinstance(status_payload, dict):
+        observations = int(status_payload.get("observations", 0))
+        observations_by_status = cast(
+            JSONDict,
+            status_payload.get(
+                "observations_by_status",
+                {"ok": 0, "failed": 0, "killed": 0, "timeout": 0},
+            ),
+        )
+        ok_count = int(observations_by_status.get("ok", 0))
+        failure_rate = ((observations - ok_count) / observations) if observations else 0.0
+        counts_payload = {
+            "observations": observations,
+            "pending": int(status_payload.get("pending", 0)),
+            "leased_pending": int(status_payload.get("leased_pending", 0)),
+            "stale_pending": int(status_payload.get("stale_pending", 0)),
+            "observations_by_status": observations_by_status,
+            "failure_rate": failure_rate,
+        }
+    else:
+        counts_payload = {
+            "observations": 0,
+            "pending": 0,
+            "leased_pending": 0,
+            "stale_pending": 0,
+            "observations_by_status": {"ok": 0, "failed": 0, "killed": 0, "timeout": 0},
+            "failure_rate": 0.0,
+        }
+
+    latency_summary: JSONDict | None = None
+    if not health_payload["hard_errors"]:
+        try:
+            latency_summary = cast(
+                JSONDict, summarize_suggestion_latency(paths["acquisition_log_file"])
+            )
+            latency_summary["source_path"] = _relative_path(root, paths["acquisition_log_file"])
+        except Exception as exc:  # pragma: no cover - exercised by subprocess integration tests.
+            health_payload["hard_errors"].append(f"metrics latency summary failure: {exc}")
+            health_payload["health_state"] = "error"
+            health_payload["summary"]["hard_error_count"] = len(health_payload["hard_errors"])
+            exit_code = 1
+
+    governance_payload = health_payload.get("governance")
+    governance_warnings = (
+        list(governance_payload.get("warnings", [])) if isinstance(governance_payload, dict) else []
+    )
+    governance_violations = (
+        list(governance_payload.get("violations", []))
+        if isinstance(governance_payload, dict)
+        else []
+    )
+
+    payload: JSONDict = {
+        "schema_version": health_payload.get("schema_version"),
+        "generated_at": time.time(),
+        "project_root": str(root),
+        "health_state": health_payload.get("health_state"),
+        "counts": counts_payload,
+        "status": status_payload,
+        "pending_age": (
+            governance_payload.get("pending_age") if isinstance(governance_payload, dict) else None
+        ),
+        "suggestion_latency": latency_summary,
+        "governance": {
+            "warning_count": len(governance_warnings),
+            "violation_count": len(governance_violations),
+            "warnings": governance_warnings,
+            "violations": governance_violations,
+        },
+        "hard_errors": list(health_payload.get("hard_errors", [])),
+        "warnings": list(health_payload.get("warnings", [])),
+    }
+    if cfg:
+        payload["paths"] = {
+            "acquisition_log_file": _relative_path(root, paths["acquisition_log_file"]),
+            "event_log_file": _relative_path(root, paths["event_log_file"]),
+            "state_file": _relative_path(root, paths["state_file"]),
+        }
+    return payload, exit_code
+
+
 def _validate_jsonl_file_hard(path: Path, *, label: str) -> list[str]:
     if not path.exists():
         return []
@@ -1768,9 +1870,10 @@ def cmd_suggest(args: argparse.Namespace) -> None:
 
             planning_state = copy.deepcopy(state)
             planned_suggestions: list[JSONDict] = []
-            planned_decisions: list[tuple[int, JSONDict]] = []
+            planned_decisions: list[tuple[int, JSONDict, float]] = []
             try:
                 for _ in range(requested_count):
+                    suggest_started = time.perf_counter()
                     seed = int(planning_state["meta"]["seed"]) + int(
                         planning_state["next_trial_id"]
                     )
@@ -1802,14 +1905,22 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                     planning_state["pending"].append(suggestion)
                     planning_state["next_trial_id"] = trial_id + 1
                     planned_suggestions.append(suggestion)
-                    planned_decisions.append((trial_id, decision))
+                    planned_decisions.append(
+                        (
+                            trial_id,
+                            decision,
+                            max(0.0, time.perf_counter() - suggest_started),
+                        )
+                    )
             except ConstraintSamplingFailure as exc:
                 failed_trial_id = int(planning_state["next_trial_id"])
+                failed_latency_seconds = max(0.0, time.perf_counter() - suggest_started)
                 append_jsonl(
                     paths["acquisition_log_file"],
                     {
                         "trial_id": failed_trial_id,
                         "decision": exc.decision,
+                        "telemetry": _suggest_telemetry_payload(failed_latency_seconds),
                         "timestamp": time.time(),
                     },
                 )
@@ -1826,10 +1937,15 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                     objective_cfg=obj_cfg,
                     now=time.time(),
                 )
-            for trial_id, decision in planned_decisions:
+            for trial_id, decision, suggest_latency_seconds in planned_decisions:
                 append_jsonl(
                     paths["acquisition_log_file"],
-                    {"trial_id": trial_id, "decision": decision, "timestamp": time.time()},
+                    {
+                        "trial_id": trial_id,
+                        "decision": decision,
+                        "telemetry": _suggest_telemetry_payload(suggest_latency_seconds),
+                        "timestamp": time.time(),
+                    },
                 )
                 _emit_constraint_warning(decision)
                 _append_event(paths, "suggestion_created", trial_id=trial_id)
@@ -2902,6 +3018,13 @@ def cmd_health(args: argparse.Namespace) -> None:
         raise SystemExit(exit_code)
 
 
+def cmd_metrics(args: argparse.Namespace) -> None:
+    payload, exit_code = _build_metrics_payload(args)
+    print(json.dumps(payload, indent=2))
+    if exit_code != 0:
+        raise SystemExit(exit_code)
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     cfg, _ = load_contract_document(root, "bo_config")
@@ -3025,6 +3148,7 @@ def parse_args() -> argparse.Namespace:
             "prune-archives",
             "validate",
             "health",
+            "metrics",
             "doctor",
         ],
     )
@@ -3124,7 +3248,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="For validate/health: treat warnings as fatal (non-zero exit).",
+        help="For validate/health/metrics: treat warnings as fatal (non-zero exit).",
     )
     parser.add_argument(
         "--json", action="store_true", help="For doctor: emit machine-readable JSON output."
@@ -3151,6 +3275,7 @@ def main() -> None:
         "prune-archives": cmd_prune_archives,
         "validate": cmd_validate,
         "health": cmd_health,
+        "metrics": cmd_metrics,
         "doctor": cmd_doctor,
     }
     try:
