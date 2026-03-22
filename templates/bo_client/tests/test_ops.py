@@ -1259,6 +1259,81 @@ def test_validate_hard_failure_for_missing_trial_manifest(template_copy) -> None
     assert "missing manifest for trial directory:" in out.stdout
 
 
+def test_health_reports_clean_campaign_state(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.25},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_health_ok.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    out = run_cmd(template_copy, "health")
+    health = json.loads(out.stdout)
+
+    assert health["health_state"] == "ok"
+    assert health["hard_errors"] == []
+    assert health["warnings"] == []
+    assert health["status"]["observations"] == 1
+    assert health["path_presence"]["acquisition_log_file"]["exists"] is True
+    assert health["path_presence"]["trials_dir"]["exists"] is True
+    assert health["lock"]["exists"] is True
+    assert health["lock"]["exclusive_lock_held"] is False
+    assert health["governance"]["violations"] == []
+    assert health["governance"]["warnings"] == []
+
+
+def test_health_reports_warning_state_for_governance_violation(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["governance"]["allowed_statuses"] = ["ok"]
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": None},
+        "status": "failed",
+        "penalty_objective": 123.0,
+    }
+    result_path = template_copy / "examples" / "_health_failed.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    out = run_cmd(template_copy, "health")
+    health = json.loads(out.stdout)
+
+    assert health["health_state"] == "warning"
+    assert health["hard_errors"] == []
+    assert health["status"]["observations_by_status"]["failed"] == 1
+    assert any(
+        violation["policy_id"] == "governance.allowed_statuses"
+        for violation in health["governance"]["violations"]
+    )
+
+    strict = run_cmd(template_copy, "health", "--strict", expect_ok=False)
+    strict_health = json.loads(strict.stdout)
+    assert strict.returncode != 0
+    assert strict_health["health_state"] == "warning"
+
+
+def test_health_reports_error_state_for_corrupt_event_log(template_copy) -> None:
+    event_log_path = template_copy / "state" / "event_log.jsonl"
+    event_log_path.parent.mkdir(parents=True, exist_ok=True)
+    event_log_path.write_text("{invalid json\n", encoding="utf-8")
+
+    out = run_cmd(template_copy, "health", expect_ok=False)
+    health = json.loads(out.stdout)
+
+    assert out.returncode != 0
+    assert health["health_state"] == "error"
+    assert any("event_log_file line 1 invalid JSON:" in error for error in health["hard_errors"])
+
+
 def test_validate_hard_failure_for_manifest_missing_traceability_field(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -1472,14 +1547,18 @@ def test_read_commands_work_while_mutation_lock_is_held(template_copy) -> None:
     try:
         status = run_cmd(template_copy, "status")
         validate = run_cmd(template_copy, "validate")
+        health = run_cmd(template_copy, "health")
         doctor = run_cmd(template_copy, "doctor", "--json")
     finally:
         _stop_lock_holder(holder)
 
     status_payload = json.loads(status.stdout)
+    health_payload = json.loads(health.stdout)
     doctor_payload = json.loads(doctor.stdout)
     assert status_payload["observations"] == 0
     assert "Validation passed." in validate.stdout
+    assert health_payload["status"]["observations"] == 0
+    assert health_payload["lock"]["exclusive_lock_held"] is True
     assert doctor_payload["status"]["observations"] == 0
 
 

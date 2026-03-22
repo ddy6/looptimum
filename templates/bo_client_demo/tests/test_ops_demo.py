@@ -887,6 +887,29 @@ def test_doctor_json_reports_backend_and_status(template_copy: Path) -> None:
     assert "paths" in payload["status"]
 
 
+def test_health_json_reports_clean_campaign_state(template_copy: Path) -> None:
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.22},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_health_ok.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    out = run_cmd(template_copy, "health")
+    health = json.loads(out.stdout)
+
+    assert health["health_state"] == "ok"
+    assert health["hard_errors"] == []
+    assert health["warnings"] == []
+    assert health["status"]["observations"] == 1
+    assert health["governance"]["violations"] == []
+    assert health["lock"]["exclusive_lock_held"] is False
+
+
 def test_ingest_atomic_write_injection_preserves_last_good_state(
     template_copy: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1047,14 +1070,18 @@ def test_read_commands_work_while_mutation_lock_is_held(template_copy: Path) -> 
     try:
         status = run_cmd(template_copy, "status")
         validate = run_cmd(template_copy, "validate")
+        health = run_cmd(template_copy, "health")
         doctor = run_cmd(template_copy, "doctor", "--json")
     finally:
         _stop_lock_holder(holder)
 
     status_payload = json.loads(status.stdout)
+    health_payload = json.loads(health.stdout)
     doctor_payload = json.loads(doctor.stdout)
     assert status_payload["observations"] == 0
     assert "Validation passed." in validate.stdout
+    assert health_payload["status"]["observations"] == 0
+    assert health_payload["lock"]["exclusive_lock_held"] is True
     assert doctor_payload["status"]["observations"] == 0
 
 

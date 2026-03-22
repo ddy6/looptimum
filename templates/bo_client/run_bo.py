@@ -93,12 +93,14 @@ reset_artifact_paths = _ARCHIVES.reset_artifact_paths
 restore_reset_archive = _ARCHIVES.restore_reset_archive
 write_archive_manifest = _ARCHIVES.write_archive_manifest
 
+build_governance_snapshot = _GOVERNANCE.build_governance_snapshot
 normalize_governance_config = _GOVERNANCE.normalize_governance_config
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
 atomic_write_text = _RUNTIME.atomic_write_text
 hold_exclusive_lock = _RUNTIME.hold_exclusive_lock
+inspect_lock_state = _RUNTIME.inspect_lock_state
 load_trial_manifest = _RUNTIME.load_trial_manifest
 pending_age_seconds = _RUNTIME.pending_age_seconds
 resolve_lock_timeout_seconds = _RUNTIME.resolve_lock_timeout_seconds
@@ -1275,6 +1277,220 @@ def _validate_state_warnings(
             warnings_out.append(f"optional path missing: {paths[key]}")
 
     return warnings_out
+
+
+def _path_presence_payload(root: Path, paths: PathMap) -> JSONDict:
+    return {
+        key: {
+            "path": _relative_path(root, paths[key]),
+            "exists": paths[key].exists(),
+        }
+        for key in (
+            "state_file",
+            "observations_csv",
+            "acquisition_log_file",
+            "event_log_file",
+            "trials_dir",
+            "lock_file",
+        )
+    }
+
+
+def _health_state(
+    *, hard_errors: list[str], warnings_out: list[str], governance: JSONDict | None
+) -> str:
+    if hard_errors:
+        return "error"
+
+    governance_warnings = governance.get("warnings") if isinstance(governance, dict) else None
+    governance_violations = governance.get("violations") if isinstance(governance, dict) else None
+    governance_warning_count = (
+        len(governance_warnings) if isinstance(governance_warnings, list) else 0
+    )
+    governance_violation_count = (
+        len(governance_violations) if isinstance(governance_violations, list) else 0
+    )
+    if warnings_out or governance_warning_count or governance_violation_count:
+        return "warning"
+    return "ok"
+
+
+def _build_health_payload(args: argparse.Namespace) -> tuple[JSONDict, int]:
+    root = Path(args.project_root).resolve()
+    now = time.time()
+    hard_errors: list[str] = []
+    warnings_out: list[str] = []
+    cfg: JSONDict = {}
+    params: list[JSONDict] | None = None
+    obj_cfg: JSONDict = cast(
+        JSONDict,
+        normalize_objective_schema(
+            {
+                "primary_objective": {
+                    "name": "loss",
+                    "direction": "minimize",
+                }
+            }
+        ),
+    )
+    objective_cfg_valid = False
+    governance_cfg_valid = False
+    max_pending_age: float | None = None
+    max_pending_trials: int | None = None
+    worker_leases_enabled = False
+    paths = cast(PathMap, resolve_runtime_paths(root, {}))
+
+    try:
+        cfg_doc, _ = load_contract_document(root, "bo_config")
+        if not isinstance(cfg_doc, dict):
+            raise ValueError("bo_config must be an object")
+        cfg = cast(JSONDict, cfg_doc)
+    except Exception as exc:  # pragma: no cover - exercised by subprocess integration tests.
+        hard_errors.append(f"config load failure: {exc}")
+
+    if cfg:
+        try:
+            paths = _runtime_paths(root, cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"config validation failure: {exc}")
+            paths = cast(PathMap, resolve_runtime_paths(root, {}))
+
+        try:
+            space_cfg, space_path = load_contract_document(root, "parameter_space")
+            if not isinstance(space_cfg, dict):
+                raise ValueError("parameter_space must be an object")
+            search_space_schema, _ = load_schema_from_paths(
+                root,
+                cfg.get("paths", {}),
+                key="search_space_schema_file",
+                default_rel="../_shared/schemas/search_space.schema.json",
+            )
+            validate_against_schema(space_cfg, search_space_schema, source_path=space_path)
+            params = normalize_search_space(space_cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"parameter_space validation failure: {exc}")
+
+        if params is not None:
+            try:
+                _load_constraints(root, cfg, params)
+            except Exception as exc:  # pragma: no cover
+                hard_errors.append(f"constraints validation failure: {exc}")
+
+        try:
+            obj_cfg = _load_objective_config(root, cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"objective_schema validation failure: {exc}")
+        else:
+            objective_cfg_valid = True
+
+        try:
+            max_pending_age = resolve_max_pending_age_seconds(cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"config validation failure: {exc}")
+
+        try:
+            max_pending_trials = resolve_max_pending_trials(cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"config validation failure: {exc}")
+
+        try:
+            worker_leases_enabled = resolve_worker_leases_enabled(cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"config validation failure: {exc}")
+
+        try:
+            normalize_governance_config(cfg)
+        except Exception as exc:  # pragma: no cover
+            hard_errors.append(f"config validation failure: {exc}")
+        else:
+            governance_cfg_valid = True
+
+    lock_state = cast(JSONDict, inspect_lock_state(paths["lock_file"]))
+    lock_state["path"] = _relative_path(root, paths["lock_file"])
+    path_presence = _path_presence_payload(root, paths)
+
+    state: JSONDict | None = None
+    try:
+        state = load_state(paths["state_file"])
+    except Exception as exc:
+        hard_errors.append(f"state load failure: {exc}")
+
+    status_payload: JSONDict | None = None
+    governance_snapshot: JSONDict | None = None
+    if state is not None:
+        status_payload = _status_payload(
+            root,
+            state,
+            paths,
+            max_pending_age,
+            worker_leases_enabled,
+        )
+        hard_errors.extend(
+            _validate_jsonl_file_hard(paths["acquisition_log_file"], label="acquisition_log_file")
+        )
+        hard_errors.extend(
+            _validate_jsonl_file_hard(paths["event_log_file"], label="event_log_file")
+        )
+        warnings_out.extend(
+            _validate_state_warnings(
+                state=state,
+                paths=paths,
+                max_pending_age=max_pending_age,
+                max_pending_trials=max_pending_trials,
+            )
+        )
+        if objective_cfg_valid:
+            hard_errors.extend(_validate_state_hard_checks(state, obj_cfg))
+            hard_errors.extend(_validate_trial_manifests_hard(paths["trials_dir"], obj_cfg))
+        if cfg and governance_cfg_valid:
+            try:
+                governance_snapshot = build_governance_snapshot(
+                    root,
+                    state,
+                    paths,
+                    cfg,
+                    now=now,
+                )
+            except Exception as exc:  # pragma: no cover
+                hard_errors.append(f"governance snapshot failure: {exc}")
+
+    health_state = _health_state(
+        hard_errors=hard_errors,
+        warnings_out=warnings_out,
+        governance=governance_snapshot,
+    )
+    governance_warning_count = (
+        len(governance_snapshot["warnings"])
+        if isinstance(governance_snapshot, dict)
+        and isinstance(governance_snapshot.get("warnings"), list)
+        else 0
+    )
+    governance_violation_count = (
+        len(governance_snapshot["violations"])
+        if isinstance(governance_snapshot, dict)
+        and isinstance(governance_snapshot.get("violations"), list)
+        else 0
+    )
+    payload: JSONDict = {
+        "schema_version": state_schema_version(state) if state is not None else None,
+        "generated_at": now,
+        "project_root": str(root),
+        "health_state": health_state,
+        "summary": {
+            "hard_error_count": len(hard_errors),
+            "warning_count": len(warnings_out),
+            "governance_warning_count": governance_warning_count,
+            "governance_violation_count": governance_violation_count,
+        },
+        "status": status_payload,
+        "path_presence": path_presence,
+        "lock": lock_state,
+        "hard_errors": hard_errors,
+        "warnings": warnings_out,
+        "governance": governance_snapshot,
+    }
+    exit_code = 1 if hard_errors or (health_state == "warning" and args.strict) else 0
+    return payload, exit_code
 
 
 def _validate_jsonl_file_hard(path: Path, *, label: str) -> list[str]:
@@ -2679,6 +2895,13 @@ def cmd_validate(args: argparse.Namespace) -> None:
     print("Validation passed.")
 
 
+def cmd_health(args: argparse.Namespace) -> None:
+    payload, exit_code = _build_health_payload(args)
+    print(json.dumps(payload, indent=2))
+    if exit_code != 0:
+        raise SystemExit(exit_code)
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     cfg, _ = load_contract_document(root, "bo_config")
@@ -2801,6 +3024,7 @@ def parse_args() -> argparse.Namespace:
             "restore",
             "prune-archives",
             "validate",
+            "health",
             "doctor",
         ],
     )
@@ -2900,7 +3124,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="For validate: treat warnings as fatal (non-zero exit).",
+        help="For validate/health: treat warnings as fatal (non-zero exit).",
     )
     parser.add_argument(
         "--json", action="store_true", help="For doctor: emit machine-readable JSON output."
@@ -2926,6 +3150,7 @@ def main() -> None:
         "restore": cmd_restore,
         "prune-archives": cmd_prune_archives,
         "validate": cmd_validate,
+        "health": cmd_health,
         "doctor": cmd_doctor,
     }
     try:

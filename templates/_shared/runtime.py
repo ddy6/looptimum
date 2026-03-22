@@ -247,6 +247,57 @@ def save_trial_manifest(trials_root: Path, trial_id: int, manifest: dict[str, An
     return path
 
 
+def inspect_lock_state(path: Path) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "path": str(path),
+        "exists": path.exists(),
+        "posix_locking_available": fcntl is not None,
+        "exclusive_lock_held": None if fcntl is None else False,
+        "holder": None,
+    }
+    if not path.exists():
+        return payload
+
+    try:
+        raw = path.read_text(encoding="utf-8").strip()
+    except Exception as exc:
+        payload["holder_read_error"] = str(exc)
+    else:
+        if raw:
+            try:
+                holder = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                payload["holder_parse_error"] = str(exc)
+            else:
+                if isinstance(holder, dict):
+                    payload["holder"] = holder
+                else:
+                    payload["holder_parse_error"] = "lock file must contain a JSON object"
+
+    if fcntl is None:
+        return payload
+
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except BlockingIOError:
+                payload["exclusive_lock_held"] = True
+            else:
+                payload["exclusive_lock_held"] = False
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except FileNotFoundError:
+        payload["exists"] = False
+        payload["exclusive_lock_held"] = False
+        payload["holder"] = None
+        payload.pop("holder_read_error", None)
+        payload.pop("holder_parse_error", None)
+    except Exception as exc:
+        payload["lock_probe_error"] = str(exc)
+
+    return payload
+
+
 class ExclusiveFileLock:
     def __init__(
         self,
