@@ -1,0 +1,20 @@
+{
+  "parameters": [
+    {
+      "name": "momentum",
+      "type": "float",
+      "bounds": [0.0, 0.99],
+      "when": {"gate": 1}
+    },
+    {
+      "name": "x",
+      "type": "float",
+      "bounds": [0.0, 1.0]
+    },
+    {
+      "name": "gate",
+      "type": "int",
+      "bounds": [0, 1]
+    }
+  ]
+}

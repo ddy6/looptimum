@@ -1,0 +1,48 @@
+{
+  "schema_version": "0.3.0",
+  "meta": {
+    "created_at": 1774204607.631902,
+    "seed": null
+  },
+  "observations": [
+    {
+      "trial_id": 1,
+      "status": "ok",
+      "suggested_at": null,
+      "completed_at": 1700000101.0,
+      "artifact_path": null,
+      "params": {
+        "gate": 0,
+        "x": 0.25
+      },
+      "objectives": {
+        "loss": 0.3
+      },
+      "source_trial_id": "legacy-11"
+    },
+    {
+      "trial_id": 2,
+      "status": "ok",
+      "suggested_at": null,
+      "completed_at": 1700000102.0,
+      "artifact_path": null,
+      "params": {
+        "gate": 1,
+        "momentum": 0.4,
+        "x": 0.75
+      },
+      "objectives": {
+        "loss": 0.2
+      },
+      "source_trial_id": "legacy-12"
+    }
+  ],
+  "pending": [],
+  "next_trial_id": 3,
+  "best": {
+    "trial_id": 2,
+    "objective_name": "loss",
+    "objective_value": 0.2,
+    "updated_at": 1774204607.633605
+  }
+}

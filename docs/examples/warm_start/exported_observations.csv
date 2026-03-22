@@ -1,0 +1,3 @@
+artifact_path,completed_at,objective_loss,param_gate,param_momentum,param_x,source_trial_id,status,suggested_at,trial_id
+,1700000101.0,0.3,0,,0.25,legacy-11,ok,,1
+,1700000102.0,0.2,1,0.4,0.75,legacy-12,ok,,2

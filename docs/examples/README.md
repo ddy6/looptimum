@@ -14,6 +14,8 @@ Included:
   state/report examples for batch suggest flows
 - `multi_objective/`: generated weighted-sum / lexicographic example pack with
   `status`, `report`, and trial-manifest outputs
+- `warm_start/`: permissive warm-start import report plus JSONL/CSV observation
+  export examples captured from a temp campaign
 - `state_snapshots/`: sample state/log/CSV snapshots captured from a temp run
   of `templates/bo_client_demo`
 - snapshots include both `status: "ok"` and non-`ok` ingest examples

@@ -4,9 +4,10 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 
 ## Files
 
-- `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `reset`, `list-archives`, `restore`,
-  `prune-archives`, `validate`, `doctor`
+- `run_bo.py`: `suggest`, `ingest`, `import-observations`,
+  `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
+  `report`, `reset`, `list-archives`, `restore`, `prune-archives`,
+  `validate`, `doctor`
 - `bo_config.json`: budget, surrogate/acquisition, shared `feature_flags`,
   seed, paths
 - `parameter_space.json`: typed parameter bounds
@@ -33,6 +34,10 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   JSONL with `--jsonl`.
 - `max_pending_trials`, when configured, rejects the whole requested batch
   before pending state is mutated.
+- `import-observations` supports strict and permissive warm-start seeding;
+  permissive runs write reports under `state/import_reports/`.
+- `export-observations` writes canonical JSONL or flat CSV rows from
+  authoritative state for future campaign seeding.
 - optional worker leases add `lease_token` to suggestions and require matching
   `--lease-token` on `heartbeat` / `ingest`.
 - Runtime artifacts include `state/event_log.jsonl` and per-trial manifests in
@@ -63,5 +68,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   `docs/examples/multi_objective/README.md`
 - Batch + async worker example pack:
   `docs/examples/batch_async/README.md`
+- Warm-start import/export example pack:
+  `docs/examples/warm_start/README.md`
 - Text transcript of `suggest -> evaluate -> ingest -> status`:
   `docs/examples/decision_trace/cli_transcript.md`

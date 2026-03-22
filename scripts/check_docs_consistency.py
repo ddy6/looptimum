@@ -23,18 +23,21 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "(docs/quick-reference.md)",
         "(quickstart/etl-pipeline-knob-tuning.md)",
         "docs/examples/batch_async/README.md",
+        "docs/examples/warm_start/README.md",
     ),
     "docs/index.md": (
         "(./quick-reference.md)",
         "(../quickstart/etl-pipeline-knob-tuning.md)",
         "(./examples/batch_async/README.md)",
         "(./examples/multi_objective/README.md)",
+        "(./examples/warm_start/README.md)",
     ),
     "docs/README.md": (
         "`quick-reference.md`",
         "`../quickstart/etl-pipeline-knob-tuning.md`",
         "`examples/batch_async/README.md`",
         "`examples/multi_objective/README.md`",
+        "`examples/warm_start/README.md`",
     ),
     "docs/quick-reference.md": (
         "## Public Command Surface (`v0.3.x`)",

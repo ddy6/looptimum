@@ -9,9 +9,10 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 
 ## Files
 
-- `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `reset`, `list-archives`, `restore`,
-  `prune-archives`, `validate`, `doctor`
+- `run_bo.py`: `suggest`, `ingest`, `import-observations`,
+  `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
+  `report`, `reset`, `list-archives`, `restore`, `prune-archives`,
+  `validate`, `doctor`
 - `bo_config.json`: includes shared `feature_flags`; only
   `enable_botorch_gp` and `fallback_to_proxy_if_unavailable` are active in this
   template today
@@ -48,6 +49,10 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
   JSONL with `--jsonl`.
 - `max_pending_trials`, when configured, rejects the whole requested batch
   before pending state is mutated.
+- `import-observations` supports strict and permissive warm-start seeding;
+  permissive runs write reports under `state/import_reports/`.
+- `export-observations` writes canonical JSONL or flat CSV rows from
+  authoritative state for future campaign seeding.
 - optional worker leases add `lease_token` to suggestions and require matching
   `--lease-token` on `heartbeat` / `ingest`.
 - Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
@@ -76,5 +81,7 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
   `docs/examples/multi_objective/README.md`
 - Batch + async worker example pack:
   `docs/examples/batch_async/README.md`
+- Warm-start import/export example pack:
+  `docs/examples/warm_start/README.md`
 - Text transcript of `suggest -> evaluate -> ingest -> status`:
   `docs/examples/decision_trace/cli_transcript.md`

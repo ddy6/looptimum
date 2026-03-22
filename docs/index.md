@@ -47,6 +47,7 @@ For full command sequences and resume behavior:
 - [Docs Examples](./examples/README.md)
 - [Batch + Async Worker Example Pack](./examples/batch_async/README.md)
 - [Multi-Objective Example Pack](./examples/multi_objective/README.md)
+- [Warm-Start Import/Export Example Pack](./examples/warm_start/README.md)
 - [Constraints Examples](./examples/constraints/README.md)
 - [State Snapshot References](./examples/state_snapshots/README.md)
 - [Decision-Trace References](./examples/decision_trace/README.md)

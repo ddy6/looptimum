@@ -5,9 +5,10 @@ templates in this repository using the file-backed
 `suggest -> evaluate -> ingest` contract.
 
 The Looptimum CLI exposes a stable command contract across template variants:
-`suggest`, `ingest`, `status`, `demo`, lifecycle controls (`cancel`, `retire`,
-`heartbeat`), and support ops (`report`, `reset`, `list-archives`, `restore`,
-`prune-archives`, `validate`, `doctor`).
+`suggest`, `ingest`, `import-observations`, `export-observations`, `status`,
+`demo`, lifecycle controls (`cancel`, `retire`, `heartbeat`), and support ops
+(`report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`,
+`doctor`).
 
 It is designed for expensive black-box objectives such as simulations,
 calibrations, pipeline tuning, and process optimization.
@@ -84,7 +85,8 @@ Parity scope:
 
 - Commands: `suggest`, `ingest`, `status`, `demo`
 - Lifecycle ops: `cancel`, `retire`, `heartbeat`
-- Support ops: `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
+- Support ops: `import-observations`, `export-observations`, `report`, `reset`,
+  `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
 
 ## Core Contract: `suggest -> evaluate -> ingest`
 
@@ -154,6 +156,44 @@ Operational notes:
 Reference example pack:
 
 - `docs/examples/batch_async/README.md`
+
+### Warm-Start Import / Export
+
+Use this when you already have completed historical trials and want them to
+seed a fresh Looptimum campaign without replaying the evaluations.
+
+Import example:
+
+```bash
+python3 templates/bo_client_demo/run_bo.py import-observations \
+  --project-root templates/bo_client_demo \
+  --input-file seed_observations.jsonl \
+  --import-mode permissive
+```
+
+Export example:
+
+```bash
+python3 templates/bo_client_demo/run_bo.py export-observations \
+  --project-root templates/bo_client_demo \
+  --output-file exported_observations.csv
+```
+
+Warm-start rules:
+
+- import requires zero live pending trials in the target campaign
+- imported rows always get fresh local `trial_id` values; source-side ids stay
+  in `source_trial_id` as provenance only
+- permissive mode accepts valid rows, rejects invalid rows, and writes a
+  machine-readable report under `state/import_reports/`
+- export emits either canonical JSONL observation objects or flat CSV rows with
+  `param_*` / `objective_*` columns suitable for future import
+- imported rows are immediately part of authoritative state, manifests, best
+  selection, and later explicit `report` outputs
+
+Reference example pack:
+
+- `docs/examples/warm_start/README.md`
 
 ### Parameter Types (Current Public Templates)
 
@@ -296,6 +336,10 @@ Runtime control commands used during long-running integrations:
 - `retire --stale [--max-age-seconds]`: retire pending trials beyond stale age
   threshold.
 - `heartbeat --trial-id <id>`: update pending liveness metadata.
+- `import-observations --input-file <path> [--import-mode strict|permissive]`:
+  seed completed observations from canonical JSONL or flat CSV rows.
+- `export-observations --output-file <path>`: write canonical JSONL or flat CSV
+  observations from authoritative state.
 - `report`: write `state/report.json` and `state/report.md`.
 - `reset [--yes] [--no-archive]`: reset runtime artifacts; archives current
   artifacts by default unless `--no-archive` is used.

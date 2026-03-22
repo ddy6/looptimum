@@ -1,0 +1,29 @@
+{
+  "created_at": 1774204607.631907,
+  "trial_id": 1,
+  "status": "ok",
+  "terminal_reason": null,
+  "params": {
+    "gate": 0,
+    "x": 0.25
+  },
+  "objective_name": "loss",
+  "objective_value": 0.3,
+  "objective_vector": {
+    "loss": 0.3
+  },
+  "scalarized_objective": 0.3,
+  "penalty_objective": null,
+  "suggested_at": null,
+  "completed_at": 1700000101.0,
+  "last_heartbeat_at": null,
+  "heartbeat_count": 0,
+  "lease_token": null,
+  "artifact_path": null,
+  "artifacts": {},
+  "updated_at": 1774204607.631907,
+  "import_source": "seed_import.jsonl",
+  "import_format": "jsonl",
+  "imported_at": 1774204607.631907,
+  "source_trial_id": "legacy-11"
+}

@@ -1,0 +1,2 @@
+{"trial_id": 1, "source_trial_id": "legacy-11", "params": {"gate": 0, "x": 0.25}, "objectives": {"loss": 0.3}, "status": "ok", "suggested_at": null, "completed_at": 1700000101.0, "artifact_path": null}
+{"trial_id": 2, "source_trial_id": "legacy-12", "params": {"gate": 1, "momentum": 0.4, "x": 0.75}, "objectives": {"loss": 0.2}, "status": "ok", "suggested_at": null, "completed_at": 1700000102.0, "artifact_path": null}

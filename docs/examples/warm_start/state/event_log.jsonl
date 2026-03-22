@@ -1,0 +1,12 @@
+{"command": "import-observations", "event": "lock_acquired", "pid": 39650, "timestamp": 1774204607.631763, "wait_seconds": 4.083005478605628e-06}
+{"accepted_count": 2, "event": "observations_imported", "import_mode": "permissive", "import_report_path": "state/import_reports/import-20260322-183647-631906-39650.json", "import_source": "seed_import.jsonl", "imported_at": 1774204607.631907, "reject_report_path": "state/import_reports/import-20260322-183647-631906-39650.json", "rejected_count": 1, "requested_count": 3, "row_format": "jsonl", "timestamp": 1774204607.633972}
+{"command": "import-observations", "event": "lock_released", "pid": 39650, "timestamp": 1774204607.634036}
+{"command": "report", "event": "lock_acquired", "pid": 39652, "timestamp": 1774204607.7615008, "wait_seconds": 4.292000085115433e-06}
+{"event": "report_generated", "report_json": "state/report.json", "report_md": "state/report.md", "timestamp": 1774204607.762282}
+{"command": "report", "event": "lock_released", "pid": 39652, "timestamp": 1774204607.762343}
+{"command": "export-observations", "event": "lock_acquired", "pid": 39653, "timestamp": 1774204607.825035, "wait_seconds": 4.5000051613897085e-06}
+{"event": "observations_exported", "export_path": "exported_observations.jsonl", "exported_at": 1774204607.825194, "exported_count": 2, "row_format": "jsonl", "timestamp": 1774204607.825448}
+{"command": "export-observations", "event": "lock_released", "pid": 39653, "timestamp": 1774204607.8255029}
+{"command": "export-observations", "event": "lock_acquired", "pid": 39654, "timestamp": 1774204607.888211, "wait_seconds": 4.208006430417299e-06}
+{"event": "observations_exported", "export_path": "exported_observations.csv", "exported_at": 1774204607.888386, "exported_count": 2, "row_format": "csv", "timestamp": 1774204607.888654}
+{"command": "export-observations", "event": "lock_released", "pid": 39654, "timestamp": 1774204607.888768}

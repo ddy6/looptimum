@@ -324,6 +324,8 @@ Best ranking rule:
 - `cancel --trial-id <id>`: operator-cancel a pending trial (recorded as terminal `killed` observation with reason).
 - `retire --trial-id <id>` or `retire --stale`: retire pending trials manually or by age policy.
 - `heartbeat --trial-id <id>`: update liveness metadata for long-running pending trials.
+- `import-observations --input-file <path> [--import-mode strict|permissive]`: seed terminal observations from canonical JSONL or flat CSV rows.
+- `export-observations --output-file <path>`: export canonical JSONL or flat CSV observations from authoritative state.
 - `report`: generate `state/report.json` + `state/report.md`.
 - `reset [--yes] [--no-archive]`: reset campaign runtime artifacts; archive is enabled by default.
 - `list-archives`: inspect reset archives and surface manifest/legacy integrity status.
@@ -338,6 +340,8 @@ Lease note:
   workers must echo it on `heartbeat` and `ingest`
 - `max_pending_trials`, when configured, rejects the whole requested batch
   before any pending state is created
+- permissive warm-start imports write machine-readable reports under
+  `state/import_reports/` and preserve `source_trial_id` as provenance only
 
 ## Templates (Choose Your Starting Level)
 
@@ -345,7 +349,7 @@ Lease note:
 
 | Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
 |---|---|---|---|---|
-| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`) |
+| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `import-observations`, `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`) |
 | `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
 | `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) | full parity |
 
@@ -364,6 +368,9 @@ The `examples/` folder shows integration patterns, not benchmark leaderboards.
   with weighted-sum and lexicographic objective-schema examples
 - `docs/examples/batch_async/`: batch bundle, JSONL handoff, lease-token, and
   pending-state example pack
+- [`docs/examples/warm_start/README.md`](docs/examples/warm_start/README.md):
+  permissive import report, JSONL/CSV export, and manifest/state example pack
+  for warm-start workflows
 
 Run the tiny end-to-end objective from repo root:
 

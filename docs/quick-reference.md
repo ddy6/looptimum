@@ -10,7 +10,7 @@ Stable command names and required flag posture are documented in
 
 - core loop: `suggest`, `ingest`, `status`, `demo`
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
-- support ops: `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
+- support ops: `import-observations`, `export-observations`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
 
 ## Core Loop Contract
 
@@ -90,6 +90,22 @@ Rules:
 - identical duplicate ingest replay is accepted as explicit no-op success.
 - conflicting duplicate ingest replay is rejected with mismatch details.
 
+## Warm-Start Import / Export
+
+- `import-observations --input-file <path>` accepts canonical JSONL observation
+  objects or flat CSV rows with `param_*` / `objective_*` columns.
+- `--import-mode strict` is all-or-nothing; `--import-mode permissive` applies
+  valid rows, rejects invalid rows, and writes a machine-readable report under
+  `state/import_reports/`.
+- imported rows require zero live pending trials, receive fresh local
+  `trial_id` values from `state.next_trial_id`, and preserve any
+  `source_trial_id` only as provenance.
+- imported observations are first-class terminal observations: manifests,
+  `best`, `next_trial_id`, `observations.csv`, and later `report` outputs are
+  updated from authoritative state.
+- `export-observations --output-file <path>` writes the same canonical JSONL or
+  flat CSV observation surface for reuse in future campaigns.
+
 ## State and Artifact Definitions
 
 Default file-backed artifacts under each template's `state/` path:
@@ -99,6 +115,8 @@ Default file-backed artifacts under each template's `state/` path:
 - `observations.csv`: flattened observation export
 - `acquisition_log.jsonl`: append-only suggestion-decision trace
 - `event_log.jsonl`: append-only lifecycle/ops trace
+- `import_reports/*.json`: permissive warm-start import summaries plus rejected
+  row details
 - `trials/trial_<id>/manifest.json`: per-trial manifest/audit record
 - `report.json` and `report.md`: explicit `report` command outputs, including
   objective-config and Pareto summaries for multi-objective campaigns
@@ -107,7 +125,8 @@ Default file-backed artifacts under each template's `state/` path:
 
 - one controller/writer per state path is required; multi-controller writes to
   the same state path are unsupported.
-- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`, `restore`, `prune-archives`)
+- mutating commands (`suggest`, `ingest`, `import-observations`, lifecycle ops,
+  `report`, `reset`, `restore`, `prune-archives`, `export-observations`)
   run under exclusive file lock semantics.
 - batch allocation is atomic under that lock: contention or validation failure
   rejects the whole batch with no partial pending creation.

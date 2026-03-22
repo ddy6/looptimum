@@ -1,0 +1,3 @@
+{"source_trial_id": "legacy-11", "status": "ok", "params": {"gate": 0, "x": 0.25, "momentum": 0.9}, "objectives": {"loss": 0.3}, "completed_at": 1700000101.0}
+{"source_trial_id": "legacy-12", "status": "ok", "params": {"gate": 1, "x": 0.75, "momentum": 0.4}, "objectives": {"loss": 0.2}, "completed_at": 1700000102.0}
+{"source_trial_id": "legacy-13", "status": "ok", "params": {"bogus": 1.0}, "objectives": {"loss": 0.4}, "completed_at": 1700000103.0}

@@ -1,0 +1,32 @@
+{
+  "mode": "permissive",
+  "import_source": "seed_import.jsonl",
+  "row_format": "jsonl",
+  "imported_at": 1774204607.631907,
+  "requested_count": 3,
+  "accepted_count": 2,
+  "rejected_count": 1,
+  "accepted_trial_ids": [
+    1,
+    2
+  ],
+  "rejected_rows": [
+    {
+      "row_number": 3,
+      "row_format": "jsonl",
+      "error": "params includes unknown params ['bogus']",
+      "row": {
+        "source_trial_id": "legacy-13",
+        "status": "ok",
+        "params": {
+          "bogus": 1.0
+        },
+        "objectives": {
+          "loss": 0.4
+        },
+        "completed_at": 1700000103.0
+      },
+      "source_trial_id": "legacy-13"
+    }
+  ]
+}

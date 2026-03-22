@@ -48,6 +48,7 @@ Reference artifacts:
 - `examples/README.md`
 - `examples/batch_async/README.md`
 - `examples/multi_objective/README.md`
+- `examples/warm_start/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`
 - `examples/constraints/README.md`

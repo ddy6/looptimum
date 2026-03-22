@@ -22,7 +22,8 @@ Schema path compatibility:
 |---|---|---|
 | `state/bo_state.json` | Source of truth for `schema_version`, pending trials, observations, best-so-far, and next trial id | Authoritative |
 | `state/acquisition_log.jsonl` | Append-only decision log for each suggestion | Audit trail, not authoritative state |
-| `state/event_log.jsonl` | Append-only lifecycle/ops log (locks, heartbeat, retire/cancel, report) | Audit trail, not authoritative state |
+| `state/event_log.jsonl` | Append-only lifecycle/ops log (locks, heartbeat, import/export, retire/cancel, report) | Audit trail, not authoritative state |
+| `state/import_reports/import-*.json` | Permissive warm-start import summaries plus rejected-row detail | Derived artifact |
 | `state/trials/trial_<id>/manifest.json` | Per-trial audit manifest and artifact pointers | Derived from authoritative state/payloads |
 | `state/observations.csv` | Flattened export of observations | Derived artifact |
 | `state/report.json` / `state/report.md` | Explicit generated report outputs | Derived artifact |
@@ -143,6 +144,33 @@ Multi-objective note:
 - when multiple objectives are configured, `best` may also include
   `scalarization_policy` and raw `objective_vector` fields.
 
+### `import-observations`
+
+- `import-observations --input-file <path>` accepts either canonical JSONL
+  observation objects or flat CSV rows with `param_*` / `objective_*` columns.
+- import requires zero live pending trials in the target campaign.
+- imported rows are terminal observations only; pending-trial import is out of
+  scope.
+- imported rows receive fresh local `trial_id` values from `state.next_trial_id`;
+  any source-side ids are preserved only in `source_trial_id`.
+- strict mode is all-or-nothing.
+- permissive mode applies valid rows, writes
+  `state/import_reports/import-*.json`, and records rejected-row detail without
+  corrupting accepted observations.
+- successful imports rewrite `state/observations.csv`, update manifests,
+  recompute `best`, and advance `next_trial_id`.
+
+### `export-observations`
+
+- `export-observations --output-file <path>` writes canonical JSONL or flat CSV
+  observations from authoritative state.
+- exported JSONL uses canonical observation objects.
+- exported CSV uses flat rows with `param_*` / `objective_*` columns and the
+  same terminal metadata accepted by warm-start import.
+- export does not mutate `state/bo_state.json`, but it does append audit
+  provenance to `state/event_log.jsonl` and therefore still runs under the
+  normal mutation lock.
+
 ### `cancel` and `retire`
 
 - `cancel --trial-id <id>`: removes a pending trial and records terminal
@@ -244,8 +272,9 @@ Multi-objective note:
 
 ## Locking Semantics
 
-- Mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`,
-  `restore`, `prune-archives`)
+- Mutating commands (`suggest`, `ingest`, `import-observations`,
+  `export-observations`, lifecycle ops, `report`, `reset`, `restore`,
+  `prune-archives`)
   use an exclusive lock file (`state/.looptimum.lock`).
 - `list-archives`, `status`, `validate`, and `doctor` are read-only and do not
   take the mutation lock.
