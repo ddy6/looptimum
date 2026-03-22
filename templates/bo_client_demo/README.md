@@ -5,7 +5,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `reset`, `list-archives`, `validate`, `doctor`
+  `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `validate`,
+  `doctor`
 - `bo_config.json`: budget, surrogate/acquisition, shared `feature_flags`,
   seed, paths
 - `parameter_space.json`: typed parameter bounds

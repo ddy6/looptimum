@@ -322,6 +322,60 @@ def _seed_legacy_archive_for_listing(template_copy: Path, archive_id: str = "res
     return archive_root
 
 
+def _copy_runtime_artifacts_to_legacy_archive(
+    template_copy: Path,
+    archive_id: str = "reset-legacy",
+) -> Path:
+    archive_root = template_copy / "state" / "reset_archives" / archive_id
+    for rel in (
+        "state/bo_state.json",
+        "state/observations.csv",
+        "state/acquisition_log.jsonl",
+        "state/event_log.jsonl",
+        "state/report.json",
+        "state/report.md",
+        "state/trials",
+        "examples/_demo_result.json",
+    ):
+        src = template_copy / rel
+        if not src.exists():
+            continue
+        dst = archive_root / rel
+        if src.is_dir():
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        else:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+    return archive_root
+
+
+def _write_runtime_marker_state(template_copy: Path, *, marker: str) -> None:
+    state_dir = template_copy / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "bo_state.json").write_text(
+        json.dumps({"schema_version": "0.3.0", "marker": marker}, indent=2),
+        encoding="utf-8",
+    )
+    (state_dir / "report.json").write_text(
+        json.dumps({"marker": marker}, indent=2), encoding="utf-8"
+    )
+    (state_dir / "report.md").write_text(f"marker={marker}\n", encoding="utf-8")
+    trials_dir = state_dir / "trials"
+    if trials_dir.exists():
+        shutil.rmtree(trials_dir)
+    (trials_dir / "trial_current").mkdir(parents=True, exist_ok=True)
+    (trials_dir / "trial_current" / "manifest.json").write_text(
+        json.dumps({"marker": marker}, indent=2),
+        encoding="utf-8",
+    )
+    examples_dir = template_copy / "examples"
+    examples_dir.mkdir(parents=True, exist_ok=True)
+    (examples_dir / "_demo_result.json").write_text(
+        json.dumps({"marker": marker}, indent=2),
+        encoding="utf-8",
+    )
+
+
 def test_reset_requires_yes_in_non_interactive_mode(template_copy: Path) -> None:
     run_cmd(template_copy, "suggest")
     out = run_cmd(template_copy, "reset", expect_ok=False)
@@ -404,6 +458,100 @@ def test_list_archives_reports_manifest_and_legacy_archives(template_copy: Path)
     )
     assert f"  path: state/reset_archives/{legacy_archive.name}" in out.stdout
     assert "state/trials" in out.stdout
+
+
+def test_restore_restores_manifest_archive_over_existing_runtime_state(
+    template_copy: Path,
+) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+
+    run_cmd(template_copy, "reset", "--yes")
+    archives_root = template_copy / "state" / "reset_archives"
+    archive_dir = next(path for path in archives_root.iterdir() if path.is_dir())
+    archived_state_text = (archive_dir / "state" / "bo_state.json").read_text(encoding="utf-8")
+    archived_report_text = (archive_dir / "state" / "report.json").read_text(encoding="utf-8")
+
+    _write_runtime_marker_state(template_copy, marker="current")
+
+    out = run_cmd(
+        template_copy,
+        "restore",
+        "--archive-id",
+        archive_dir.name,
+        "--yes",
+    )
+    assert "Campaign restore completed." in out.stdout
+    assert f"Archive: state/reset_archives/{archive_dir.name}" in out.stdout
+    assert "Ignored archived artifacts:" in out.stdout
+    assert (template_copy / "state" / "bo_state.json").read_text(
+        encoding="utf-8"
+    ) == archived_state_text
+    assert (template_copy / "state" / "report.json").read_text(
+        encoding="utf-8"
+    ) == archived_report_text
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 1
+    event_log_lines = (
+        (template_copy / "state" / "event_log.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    assert any('"event": "campaign_restored"' in line for line in event_log_lines)
+
+
+def test_restore_restores_manifestless_legacy_archive(template_copy: Path) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+    legacy_archive = _copy_runtime_artifacts_to_legacy_archive(template_copy)
+    archived_state_text = (legacy_archive / "state" / "bo_state.json").read_text(encoding="utf-8")
+
+    run_cmd(template_copy, "reset", "--yes", "--no-archive")
+    out = run_cmd(
+        template_copy,
+        "restore",
+        "--archive-id",
+        legacy_archive.name,
+        "--yes",
+    )
+
+    assert "Campaign restore completed." in out.stdout
+    assert "Archive kind: legacy" in out.stdout
+    assert (template_copy / "state" / "bo_state.json").read_text(
+        encoding="utf-8"
+    ) == archived_state_text
+    assert (template_copy / "state" / "trials" / "trial_1" / "manifest.json").exists()
+    assert (template_copy / "examples" / "_demo_result.json").exists()
+
+
+def test_restore_rejects_broken_archive_without_mutating_runtime_state(
+    template_copy: Path,
+) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+
+    run_cmd(template_copy, "reset", "--yes")
+    archives_root = template_copy / "state" / "reset_archives"
+    archive_dir = next(path for path in archives_root.iterdir() if path.is_dir())
+    (archive_dir / "state" / "bo_state.json").unlink()
+
+    _write_runtime_marker_state(template_copy, marker="current")
+    current_state_text = (template_copy / "state" / "bo_state.json").read_text(encoding="utf-8")
+    current_report_text = (template_copy / "state" / "report.json").read_text(encoding="utf-8")
+
+    out = run_cmd(
+        template_copy,
+        "restore",
+        "--archive-id",
+        archive_dir.name,
+        "--yes",
+        expect_ok=False,
+    )
+
+    assert out.returncode != 0
+    assert "integrity_status=missing_files" in out.stderr
+    assert (template_copy / "state" / "bo_state.json").read_text(
+        encoding="utf-8"
+    ) == current_state_text
+    assert (template_copy / "state" / "report.json").read_text(
+        encoding="utf-8"
+    ) == current_report_text
 
 
 def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy: Path) -> None:

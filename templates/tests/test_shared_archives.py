@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ARCHIVES_MODULE = REPO_ROOT / "templates" / "_shared" / "archives.py"
@@ -218,3 +221,107 @@ def test_render_reset_archive_listing_handles_empty_and_broken_archives() -> Non
     assert "  path: state/reset_archives/reset-bad" in lines
     assert "  inventory: (empty)" in lines
     assert "  integrity_error: archive manifest root must be an object" in lines
+
+
+def test_restore_reset_archive_round_trips_and_ignores_lock_file(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    runtime_paths = _seed_runtime_artifacts(root)
+    runtime_paths["lock_file"].write_text("current-lock\n", encoding="utf-8")
+    archive_root = root / "state" / "reset_archives" / "reset-restore"
+    archive_root.mkdir(parents=True)
+
+    archived = _copy_existing_reset_targets(root, archive_root, runtime_paths)
+    manifest = ARCHIVES.build_reset_archive_manifest(
+        root,
+        archive_root,
+        archived,
+        created_at=777.0,
+    )
+    ARCHIVES.write_archive_manifest(archive_root, manifest)
+
+    archived_state_text = (archive_root / "state" / "bo_state.json").read_text(encoding="utf-8")
+    archived_demo_text = (archive_root / "examples" / "_demo_result.json").read_text(
+        encoding="utf-8"
+    )
+    archived_trial_manifest_text = (
+        archive_root / "state" / "trials" / "trial_1" / "manifest.json"
+    ).read_text(encoding="utf-8")
+
+    runtime_paths["state_file"].write_text(
+        '{"schema_version":"0.3.0","marker":"current"}\n', encoding="utf-8"
+    )
+    shutil.rmtree(runtime_paths["trials_dir"])
+    (runtime_paths["trials_dir"] / "trial_current").mkdir(parents=True, exist_ok=True)
+    (runtime_paths["trials_dir"] / "trial_current" / "manifest.json").write_text(
+        '{"marker":"current"}\n',
+        encoding="utf-8",
+    )
+    (root / "examples" / "_demo_result.json").write_text('{"marker":"current"}\n', encoding="utf-8")
+
+    restored = ARCHIVES.restore_reset_archive(
+        "reset-restore",
+        project_root=root,
+        runtime_paths=runtime_paths,
+    )
+
+    assert restored["archive_rel"] == "state/reset_archives/reset-restore"
+    assert restored["integrity_status"] == "ok"
+    assert restored["ignored_paths"] == ["state/.looptimum.lock"]
+    assert runtime_paths["state_file"].read_text(encoding="utf-8") == archived_state_text
+    assert (root / "examples" / "_demo_result.json").read_text(
+        encoding="utf-8"
+    ) == archived_demo_text
+    assert (runtime_paths["trials_dir"] / "trial_1" / "manifest.json").read_text(
+        encoding="utf-8"
+    ) == archived_trial_manifest_text
+    assert runtime_paths["lock_file"].read_text(encoding="utf-8") == "current-lock\n"
+
+
+def test_restore_reset_archive_rolls_back_on_injected_apply_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    runtime_paths = _seed_runtime_artifacts(root)
+    archive_root = root / "state" / "reset_archives" / "reset-rollback"
+    archive_root.mkdir(parents=True)
+
+    archived = _copy_existing_reset_targets(root, archive_root, runtime_paths)
+    manifest = ARCHIVES.build_reset_archive_manifest(
+        root,
+        archive_root,
+        archived,
+        created_at=888.0,
+    )
+    ARCHIVES.write_archive_manifest(archive_root, manifest)
+
+    current_state_text = '{"schema_version":"0.3.0","marker":"current"}\n'
+    runtime_paths["state_file"].write_text(current_state_text, encoding="utf-8")
+    shutil.rmtree(runtime_paths["trials_dir"])
+    (runtime_paths["trials_dir"] / "trial_current").mkdir(parents=True, exist_ok=True)
+    current_manifest_text = '{"marker":"current"}\n'
+    (runtime_paths["trials_dir"] / "trial_current" / "manifest.json").write_text(
+        current_manifest_text,
+        encoding="utf-8",
+    )
+    current_demo_text = '{"marker":"current"}\n'
+    (root / "examples" / "_demo_result.json").write_text(current_demo_text, encoding="utf-8")
+
+    monkeypatch.setenv("LOOPTIMUM_TEST_RESTORE_FAIL_SOURCE_REL", "state/trials")
+    with pytest.raises(OSError, match="Injected restore failure for state/trials"):
+        ARCHIVES.restore_reset_archive(
+            "reset-rollback",
+            project_root=root,
+            runtime_paths=runtime_paths,
+        )
+    monkeypatch.delenv("LOOPTIMUM_TEST_RESTORE_FAIL_SOURCE_REL", raising=False)
+
+    assert runtime_paths["state_file"].read_text(encoding="utf-8") == current_state_text
+    assert (runtime_paths["trials_dir"] / "trial_current" / "manifest.json").read_text(
+        encoding="utf-8"
+    ) == current_manifest_text
+    assert (root / "examples" / "_demo_result.json").read_text(
+        encoding="utf-8"
+    ) == current_demo_text

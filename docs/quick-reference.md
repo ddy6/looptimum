@@ -10,7 +10,7 @@ Stable command names and required flag posture are documented in
 
 - core loop: `suggest`, `ingest`, `status`, `demo`
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
-- support ops: `report`, `reset`, `list-archives`, `validate`, `doctor`
+- support ops: `report`, `reset`, `list-archives`, `restore`, `validate`, `doctor`
 
 ## Core Loop Contract
 
@@ -107,7 +107,7 @@ Default file-backed artifacts under each template's `state/` path:
 
 - one controller/writer per state path is required; multi-controller writes to
   the same state path are unsupported.
-- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`)
+- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`, `restore`)
   run under exclusive file lock semantics.
 - batch allocation is atomic under that lock: contention or validation failure
   rejects the whole batch with no partial pending creation.
@@ -115,6 +115,8 @@ Default file-backed artifacts under each template's `state/` path:
   default unless `--no-archive` is passed.
 - `list-archives` is read-only and inventories `state/reset_archives/`,
   including legacy manifest-less archives and any integrity warnings.
+- `restore --archive-id <id> --yes` rehydrates archived runtime artifacts with
+  integrity checks and all-or-nothing overwrite behavior.
 - stale pending handling can be automated via configured age policy or manual
   `retire`.
 - interruption recovery runbook:

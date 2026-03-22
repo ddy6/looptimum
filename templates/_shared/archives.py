@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import shutil
 import time
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import Any, Mapping, Sequence
 ARCHIVE_MANIFEST_FILENAME = "archive_manifest.json"
 RESET_ARCHIVE_TYPE = "reset"
 RESET_ARCHIVE_MANIFEST_VERSION = 1
+_RESTORE_FAIL_SOURCE_REL_ENV = "LOOPTIMUM_TEST_RESTORE_FAIL_SOURCE_REL"
+_IGNORED_RESTORE_LABELS = frozenset({"lock_file"})
 
 ArchiveEntry = dict[str, Any]
 ArchiveInspection = dict[str, Any]
@@ -52,6 +55,23 @@ def reset_artifact_paths(
     return out
 
 
+def restorable_artifact_paths(
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+    *,
+    demo_result_rel: str = "examples/_demo_result.json",
+) -> list[tuple[str, Path]]:
+    return [
+        (label, path)
+        for label, path in reset_artifact_paths(
+            project_root,
+            runtime_paths,
+            demo_result_rel=demo_result_rel,
+        )
+        if label not in _IGNORED_RESTORE_LABELS
+    ]
+
+
 def copy_path_to_archive(path: Path, destination: Path) -> None:
     if path.is_dir() and not path.is_symlink():
         shutil.copytree(path, destination, dirs_exist_ok=True)
@@ -62,6 +82,32 @@ def copy_path_to_archive(path: Path, destination: Path) -> None:
 
 def reset_archives_root(runtime_paths: Mapping[str, Path]) -> Path:
     return runtime_paths["state_file"].parent / "reset_archives"
+
+
+def resolve_reset_archive(
+    archive_id: str,
+    *,
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+) -> Path:
+    archive_id = archive_id.strip()
+    if not archive_id:
+        raise ValueError("restore requires --archive-id")
+    if archive_id != Path(archive_id).name or archive_id in {".", ".."}:
+        raise ValueError("--archive-id must be a simple directory name")
+
+    archives_root = reset_archives_root(runtime_paths).resolve()
+    archive_root = (archives_root / archive_id).resolve()
+    try:
+        archive_root.relative_to(archives_root)
+    except ValueError as exc:
+        raise ValueError("--archive-id must resolve under state/reset_archives") from exc
+
+    if not archive_root.exists() or not archive_root.is_dir():
+        archives_root_rel = _relative_path(project_root, archives_root)
+        raise ValueError(f"archive_id {archive_id!r} not found under {archives_root_rel}")
+
+    return archive_root
 
 
 def _entry_path_type(path: Path) -> str:
@@ -367,3 +413,200 @@ def render_reset_archive_listing(
                 if isinstance(error, str) and error:
                     lines.append(f"  integrity_error: {error}")
     return lines
+
+
+def _remove_path(path: Path) -> None:
+    if not path.exists() and not path.is_symlink():
+        return
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+        return
+    path.unlink()
+
+
+def _restorable_path_map(
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+) -> dict[str, tuple[str, Path]]:
+    return {
+        _relative_path(project_root, path): (label, path)
+        for label, path in restorable_artifact_paths(project_root, runtime_paths)
+    }
+
+
+def _ignored_restore_paths(
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+) -> set[str]:
+    return {
+        _relative_path(project_root, path)
+        for label, path in reset_artifact_paths(project_root, runtime_paths)
+        if label in _IGNORED_RESTORE_LABELS
+    }
+
+
+def _build_restore_entries(
+    archive_root: Path,
+    archive: Mapping[str, Any],
+    *,
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+) -> tuple[list[ArchiveEntry], list[str]]:
+    restorable_paths = _restorable_path_map(project_root, runtime_paths)
+    ignored_paths = _ignored_restore_paths(project_root, runtime_paths)
+
+    raw_entries = archive.get("entries")
+    if not isinstance(raw_entries, list):
+        raise ValueError("archive inspection entries must be a list")
+
+    restore_entries: list[ArchiveEntry] = []
+    ignored: list[str] = []
+    errors: list[str] = []
+    seen_paths: set[str] = set()
+    for index, entry in enumerate(raw_entries):
+        if not isinstance(entry, dict):
+            errors.append(f"archive entry[{index}] must be an object")
+            continue
+
+        source_rel = entry.get("source_rel")
+        archive_rel = entry.get("archive_rel")
+        path_type = entry.get("path_type")
+        if not isinstance(source_rel, str) or not source_rel:
+            errors.append(f"archive entry[{index}] has invalid source_rel")
+            continue
+        if not isinstance(archive_rel, str) or not archive_rel:
+            errors.append(f"archive entry[{index}] has invalid archive_rel")
+            continue
+
+        if source_rel in ignored_paths:
+            ignored.append(source_rel)
+            continue
+        if source_rel in seen_paths:
+            errors.append(f"duplicate archived runtime path for restore: {source_rel}")
+            continue
+
+        mapping = restorable_paths.get(source_rel)
+        if mapping is None:
+            errors.append(f"unsupported archived path for restore: {source_rel}")
+            continue
+
+        label, target_path = mapping
+        restore_entries.append(
+            {
+                "label": label,
+                "source_rel": source_rel,
+                "archive_rel": archive_rel,
+                "path_type": path_type,
+                "archive_path": archive_root / archive_rel,
+                "target_path": target_path,
+            }
+        )
+        seen_paths.add(source_rel)
+
+    if errors:
+        raise ValueError("; ".join(errors))
+    if not restore_entries:
+        raise ValueError("archive contains no restorable runtime artifacts")
+
+    return restore_entries, sorted(set(ignored))
+
+
+def _stage_restore_entries(entries: Sequence[Mapping[str, Any]], staging_root: Path) -> None:
+    for entry in entries:
+        source_rel = str(entry["source_rel"])
+        archived_path = Path(entry["archive_path"])
+        copy_path_to_archive(archived_path, staging_root / source_rel)
+
+
+def _backup_restore_targets(entries: Sequence[Mapping[str, Any]], backup_root: Path) -> list[str]:
+    overwritten_paths: list[str] = []
+    for entry in entries:
+        source_rel = str(entry["source_rel"])
+        target_path = Path(entry["target_path"])
+        if not target_path.exists() and not target_path.is_symlink():
+            continue
+        copy_path_to_archive(target_path, backup_root / source_rel)
+        overwritten_paths.append(source_rel)
+    return overwritten_paths
+
+
+def _remove_restore_targets(entries: Sequence[Mapping[str, Any]]) -> None:
+    for entry in entries:
+        _remove_path(Path(entry["target_path"]))
+
+
+def _apply_restore_entries(entries: Sequence[Mapping[str, Any]], staging_root: Path) -> None:
+    fail_source_rel = os.getenv(_RESTORE_FAIL_SOURCE_REL_ENV, "").strip()
+    for entry in entries:
+        source_rel = str(entry["source_rel"])
+        if fail_source_rel and source_rel == fail_source_rel:
+            raise OSError(f"Injected restore failure for {source_rel}")
+        copy_path_to_archive(staging_root / source_rel, Path(entry["target_path"]))
+
+
+def _restore_backup(entries: Sequence[Mapping[str, Any]], backup_root: Path) -> None:
+    for entry in entries:
+        source_rel = str(entry["source_rel"])
+        backup_path = backup_root / source_rel
+        if not backup_path.exists() and not backup_path.is_symlink():
+            continue
+        copy_path_to_archive(backup_path, Path(entry["target_path"]))
+
+
+def restore_reset_archive(
+    archive_id: str,
+    *,
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+) -> ArchiveInspection:
+    archive_root = resolve_reset_archive(
+        archive_id,
+        project_root=project_root,
+        runtime_paths=runtime_paths,
+    )
+    archive = inspect_reset_archive(
+        archive_root,
+        project_root=project_root,
+        runtime_paths=runtime_paths,
+    )
+    integrity_status = str(archive.get("integrity_status") or "unknown")
+    if integrity_status not in {"ok", "legacy"}:
+        raise ValueError(
+            f"archive_id {archive_id!r} is not restorable: integrity_status={integrity_status}"
+        )
+
+    restore_entries, ignored_paths = _build_restore_entries(
+        archive_root,
+        archive,
+        project_root=project_root,
+        runtime_paths=runtime_paths,
+    )
+
+    state_root = runtime_paths["state_file"].parent.resolve()
+    nonce = f"{time.time_ns()}-{os.getpid()}"
+    staging_root = state_root / f".restore-staging-{nonce}"
+    backup_root = state_root / f".restore-backup-{nonce}"
+    overwritten_paths: list[str] = []
+
+    try:
+        _stage_restore_entries(restore_entries, staging_root)
+        overwritten_paths = _backup_restore_targets(restore_entries, backup_root)
+        _remove_restore_targets(restore_entries)
+        _apply_restore_entries(restore_entries, staging_root)
+    except Exception:
+        _remove_restore_targets(restore_entries)
+        _restore_backup(restore_entries, backup_root)
+        raise
+    finally:
+        _remove_path(staging_root)
+        _remove_path(backup_root)
+
+    return {
+        "archive_id": str(archive["archive_id"]),
+        "archive_rel": _relative_path(project_root, archive_root),
+        "legacy": bool(archive.get("legacy")),
+        "integrity_status": integrity_status,
+        "restored_paths": [str(entry["source_rel"]) for entry in restore_entries],
+        "overwritten_paths": overwritten_paths,
+        "ignored_paths": ignored_paths,
+    }

@@ -6,7 +6,8 @@ templates in this repository using the file-backed
 
 The Looptimum CLI exposes a stable command contract across template variants:
 `suggest`, `ingest`, `status`, `demo`, lifecycle controls (`cancel`, `retire`,
-`heartbeat`), and support ops (`report`, `validate`, `doctor`).
+`heartbeat`), and support ops (`report`, `reset`, `list-archives`, `restore`,
+`validate`, `doctor`).
 
 It is designed for expensive black-box objectives such as simulations,
 calibrations, pipeline tuning, and process optimization.
@@ -83,7 +84,7 @@ Parity scope:
 
 - Commands: `suggest`, `ingest`, `status`, `demo`
 - Lifecycle ops: `cancel`, `retire`, `heartbeat`
-- Support ops: `report`, `validate`, `doctor`
+- Support ops: `report`, `reset`, `list-archives`, `restore`, `validate`, `doctor`
 
 ## Core Contract: `suggest -> evaluate -> ingest`
 
@@ -300,6 +301,8 @@ Runtime control commands used during long-running integrations:
   artifacts by default unless `--no-archive` is used.
 - `list-archives`: enumerate `state/reset_archives/` with archive metadata,
   inventory summary, and integrity status.
+- `restore --archive-id <id> [--yes]`: restore archived runtime artifacts with
+  integrity validation and all-or-nothing overwrite behavior.
 - `validate [--strict]`: run config/schema/state checks (`--strict` makes warnings fatal).
 - `doctor [--json]`: print environment/backend/state diagnostics.
 

@@ -187,6 +187,16 @@ Multi-objective note:
 - Broken or incomplete manifest-backed archives are listed with integrity
   errors instead of being silently ignored.
 
+### `restore`
+
+- `restore --archive-id <id>` is destructive and requires explicit
+  confirmation or `--yes`.
+- Restore validates archive integrity before mutating runtime artifacts.
+- Restore rehydrates only the supported runtime-artifact set and intentionally
+  does not restore the live lock file.
+- Restore overwrites current runtime artifacts atomically: a failed restore
+  rolls back to the pre-restore runtime state.
+
 ### `validate`
 
 - `validate` checks config/schema/state consistency and basic corruption.
@@ -223,7 +233,8 @@ Multi-objective note:
 
 ## Locking Semantics
 
-- Mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`)
+- Mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`,
+  `restore`)
   use an exclusive lock file (`state/.looptimum.lock`).
 - `list-archives`, `status`, `validate`, and `doctor` are read-only and do not
   take the mutation lock.

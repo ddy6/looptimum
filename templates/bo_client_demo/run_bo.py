@@ -80,6 +80,7 @@ list_reset_archives = _ARCHIVES.list_reset_archives
 render_reset_archive_listing = _ARCHIVES.render_reset_archive_listing
 reset_archives_root = _ARCHIVES.reset_archives_root
 reset_artifact_paths = _ARCHIVES.reset_artifact_paths
+restore_reset_archive = _ARCHIVES.restore_reset_archive
 write_archive_manifest = _ARCHIVES.write_archive_manifest
 
 append_jsonl = _RUNTIME.append_jsonl
@@ -470,6 +471,19 @@ def _confirm_reset(args: argparse.Namespace, *, root: Path, archive_enabled: boo
     token = sys.stdin.readline().strip()
     if token != "RESET":
         raise ValueError("reset aborted: confirmation token mismatch")
+
+
+def _confirm_restore(args: argparse.Namespace, *, root: Path, archive_id: str) -> None:
+    if args.yes:
+        return
+    if not sys.stdin.isatty():
+        raise ValueError("restore is destructive; re-run with --yes for non-interactive use")
+
+    print(f"Restore will overwrite runtime artifacts under {root} from archive {archive_id}.")
+    print("Type RESTORE to continue: ", end="", flush=True)
+    token = sys.stdin.readline().strip()
+    if token != "RESTORE":
+        raise ValueError("restore aborted: confirmation token mismatch")
 
 
 def _require_finite_number(value: Any, *, field_name: str, trial_id: int) -> float:
@@ -2088,7 +2102,10 @@ def cmd_reset(args: argparse.Namespace) -> None:
 
             if archive_root is not None:
                 print("Restore hint:")
-                print(f"- Copy archived files from {archive_root} back into {root}.")
+                print(
+                    f"- python3 run_bo.py restore --project-root {root} "
+                    f"--archive-id {archive_root.name} --yes"
+                )
         finally:
             _append_event(paths, "lock_released", command="reset", pid=os.getpid())
 
@@ -2104,6 +2121,93 @@ def cmd_list_archives(args: argparse.Namespace) -> None:
     archives_root_rel = _relative_path(root, reset_archives_root(paths))
     for line in render_reset_archive_listing(archives, archives_root_rel=archives_root_rel):
         print(line)
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    if args.archive_id is None:
+        raise ValueError("restore requires --archive-id")
+
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    paths = _runtime_paths(root, cfg)
+    _confirm_restore(args, root=root, archive_id=args.archive_id)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        lock_logged = False
+        try:
+            restore_result = restore_reset_archive(
+                args.archive_id,
+                project_root=root,
+                runtime_paths=paths,
+            )
+
+            _append_event(
+                paths,
+                "lock_acquired",
+                command="restore",
+                pid=os.getpid(),
+                wait_seconds=lock.wait_seconds,
+            )
+            lock_logged = True
+            _append_event(
+                paths,
+                "campaign_restored",
+                archive_id=restore_result["archive_id"],
+                archive_path=restore_result["archive_rel"],
+                legacy_archive=restore_result["legacy"],
+                restored_count=len(restore_result["restored_paths"]),
+                overwritten_count=len(restore_result["overwritten_paths"]),
+                ignored_count=len(restore_result["ignored_paths"]),
+            )
+
+            print("Campaign restore completed.")
+            print(f"Archive: {restore_result['archive_rel']}")
+            if restore_result["legacy"]:
+                print("Archive kind: legacy")
+
+            print("Restored artifacts:")
+            for rel in restore_result["restored_paths"]:
+                print(f"- {rel}")
+
+            print("Overwritten artifacts:")
+            if restore_result["overwritten_paths"]:
+                for rel in restore_result["overwritten_paths"]:
+                    print(f"- {rel}")
+            else:
+                print("- (none)")
+
+            if restore_result["ignored_paths"]:
+                print("Ignored archived artifacts:")
+                for rel in restore_result["ignored_paths"]:
+                    print(f"- {rel}")
+        except Exception as exc:
+            try:
+                _append_event(
+                    paths,
+                    "lock_acquired",
+                    command="restore",
+                    pid=os.getpid(),
+                    wait_seconds=lock.wait_seconds,
+                )
+                lock_logged = True
+                _append_event(
+                    paths,
+                    "campaign_restore_failed",
+                    archive_id=str(args.archive_id),
+                    error=str(exc),
+                )
+            except Exception:
+                pass
+            raise
+        finally:
+            if lock_logged:
+                _append_event(paths, "lock_released", command="restore", pid=os.getpid())
 
 
 def cmd_validate(args: argparse.Namespace) -> None:
@@ -2322,6 +2426,7 @@ def parse_args() -> argparse.Namespace:
             "report",
             "reset",
             "list-archives",
+            "restore",
             "validate",
             "doctor",
         ],
@@ -2377,8 +2482,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--yes",
         action="store_true",
-        help="For reset: skip interactive confirmation prompt.",
+        help="For reset/restore: skip interactive confirmation prompt.",
     )
+    parser.add_argument("--archive-id", help="For restore: reset archive id to rehydrate.")
     archive_group = parser.add_mutually_exclusive_group()
     archive_group.add_argument(
         "--archive",
@@ -2419,6 +2525,7 @@ def main() -> None:
         "report": cmd_report,
         "reset": cmd_reset,
         "list-archives": cmd_list_archives,
+        "restore": cmd_restore,
         "validate": cmd_validate,
         "doctor": cmd_doctor,
     }
