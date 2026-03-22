@@ -20,6 +20,18 @@ FEATURE_FLAG_KEYS = (
     "enable_dashboard_preview",
     "enable_auth_preview",
 )
+GOVERNANCE_DEFAULT = {"allowed_statuses": ["ok", "failed", "killed", "timeout"]}
+RETENTION_DEFAULT = {
+    "archives": {
+        "max_count": None,
+        "max_age_seconds": None,
+        "max_total_bytes": None,
+    },
+    "logs": {
+        "event_log_max_bytes": None,
+        "acquisition_log_max_bytes": None,
+    },
+}
 
 
 def _load_json(path: Path) -> dict:
@@ -75,6 +87,8 @@ def test_template_bo_configs_expose_batch_guardrail_defaults() -> None:
         assert "max_pending_trials" in cfg
         assert cfg["max_pending_trials"] is None
         assert cfg.get("worker_leases") == {"enabled": False}
+        assert cfg.get("governance") == GOVERNANCE_DEFAULT
+        assert cfg.get("retention") == RETENTION_DEFAULT
 
 
 def test_objective_schema_exposes_multi_objective_fields() -> None:

@@ -29,6 +29,25 @@
   "worker_leases": {
     "enabled": false
   },
+  "governance": {
+    "allowed_statuses": [
+      "ok",
+      "failed",
+      "killed",
+      "timeout"
+    ]
+  },
+  "retention": {
+    "archives": {
+      "max_count": null,
+      "max_age_seconds": null,
+      "max_total_bytes": null
+    },
+    "logs": {
+      "event_log_max_bytes": null,
+      "acquisition_log_max_bytes": null
+    }
+  },
   "stopping": {
     "min_improvement": 0.0001,
     "patience_trials": 10

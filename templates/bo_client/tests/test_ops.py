@@ -903,6 +903,34 @@ def test_validate_hard_failure_for_invalid_worker_leases_config(template_copy) -
     assert "ERROR: config validation failure: worker_leases.enabled must be a boolean" in out.stdout
 
 
+def test_validate_hard_failure_for_invalid_governance_allowed_statuses(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["governance"]["allowed_statuses"] = ["ok", "paused"]
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert (
+        "ERROR: config validation failure: governance.allowed_statuses must stay within canonical statuses"
+        in out.stdout
+    )
+
+
+def test_validate_hard_failure_for_invalid_retention_log_limit(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["retention"]["logs"]["event_log_max_bytes"] = 0
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert (
+        "ERROR: config validation failure: retention.logs.event_log_max_bytes must be >= 1"
+        in out.stdout
+    )
+
+
 def test_heartbeat_requires_matching_lease_token_when_enabled(template_copy) -> None:
     cfg_path = template_copy / "bo_config.json"
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))

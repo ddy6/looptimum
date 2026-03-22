@@ -40,6 +40,7 @@ _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _CONSTRAINTS = _load_shared_module("looptimum_shared_constraints", "constraints.py")
 _OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py")
 _ARCHIVES = _load_shared_module("looptimum_shared_archives", "archives.py")
+_GOVERNANCE = _load_shared_module("looptimum_shared_governance", "governance.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 _OBSERVATIONS_IO = _load_shared_module("looptimum_shared_observations_io", "observations_io.py")
@@ -85,6 +86,8 @@ reset_archives_root = _ARCHIVES.reset_archives_root
 reset_artifact_paths = _ARCHIVES.reset_artifact_paths
 restore_reset_archive = _ARCHIVES.restore_reset_archive
 write_archive_manifest = _ARCHIVES.write_archive_manifest
+
+normalize_governance_config = _GOVERNANCE.normalize_governance_config
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -2617,6 +2620,10 @@ def cmd_validate(args: argparse.Namespace) -> None:
         hard_errors.append(f"config validation failure: {exc}")
     try:
         resolve_worker_leases_enabled(cfg)
+    except Exception as exc:
+        hard_errors.append(f"config validation failure: {exc}")
+    try:
+        normalize_governance_config(cfg)
     except Exception as exc:
         hard_errors.append(f"config validation failure: {exc}")
 
