@@ -342,6 +342,20 @@ def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy: P
     archives = sorted(path for path in archives_root.iterdir() if path.is_dir())
     assert len(archives) == 1
     archive_dir = archives[0]
+    manifest = json.loads((archive_dir / "archive_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["archive_id"] == archive_dir.name
+    assert manifest["archive_type"] == "reset"
+    assert {entry["source_rel"] for entry in manifest["entries"]} == {
+        "state/bo_state.json",
+        "state/observations.csv",
+        "state/acquisition_log.jsonl",
+        "state/event_log.jsonl",
+        "state/.looptimum.lock",
+        "state/report.json",
+        "state/report.md",
+        "state/trials",
+        "examples/_demo_result.json",
+    }
     assert (archive_dir / "state" / "bo_state.json").exists()
     assert (archive_dir / "state" / "trials").exists()
     assert (archive_dir / "examples" / "_demo_result.json").exists()

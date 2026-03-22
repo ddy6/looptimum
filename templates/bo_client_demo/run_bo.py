@@ -39,6 +39,7 @@ def _load_shared_module(module_name: str, filename: str):
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _CONSTRAINTS = _load_shared_module("looptimum_shared_constraints", "constraints.py")
 _OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py")
+_ARCHIVES = _load_shared_module("looptimum_shared_archives", "archives.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 
@@ -72,6 +73,11 @@ primary_objective_name = _OBJECTIVES.primary_objective_name
 scalarize_objectives = _OBJECTIVES.scalarize_objectives
 scalarization_policy = _OBJECTIVES.scalarization_policy
 scalarized_direction = _OBJECTIVES.scalarized_direction
+
+build_reset_archive_manifest = _ARCHIVES.build_reset_archive_manifest
+copy_path_to_archive = _ARCHIVES.copy_path_to_archive
+reset_artifact_paths = _ARCHIVES.reset_artifact_paths
+write_archive_manifest = _ARCHIVES.write_archive_manifest
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -447,37 +453,6 @@ def _append_event(paths: dict[str, Path], event: str, **fields: Any) -> None:
     payload = {"event": event, "timestamp": time.time()}
     payload.update(fields)
     append_jsonl(paths["event_log_file"], payload)
-
-
-def _reset_artifact_paths(root: Path, paths: dict[str, Path]) -> list[tuple[str, Path]]:
-    candidates = [
-        ("state_file", paths["state_file"]),
-        ("observations_csv", paths["observations_csv"]),
-        ("acquisition_log_file", paths["acquisition_log_file"]),
-        ("event_log_file", paths["event_log_file"]),
-        ("lock_file", paths["lock_file"]),
-        ("report_json_file", paths["report_json_file"]),
-        ("report_md_file", paths["report_md_file"]),
-        ("trials_dir", paths["trials_dir"]),
-        ("demo_result_file", (root / "examples" / "_demo_result.json").resolve()),
-    ]
-    out: list[tuple[str, Path]] = []
-    seen: set[Path] = set()
-    for label, path in candidates:
-        resolved = path.resolve()
-        if resolved in seen:
-            continue
-        seen.add(resolved)
-        out.append((label, resolved))
-    return out
-
-
-def _copy_path_to_archive(path: Path, destination: Path) -> None:
-    if path.is_dir() and not path.is_symlink():
-        shutil.copytree(path, destination, dirs_exist_ok=True)
-        return
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(path, destination)
 
 
 def _confirm_reset(args: argparse.Namespace, *, root: Path, archive_enabled: bool) -> None:
@@ -2018,7 +1993,7 @@ def cmd_reset(args: argparse.Namespace) -> None:
     archive_enabled = True if args.archive is None else bool(args.archive)
     _confirm_reset(args, root=root, archive_enabled=archive_enabled)
 
-    targets = _reset_artifact_paths(root, paths)
+    targets = reset_artifact_paths(root, paths)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
 
     with hold_exclusive_lock(
@@ -2034,6 +2009,7 @@ def cmd_reset(args: argparse.Namespace) -> None:
         try:
             archive_root: Path | None = None
             archived: list[tuple[str, str]] = []
+            archived_sources: list[tuple[str, Path]] = []
             if archive_enabled:
                 archive_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
                 archive_root = (
@@ -2042,13 +2018,21 @@ def cmd_reset(args: argparse.Namespace) -> None:
                     / f"reset-{archive_stamp}-{time.time_ns()}"
                 ).resolve()
                 archive_root.mkdir(parents=True, exist_ok=False)
-                for _, path in targets:
+                for label, path in targets:
                     if not path.exists():
                         continue
                     rel = _relative_path(root, path)
                     dst = archive_root / rel
-                    _copy_path_to_archive(path, dst)
+                    copy_path_to_archive(path, dst)
                     archived.append((rel, _relative_path(root, dst)))
+                    archived_sources.append((label, path))
+                manifest = build_reset_archive_manifest(
+                    root,
+                    archive_root,
+                    archived_sources,
+                    created_at=time.time(),
+                )
+                write_archive_manifest(archive_root, manifest)
 
             removed: list[str] = []
             missing: list[str] = []
