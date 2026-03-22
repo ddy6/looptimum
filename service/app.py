@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from service.config import ServiceConfig, build_service_config
 from service.models import (
+    CampaignDetailResponse,
     CampaignListResponse,
     CampaignRecord,
     CampaignRegistrationRequest,
@@ -19,6 +20,13 @@ from service.registry import (
     InvalidCampaignRootError,
     PreviewDisabledError,
     ServiceRegistryError,
+)
+from service.runtime import (
+    ReportNotGeneratedError,
+    RuntimeArtifactError,
+    build_campaign_detail,
+    build_status_payload,
+    load_report_payload,
 )
 
 
@@ -46,6 +54,16 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content=_error_payload(code="campaign_not_found", message=str(exc)),
+        )
+    if isinstance(exc, ReportNotGeneratedError):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=_error_payload(code="report_not_generated", message=str(exc)),
+        )
+    if isinstance(exc, RuntimeArtifactError):
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=_error_payload(code="runtime_artifact_error", message=str(exc)),
         )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -88,5 +106,17 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     @app.get("/campaigns/{campaign_id}", response_model=CampaignRecord)
     def get_campaign(campaign_id: str) -> CampaignRecord:
         return registry.get_campaign(campaign_id)
+
+    @app.get("/campaigns/{campaign_id}/detail", response_model=CampaignDetailResponse)
+    def get_campaign_detail(campaign_id: str) -> CampaignDetailResponse:
+        return build_campaign_detail(registry.get_campaign(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/status")
+    def get_campaign_status(campaign_id: str) -> dict[str, Any]:
+        return build_status_payload(registry.get_campaign_root(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/report")
+    def get_campaign_report(campaign_id: str) -> dict[str, Any]:
+        return load_report_payload(registry.get_campaign_root(campaign_id))
 
     return app

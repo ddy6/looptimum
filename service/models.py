@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 REGISTRY_SCHEMA_VERSION = "0.1.0-preview"
@@ -33,6 +35,15 @@ class CampaignListResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     campaigns: list[CampaignRecord]
+
+
+class CampaignDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    campaign: CampaignRecord
+    status: dict[str, Any]
+    paths: dict[str, str]
+    artifacts: dict[str, bool]
 
 
 class HealthResponse(BaseModel):
