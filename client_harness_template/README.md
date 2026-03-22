@@ -16,6 +16,9 @@ Contents:
 - `starterkit_queue_worker.py`: generic queue-worker starter for batch handoff
 - `starterkit_airflow.py`: Airflow DAG render helper for the canonical loop
 - `starterkit_slurm.py`: Slurm array-script render helper for the canonical loop
+- `starterkit_tracking.py`: shared canonical snapshot loader for tracker adapters
+- `starterkit_mlflow.py`: optional MLflow logger for state/report/artifact sync
+- `starterkit_wandb.py`: optional Weights & Biases logger with the same contract
 - `aws_batch_config.example.json`: committed example AWS config
 - `README_INTEGRATION.md`: implementation instructions and failure-mode guidance
 
