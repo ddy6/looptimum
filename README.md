@@ -288,7 +288,8 @@ Best ranking rule:
   required `schema_version`.
 - `state/observations.csv`: flattened observation export.
 - `state/acquisition_log.jsonl`: append-only decision trace.
-- `state/event_log.jsonl`: append-only lifecycle/operations trace.
+- `state/event_log.jsonl`: append-only lifecycle/operations trace, including
+  governance override/violation events.
 - `state/trials/trial_<id>/manifest.json`: per-trial audit manifest.
 - `state/report.json` and `state/report.md`: explicit report outputs from
   `report`, including objective-config and Pareto summaries for multi-objective
@@ -331,6 +332,8 @@ Best ranking rule:
 - `list-archives`: inspect reset archives and surface manifest/legacy integrity status.
 - `restore --archive-id <id> [--yes]`: restore archived runtime artifacts back into place.
 - `prune-archives [--keep-last N] [--older-than-seconds S] [--yes]`: remove older reset archives with explicit retention criteria.
+- `health [--strict]`: read-only runtime health snapshot with validate-aligned errors/warnings, lock visibility, and governance findings.
+- `metrics`: read-only runtime metrics snapshot with counts, pending-age buckets, suggest latency, and governance summaries.
 - `validate [--strict]`: sanity-check config/state; warnings are non-fatal unless `--strict`.
 - `doctor [--json]`: print environment/backend/state diagnostics.
 
@@ -342,6 +345,17 @@ Lease note:
   before any pending state is created
 - permissive warm-start imports write machine-readable reports under
   `state/import_reports/` and preserve `source_trial_id` as provenance only
+
+Governance note:
+
+- `bo_config.json` can set `governance.allowed_statuses` plus warn-first
+  `retention.archives.*` / `retention.logs.*` limits.
+- Looptimum does not auto-prune archives or rotate logs when those limits are
+  exceeded; operators must act explicitly.
+- Mutating commands append `governance_override_used` when the runtime itself
+  creates a disallowed terminal status, and
+  `governance_violations_detected` when current state/log/archive footprints
+  breach configured policy.
 
 ## Templates (Choose Your Starting Level)
 

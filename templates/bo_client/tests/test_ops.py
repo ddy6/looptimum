@@ -101,6 +101,12 @@ def _write_import_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
     )
 
 
+def _read_event_log(project_root: Path) -> list[dict[str, object]]:
+    path = project_root / "state" / "event_log.jsonl"
+    assert path.exists()
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
 def test_report_generates_json_and_markdown(template_copy) -> None:
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -1453,6 +1459,78 @@ def test_health_reports_warning_state_for_governance_violation(template_copy) ->
     strict_health = json.loads(strict.stdout)
     assert strict.returncode != 0
     assert strict_health["health_state"] == "warning"
+
+
+def test_cancel_emits_governance_override_and_violation_events(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["governance"]["allowed_statuses"] = ["ok"]
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    run_cmd(
+        template_copy,
+        "cancel",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        "--reason",
+        "manual_stop",
+    )
+
+    events = _read_event_log(template_copy)
+    override_events = [
+        event for event in events if event.get("event") == "governance_override_used"
+    ]
+    assert len(override_events) == 1
+    override_event = override_events[0]
+    assert override_event["command"] == "cancel"
+    assert override_event["trial_id"] == suggestion["trial_id"]
+    assert override_event["status"] == "killed"
+    assert override_event["source"] == "manual_cancel"
+    assert override_event["terminal_reason"] == "manual_stop"
+    assert override_event["allowed_statuses"] == ["ok"]
+
+    violation_events = [
+        event for event in events if event.get("event") == "governance_violations_detected"
+    ]
+    assert len(violation_events) == 1
+    assert violation_events[0]["command"] == "cancel"
+    assert "governance.allowed_statuses" in violation_events[0]["policy_ids"]
+
+
+def test_suggest_emits_governance_violation_event_for_log_retention_breach(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["retention"]["logs"]["event_log_max_bytes"] = 1
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "suggest")
+
+    events = _read_event_log(template_copy)
+    violation_events = [
+        event for event in events if event.get("event") == "governance_violations_detected"
+    ]
+    assert len(violation_events) == 1
+    assert violation_events[0]["command"] == "suggest"
+    assert "retention.logs.event_log_max_bytes" in violation_events[0]["policy_ids"]
+
+
+def test_reset_emits_governance_violation_event_for_archive_retention_breach(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["retention"]["archives"]["max_count"] = 1
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    run_cmd(template_copy, "reset", "--yes")
+    run_cmd(template_copy, "reset", "--yes")
+
+    events = _read_event_log(template_copy)
+    violation_events = [
+        event for event in events if event.get("event") == "governance_violations_detected"
+    ]
+    assert len(violation_events) == 1
+    assert violation_events[0]["command"] == "reset"
+    assert "retention.archives.max_count" in violation_events[0]["policy_ids"]
 
 
 def test_health_reports_error_state_for_corrupt_event_log(template_copy) -> None:

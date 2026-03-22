@@ -50,6 +50,8 @@ surrogate backend, and restartable JSON state.
   `state/trials/trial_<id>/manifest.json`, and explicit `report` outputs.
 - Archive-management commands cover inventory (`list-archives`), rollback
   (`restore`), and retention cleanup (`prune-archives`).
+- Read-only `health` and `metrics` expose lock, status, retention, and
+  governance summaries without mutating campaign state.
 - Multi-objective manifests and reports preserve raw `objective_vector` values,
   scalarized ranking metadata, and Pareto summaries.
 - Acquisition decisions now include backend labels and feasibility metadata in
@@ -70,7 +72,8 @@ No CLI changes are needed when switching backend.
 - Random candidate generation is seeded from config/state.
 - State and trial IDs are resumable via `state/bo_state.json`.
 - Acquisition decisions are logged in `state/acquisition_log.jsonl`.
-- Lifecycle and ops events are logged in `state/event_log.jsonl`.
+- Lifecycle and ops events are logged in `state/event_log.jsonl`, including
+  `governance_override_used` and `governance_violations_detected`.
 
 ## Example Payloads
 

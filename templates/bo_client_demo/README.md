@@ -44,6 +44,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   `state/trials/trial_<id>/manifest.json`.
 - Archive-management commands cover inventory (`list-archives`), rollback
   (`restore`), and retention cleanup (`prune-archives`).
+- Read-only `health` and `metrics` expose lock, status, retention, and
+  governance summaries without mutating campaign state.
 - Acquisition decisions include `surrogate_backend` and feasibility metadata in
   `state/acquisition_log.jsonl`.
 - Multi-objective manifests and reports preserve raw `objective_vector` values,

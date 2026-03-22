@@ -633,6 +633,85 @@ def _append_event(paths: dict[str, Path], event: str, **fields: Any) -> None:
     append_jsonl(paths["event_log_file"], payload)
 
 
+def _append_governance_override_event(
+    paths: dict[str, Path],
+    cfg: dict,
+    *,
+    command: str,
+    trial_id: int,
+    status: str,
+    source: str,
+    terminal_reason: str | None = None,
+) -> None:
+    governance_cfg = normalize_governance_config(cfg)
+    allowed_statuses = set(str(item) for item in governance_cfg["allowed_statuses"])
+    normalized_status = str(status).strip().lower()
+    if normalized_status in allowed_statuses:
+        return
+    payload: dict[str, Any] = {
+        "command": command,
+        "policy_id": "governance.allowed_statuses",
+        "trial_id": int(trial_id),
+        "status": normalized_status,
+        "source": source,
+        "allowed_statuses": sorted(allowed_statuses),
+    }
+    if terminal_reason:
+        payload["terminal_reason"] = terminal_reason
+    _append_event(paths, "governance_override_used", **payload)
+
+
+def _append_governance_violation_event(
+    root: Path,
+    paths: dict[str, Path],
+    state: dict,
+    cfg: dict,
+    *,
+    command: str,
+) -> None:
+    snapshot = build_governance_snapshot(root, state, paths, cfg, now=time.time())
+    violations = snapshot.get("violations")
+    if not isinstance(violations, list) or not violations:
+        return
+    _append_event(
+        paths,
+        "governance_violations_detected",
+        command=command,
+        violation_count=len(violations),
+        policy_ids=[
+            str(item.get("policy_id", "unknown")) for item in violations if isinstance(item, dict)
+        ],
+        violations=violations,
+    )
+
+
+def _append_governance_override_events_for_observations(
+    paths: dict[str, Path],
+    cfg: dict,
+    *,
+    command: str,
+    observations: list[dict],
+    source: str,
+) -> None:
+    for observation in observations:
+        status = observation.get("status")
+        trial_id = observation.get("trial_id")
+        if not isinstance(status, str):
+            continue
+        if not isinstance(trial_id, int):
+            continue
+        terminal_reason = observation.get("terminal_reason")
+        _append_governance_override_event(
+            paths,
+            cfg,
+            command=command,
+            trial_id=trial_id,
+            status=status,
+            source=source,
+            terminal_reason=terminal_reason if isinstance(terminal_reason, str) else None,
+        )
+
+
 def _confirm_reset(args: argparse.Namespace, *, root: Path, archive_enabled: bool) -> None:
     if args.yes:
         return
@@ -1979,6 +2058,13 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                         trial_id=obs["trial_id"],
                         reason=obs["terminal_reason"],
                     )
+                _append_governance_override_events_for_observations(
+                    paths,
+                    cfg,
+                    command="suggest",
+                    observations=stale_observations,
+                    source="auto_stale_retire",
+                )
 
             current_pending = len(state["pending"])
             if (
@@ -1988,6 +2074,13 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 if stale_observations:
                     update_best(state, obj_cfg)
                     _save_state_and_rows(paths, state)
+                    _append_governance_violation_event(
+                        root,
+                        paths,
+                        state,
+                        cfg,
+                        command="suggest",
+                    )
                 elif state_schema_upgrade_pending(state):
                     save_state(paths["state_file"], state)
                 print(
@@ -2003,6 +2096,13 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 if stale_observations:
                     update_best(state, obj_cfg)
                     _save_state_and_rows(paths, state)
+                    _append_governance_violation_event(
+                        root,
+                        paths,
+                        state,
+                        cfg,
+                        command="suggest",
+                    )
                 elif state_schema_upgrade_pending(state):
                     save_state(paths["state_file"], state)
                 print("No suggestion generated: budget exhausted.")
@@ -2074,6 +2174,13 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                 save_state(paths["state_file"], state)
                 if stale_observations:
                     write_obs_csv(paths["observations_csv"], _observation_rows(state))
+                    _append_governance_violation_event(
+                        root,
+                        paths,
+                        state,
+                        cfg,
+                        command="suggest",
+                    )
                 raise
 
             state = planning_state
@@ -2100,6 +2207,13 @@ def cmd_suggest(args: argparse.Namespace) -> None:
             save_state(paths["state_file"], state)
             if stale_observations:
                 write_obs_csv(paths["observations_csv"], _observation_rows(state))
+            _append_governance_violation_event(
+                root,
+                paths,
+                state,
+                cfg,
+                command="suggest",
+            )
 
             _emit_suggest_output(planned_suggestions, objective, args)
         finally:
@@ -2251,6 +2365,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
             _save_state_and_rows(paths, state)
             _append_event(paths, "ingest_applied", trial_id=trial_id, status=observation["status"])
+            _append_governance_violation_event(root, paths, state, cfg, command="ingest")
             print(f"Ingested trial_id={trial_id}. Observations={len(state['observations'])}")
         finally:
             _append_event(paths, "lock_released", command="ingest", pid=os.getpid())
@@ -2406,6 +2521,13 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
             if reject_report_rel is not None:
                 event_fields["reject_report_path"] = reject_report_rel
             _append_event(paths, "observations_imported", **event_fields)
+            _append_governance_violation_event(
+                root,
+                paths,
+                state,
+                cfg,
+                command="import-observations",
+            )
             print(f"Imported {len(imported_observations)} observation(s) from {import_source}.")
             if import_mode == "strict":
                 print(
@@ -2467,6 +2589,13 @@ def cmd_export_observations(args: argparse.Namespace) -> None:
                 row_format=row_format,
                 exported_count=len(observations),
             )
+            _append_governance_violation_event(
+                root,
+                paths,
+                state,
+                cfg,
+                command="export-observations",
+            )
             print(f"Exported {len(observations)} observation(s) to {export_path}.")
             print(f"Format: {row_format}.")
         finally:
@@ -2526,6 +2655,14 @@ def cmd_cancel(args: argparse.Namespace) -> None:
                 trial_id=observation["trial_id"],
                 reason=terminal_reason,
             )
+            _append_governance_override_events_for_observations(
+                paths,
+                cfg,
+                command="cancel",
+                observations=[observation],
+                source="manual_cancel",
+            )
+            _append_governance_violation_event(root, paths, state, cfg, command="cancel")
             print(f"Canceled trial_id={observation['trial_id']}. Pending={len(state['pending'])}")
         finally:
             _append_event(paths, "lock_released", command="cancel", pid=os.getpid())
@@ -2623,8 +2760,16 @@ def cmd_retire(args: argparse.Namespace) -> None:
                     reason=observation["terminal_reason"],
                     mode="manual",
                 )
+            _append_governance_override_events_for_observations(
+                paths,
+                cfg,
+                command="retire",
+                observations=retired,
+                source="retire_command",
+            )
 
             _save_state_and_rows(paths, state)
+            _append_governance_violation_event(root, paths, state, cfg, command="retire")
             print(f"Retired {len(retired)} pending trial(s). Pending={len(state['pending'])}")
         finally:
             _append_event(paths, "lock_released", command="retire", pid=os.getpid())
@@ -2692,6 +2837,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
                 trial_id=int(args.trial_id),
                 heartbeat_at=heartbeat_at,
             )
+            _append_governance_violation_event(root, paths, state, cfg, command="heartbeat")
             print(f"Heartbeat recorded for trial_id={int(args.trial_id)}.")
         finally:
             _append_event(paths, "lock_released", command="heartbeat", pid=os.getpid())
@@ -2752,6 +2898,7 @@ def cmd_report(args: argparse.Namespace) -> None:
                 report_json=_relative_path(root, paths["report_json_file"]),
                 report_md=_relative_path(root, paths["report_md_file"]),
             )
+            _append_governance_violation_event(root, paths, state, cfg, command="report")
             print(
                 "Generated report files:\n"
                 f"- {paths['report_json_file']}\n"
@@ -2833,6 +2980,13 @@ def cmd_reset(args: argparse.Namespace) -> None:
                 archive_path=archive_rel,
                 removed_count=len(removed),
                 missing_count=len(missing),
+            )
+            _append_governance_violation_event(
+                root,
+                paths,
+                load_state(paths["state_file"]),
+                cfg,
+                command="reset",
             )
 
             print("Campaign reset completed.")
@@ -2926,6 +3080,13 @@ def cmd_restore(args: argparse.Namespace) -> None:
                 overwritten_count=len(restore_result["overwritten_paths"]),
                 ignored_count=len(restore_result["ignored_paths"]),
             )
+            _append_governance_violation_event(
+                root,
+                paths,
+                load_state(paths["state_file"]),
+                cfg,
+                command="restore",
+            )
 
             print("Campaign restore completed.")
             print(f"Archive: {restore_result['archive_rel']}")
@@ -3007,6 +3168,13 @@ def cmd_prune_archives(args: argparse.Namespace) -> None:
                 pruned_count=prune_result["pruned_count"],
                 keep_last=criteria["keep_last"],
                 older_than_seconds=criteria["older_than_seconds"],
+            )
+            _append_governance_violation_event(
+                root,
+                paths,
+                load_state(paths["state_file"]),
+                cfg,
+                command="prune-archives",
             )
 
             pruned_paths = prune_result["pruned_paths"]

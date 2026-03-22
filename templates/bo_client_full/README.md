@@ -59,6 +59,8 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
   `state/trials/trial_<id>/manifest.json`, and explicit report outputs.
 - Archive-management commands cover inventory (`list-archives`), rollback
   (`restore`), and retention cleanup (`prune-archives`).
+- Read-only `health` and `metrics` expose lock, status, retention, and
+  governance summaries without mutating campaign state.
 - Multi-objective manifests and reports preserve raw `objective_vector` values,
   scalarized ranking metadata, and Pareto summaries.
 

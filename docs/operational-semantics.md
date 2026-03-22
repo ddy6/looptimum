@@ -22,7 +22,7 @@ Schema path compatibility:
 |---|---|---|
 | `state/bo_state.json` | Source of truth for `schema_version`, pending trials, observations, best-so-far, and next trial id | Authoritative |
 | `state/acquisition_log.jsonl` | Append-only decision log for each suggestion | Audit trail, not authoritative state |
-| `state/event_log.jsonl` | Append-only lifecycle/ops log (locks, heartbeat, import/export, retire/cancel, report) | Audit trail, not authoritative state |
+| `state/event_log.jsonl` | Append-only lifecycle/ops log (locks, heartbeat, import/export, retire/cancel, report, governance events) | Audit trail, not authoritative state |
 | `state/import_reports/import-*.json` | Permissive warm-start import summaries plus rejected-row detail | Derived artifact |
 | `state/trials/trial_<id>/manifest.json` | Per-trial audit manifest and artifact pointers | Derived from authoritative state/payloads |
 | `state/observations.csv` | Flattened export of observations | Derived artifact |
@@ -244,10 +244,40 @@ Multi-objective note:
 - Hard failures return non-zero exit.
 - Warnings are informational with exit 0 unless `--strict`.
 
+### `health`
+
+- `health` is read-only and does not mutate runtime artifacts.
+- It aggregates validate-aligned hard errors/warnings, path presence, lock
+  visibility, status counts, and governance findings into one JSON payload.
+- `health_state` is `ok`, `warning`, or `error`.
+- `--strict` makes warning-state output exit nonzero.
+
+### `metrics`
+
+- `metrics` is read-only and does not mutate runtime artifacts.
+- It layers on top of `health` and adds counts, pending-age bucket summaries,
+  explicit suggest-latency summaries from `acquisition_log.jsonl`, and
+  governance warning/violation totals.
+
 ### `doctor`
 
 - `doctor` prints environment/backend/state diagnostics.
 - `doctor --json` emits machine-readable diagnostics for tooling/CI.
+
+## Governance and Retention Semantics
+
+- `governance.allowed_statuses` defines the policy set of accepted terminal
+  statuses for the campaign.
+- Ingested observations outside that set remain visible in authoritative state;
+  they are surfaced as governance violations rather than rewritten or dropped.
+- Runtime-generated terminal `killed` observations from `cancel`, `retire`, and
+  automatic stale retirement append `governance_override_used` when `killed`
+  falls outside `governance.allowed_statuses`.
+- `retention.archives.*` and `retention.logs.*` are warn-first limits. They
+  do not trigger automatic prune/rotation behavior.
+- After successful mutating commands, Looptimum may append
+  `governance_violations_detected` when observed statuses, archive inventory,
+  or append-only log footprints breach configured policy.
 
 ## Pending Trial Semantics
 

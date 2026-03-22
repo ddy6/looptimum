@@ -10,7 +10,7 @@ Stable command names and required flag posture are documented in
 
 - core loop: `suggest`, `ingest`, `status`, `demo`
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
-- support ops: `import-observations`, `export-observations`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
+- support ops: `import-observations`, `export-observations`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `health`, `metrics`, `validate`, `doctor`
 
 ## Core Loop Contract
 
@@ -120,6 +120,25 @@ Default file-backed artifacts under each template's `state/` path:
 - `trials/trial_<id>/manifest.json`: per-trial manifest/audit record
 - `report.json` and `report.md`: explicit `report` command outputs, including
   objective-config and Pareto summaries for multi-objective campaigns
+
+## Observability and Governance
+
+- `health [--strict]` is the read-only machine-readable health surface; it
+  combines validate-aligned hard errors/warnings, path presence, lock state,
+  and governance findings.
+- `metrics` is the read-only machine-readable metrics surface; it adds counts,
+  pending-age buckets, suggest-latency summaries, and governance totals.
+- `bo_config.json` can set `governance.allowed_statuses`,
+  `retention.archives.max_count`, `retention.archives.max_age_seconds`,
+  `retention.archives.max_total_bytes`,
+  `retention.logs.event_log_max_bytes`, and
+  `retention.logs.acquisition_log_max_bytes`.
+- Retention is warn-first: Looptimum surfaces policy breaches but does not
+  auto-prune archives or rotate append-only logs.
+- Mutating commands append `governance_override_used` when the runtime itself
+  emits a terminal status outside `governance.allowed_statuses`, and
+  `governance_violations_detected` when observed statuses or retention
+  footprints breach configured policy.
 
 ## Concurrency and Recovery
 

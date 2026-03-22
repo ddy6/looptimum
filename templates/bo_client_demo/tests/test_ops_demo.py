@@ -143,6 +143,12 @@ def _write_import_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
     )
 
 
+def _read_event_log(project_root: Path) -> list[dict[str, object]]:
+    path = project_root / "state" / "event_log.jsonl"
+    assert path.exists()
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
 def test_report_generates_json_and_markdown(template_copy: Path) -> None:
     suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
     payload = {
@@ -929,6 +935,38 @@ def test_metrics_json_reports_clean_campaign_state(template_copy: Path) -> None:
     assert metrics["counts"]["failure_rate"] == 0.0
     assert metrics["suggestion_latency"]["count"] == 1
     assert metrics["governance"]["violation_count"] == 0
+
+
+def test_cancel_emits_governance_override_and_violation_events(template_copy: Path) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["governance"]["allowed_statuses"] = ["ok"]
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    run_cmd(
+        template_copy,
+        "cancel",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        "--reason",
+        "manual_stop",
+    )
+
+    events = _read_event_log(template_copy)
+    override_events = [
+        event for event in events if event.get("event") == "governance_override_used"
+    ]
+    assert len(override_events) == 1
+    assert override_events[0]["command"] == "cancel"
+    assert override_events[0]["status"] == "killed"
+
+    violation_events = [
+        event for event in events if event.get("event") == "governance_violations_detected"
+    ]
+    assert len(violation_events) == 1
+    assert violation_events[0]["command"] == "cancel"
+    assert "governance.allowed_statuses" in violation_events[0]["policy_ids"]
 
 
 def test_ingest_atomic_write_injection_preserves_last_good_state(

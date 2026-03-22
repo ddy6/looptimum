@@ -172,6 +172,14 @@ Retention rules:
 Use `prune-archives` instead of manual filesystem deletion so retention actions
 are logged and validated under the normal mutation lock.
 
+Governance follow-up:
+
+- use `health --strict` to fail fast on current governance warnings/violations
+- use `metrics` to inspect current archive/log footprint and pending-age totals
+- inspect `state/event_log.jsonl` for `governance_override_used` and
+  `governance_violations_detected` before deciding whether to prune, restore,
+  or accept an operator override as intentional
+
 ## Traceability Checklist
 
 After recovery, verify:

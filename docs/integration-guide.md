@@ -350,6 +350,10 @@ Runtime control commands used during long-running integrations:
 - `prune-archives [--keep-last N] [--older-than-seconds S] [--yes]`: delete
   reset archives matching explicit retention rules without manual filesystem
   cleanup.
+- `health [--strict]`: read-only JSON health surface combining config/state
+  errors, path presence, lock visibility, and governance findings.
+- `metrics`: read-only JSON metrics surface for counts, pending age, suggest
+  latency, and governance totals.
 - `validate [--strict]`: run config/schema/state checks (`--strict` makes warnings fatal).
 - `doctor [--json]`: print environment/backend/state diagnostics.
 
@@ -359,6 +363,10 @@ Operational notes:
   wait+timeout default behavior.
 - Use `--fail-fast` on mutating commands when your automation should fail
   immediately under lock contention.
+- Governance/retention config is warn-first: configured archive/log/status
+  policy breaches are surfaced via `health`, `metrics`, and
+  `state/event_log.jsonl`, but Looptimum does not auto-prune or auto-rotate
+  artifacts.
 - For prescriptive interruption handling and "what to run next" flows, use
   `docs/recovery-playbook.md`.
 - For platform-agnostic CI persistence/parallelism policy (with GitHub examples),
