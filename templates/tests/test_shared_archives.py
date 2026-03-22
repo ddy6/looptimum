@@ -149,3 +149,72 @@ def test_inspect_reset_archive_reports_missing_manifested_files(tmp_path: Path) 
     assert inspected["integrity_errors"] == [
         "missing archived path for state_file: state/bo_state.json"
     ]
+
+
+def test_list_reset_archives_summarizes_manifest_and_legacy_archives(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    runtime_paths = _seed_runtime_artifacts(root)
+    archives_root = root / "state" / "reset_archives"
+
+    legacy_root = archives_root / "reset-legacy"
+    legacy_root.mkdir(parents=True)
+    _copy_existing_reset_targets(root, legacy_root, runtime_paths)
+
+    manifest_root = archives_root / "reset-999"
+    manifest_root.mkdir(parents=True)
+    archived = _copy_existing_reset_targets(root, manifest_root, runtime_paths)
+    manifest = ARCHIVES.build_reset_archive_manifest(
+        root,
+        manifest_root,
+        archived,
+        created_at=999.0,
+    )
+    ARCHIVES.write_archive_manifest(manifest_root, manifest)
+
+    archives = ARCHIVES.list_reset_archives(root, runtime_paths, preview_limit=2)
+
+    assert [archive["archive_id"] for archive in archives] == ["reset-999", "reset-legacy"]
+    assert archives[0]["archive_rel"] == "state/reset_archives/reset-999"
+    assert archives[0]["integrity_status"] == "ok"
+    assert archives[0]["entry_count"] == 3
+    assert archives[0]["remaining_entry_count"] == 1
+    assert archives[0]["preview_paths"] == [
+        "examples/_demo_result.json",
+        "state/bo_state.json",
+    ]
+    assert archives[1]["legacy"] is True
+    assert archives[1]["integrity_status"] == "legacy"
+
+
+def test_render_reset_archive_listing_handles_empty_and_broken_archives() -> None:
+    assert ARCHIVES.render_reset_archive_listing([], archives_root_rel="state/reset_archives") == [
+        "No reset archives found under state/reset_archives."
+    ]
+
+    lines = ARCHIVES.render_reset_archive_listing(
+        [
+            {
+                "archive_id": "reset-bad",
+                "archive_rel": "state/reset_archives/reset-bad",
+                "legacy": False,
+                "integrity_status": "invalid_manifest",
+                "created_at": None,
+                "entry_count": 0,
+                "preview_paths": [],
+                "remaining_entry_count": 0,
+                "integrity_errors": ["archive manifest root must be an object"],
+            }
+        ],
+        archives_root_rel="state/reset_archives",
+    )
+
+    assert lines[0] == "Found 1 reset archive(s) under state/reset_archives:"
+    assert any(
+        "reset-bad | status=invalid_manifest | kind=manifest | created_at=unknown | entries=0"
+        in line
+        for line in lines
+    )
+    assert "  path: state/reset_archives/reset-bad" in lines
+    assert "  inventory: (empty)" in lines
+    assert "  integrity_error: archive manifest root must be an object" in lines

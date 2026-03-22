@@ -309,6 +309,19 @@ def _seed_runtime_artifacts_for_reset(template_copy: Path) -> None:
     (template_copy / "examples" / "_demo_result.json").write_text("{}", encoding="utf-8")
 
 
+def _seed_legacy_archive_for_listing(template_copy: Path, archive_id: str = "reset-legacy") -> Path:
+    archive_root = template_copy / "state" / "reset_archives" / archive_id
+    (archive_root / "state" / "trials" / "trial_legacy").mkdir(parents=True, exist_ok=True)
+    (archive_root / "state" / "bo_state.json").write_text("{}", encoding="utf-8")
+    (archive_root / "state" / "trials" / "trial_legacy" / "manifest.json").write_text(
+        "{}",
+        encoding="utf-8",
+    )
+    (archive_root / "examples").mkdir(parents=True, exist_ok=True)
+    (archive_root / "examples" / "_demo_result.json").write_text("{}", encoding="utf-8")
+    return archive_root
+
+
 def test_reset_requires_yes_in_non_interactive_mode(template_copy: Path) -> None:
     run_cmd(template_copy, "suggest")
     out = run_cmd(template_copy, "reset", expect_ok=False)
@@ -359,6 +372,38 @@ def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy: P
     assert (archive_dir / "state" / "bo_state.json").exists()
     assert (archive_dir / "state" / "trials").exists()
     assert (archive_dir / "examples" / "_demo_result.json").exists()
+
+
+def test_list_archives_reports_empty_state(template_copy: Path) -> None:
+    out = run_cmd(template_copy, "list-archives")
+    assert out.stdout.strip() == "No reset archives found under state/reset_archives."
+
+
+def test_list_archives_reports_manifest_and_legacy_archives(template_copy: Path) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+    legacy_archive = _seed_legacy_archive_for_listing(template_copy)
+
+    run_cmd(template_copy, "reset", "--yes")
+    archives_root = template_copy / "state" / "reset_archives"
+    manifest_archives = sorted(
+        path
+        for path in archives_root.iterdir()
+        if path.is_dir() and path.name != legacy_archive.name
+    )
+    assert len(manifest_archives) == 1
+    manifest_archive = manifest_archives[0]
+
+    out = run_cmd(template_copy, "list-archives")
+
+    assert "Found 2 reset archive(s) under state/reset_archives:" in out.stdout
+    assert f"- {manifest_archive.name} | status=ok | kind=manifest | created_at=" in out.stdout
+    assert f"  path: state/reset_archives/{manifest_archive.name}" in out.stdout
+    assert "  inventory: examples/_demo_result.json, state/.looptimum.lock" in out.stdout
+    assert (
+        f"- {legacy_archive.name} | status=legacy | kind=legacy | created_at=unknown" in out.stdout
+    )
+    assert f"  path: state/reset_archives/{legacy_archive.name}" in out.stdout
+    assert "state/trials" in out.stdout
 
 
 def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy: Path) -> None:

@@ -298,6 +298,8 @@ Runtime control commands used during long-running integrations:
 - `report`: write `state/report.json` and `state/report.md`.
 - `reset [--yes] [--no-archive]`: reset runtime artifacts; archives current
   artifacts by default unless `--no-archive` is used.
+- `list-archives`: enumerate `state/reset_archives/` with archive metadata,
+  inventory summary, and integrity status.
 - `validate [--strict]`: run config/schema/state checks (`--strict` makes warnings fatal).
 - `doctor [--json]`: print environment/backend/state diagnostics.
 

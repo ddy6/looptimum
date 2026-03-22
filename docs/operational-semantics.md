@@ -178,6 +178,15 @@ Multi-objective note:
 - Reset cleanup targets runtime artifacts only (state/log/report/trials/demo
   result), not project config/schema/code files.
 
+### `list-archives`
+
+- `list-archives` is read-only and does not mutate runtime state.
+- It inventories `state/reset_archives/` and surfaces archive id, created-at
+  metadata, archived runtime-path summary, and integrity status.
+- Manifest-less legacy reset archives remain visible as `status=legacy`.
+- Broken or incomplete manifest-backed archives are listed with integrity
+  errors instead of being silently ignored.
+
 ### `validate`
 
 - `validate` checks config/schema/state consistency and basic corruption.
@@ -216,6 +225,8 @@ Multi-objective note:
 
 - Mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`)
   use an exclusive lock file (`state/.looptimum.lock`).
+- `list-archives`, `status`, `validate`, and `doctor` are read-only and do not
+  take the mutation lock.
 - Default behavior waits for lock with timeout; `--fail-fast` switches to
   immediate failure on contention.
 - Batch `suggest` allocation, lease-aware `heartbeat`, and lease-aware `ingest`

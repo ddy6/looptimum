@@ -10,7 +10,7 @@ Stable command names and required flag posture are documented in
 
 - core loop: `suggest`, `ingest`, `status`, `demo`
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
-- support ops: `report`, `reset`, `validate`, `doctor`
+- support ops: `report`, `reset`, `list-archives`, `validate`, `doctor`
 
 ## Core Loop Contract
 
@@ -113,6 +113,8 @@ Default file-backed artifacts under each template's `state/` path:
   rejects the whole batch with no partial pending creation.
 - `reset` removes runtime artifacts with confirmation; archive is enabled by
   default unless `--no-archive` is passed.
+- `list-archives` is read-only and inventories `state/reset_archives/`,
+  including legacy manifest-less archives and any integrity warnings.
 - stale pending handling can be automated via configured age policy or manual
   `retire`.
 - interruption recovery runbook:

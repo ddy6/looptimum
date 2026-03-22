@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -57,6 +58,10 @@ def copy_path_to_archive(path: Path, destination: Path) -> None:
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(path, destination)
+
+
+def reset_archives_root(runtime_paths: Mapping[str, Path]) -> Path:
+    return runtime_paths["state_file"].parent / "reset_archives"
 
 
 def _entry_path_type(path: Path) -> str:
@@ -256,3 +261,109 @@ def inspect_reset_archive(
         "integrity_status": integrity_status,
         "integrity_errors": integrity_errors,
     }
+
+
+def summarize_archive_entries(
+    entries: Sequence[Mapping[str, Any]],
+    *,
+    preview_limit: int = 5,
+) -> ArchiveInspection:
+    inventory_paths = sorted(
+        source_rel
+        for entry in entries
+        for source_rel in [entry.get("source_rel")]
+        if isinstance(source_rel, str) and source_rel
+    )
+    file_count = sum(1 for entry in entries if entry.get("path_type") == "file")
+    directory_count = sum(1 for entry in entries if entry.get("path_type") == "directory")
+    preview_paths = inventory_paths[:preview_limit]
+    return {
+        "entry_count": len(inventory_paths),
+        "file_count": file_count,
+        "directory_count": directory_count,
+        "preview_paths": preview_paths,
+        "remaining_entry_count": max(0, len(inventory_paths) - len(preview_paths)),
+    }
+
+
+def list_reset_archives(
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+    *,
+    preview_limit: int = 5,
+) -> list[ArchiveInspection]:
+    archives_root = reset_archives_root(runtime_paths)
+    if not archives_root.exists() or not archives_root.is_dir():
+        return []
+
+    archives: list[ArchiveInspection] = []
+    for archive_root in (path for path in archives_root.iterdir() if path.is_dir()):
+        archive = inspect_reset_archive(
+            archive_root,
+            project_root=project_root,
+            runtime_paths=runtime_paths,
+        )
+        archive["archive_rel"] = _relative_path(project_root, archive_root)
+        archive.update(summarize_archive_entries(archive["entries"], preview_limit=preview_limit))
+        archives.append(archive)
+
+    def _archive_sort_key(archive: Mapping[str, Any]) -> tuple[float, str]:
+        created_at = archive.get("created_at")
+        if isinstance(created_at, (int, float)) and not isinstance(created_at, bool):
+            created_at_value = float(created_at)
+            if math.isfinite(created_at_value):
+                return (created_at_value, str(archive.get("archive_id") or ""))
+        return (float("-inf"), str(archive.get("archive_id") or ""))
+
+    archives.sort(key=_archive_sort_key, reverse=True)
+    return archives
+
+
+def format_archive_created_at(created_at: Any) -> str:
+    if not isinstance(created_at, (int, float)) or isinstance(created_at, bool):
+        return "unknown"
+    created_at_value = float(created_at)
+    if not math.isfinite(created_at_value):
+        return "unknown"
+    return time.strftime("%Y-%m-%d %H:%M:%S %Z", time.localtime(created_at_value))
+
+
+def render_reset_archive_listing(
+    archives: Sequence[Mapping[str, Any]],
+    *,
+    archives_root_rel: str,
+) -> list[str]:
+    if not archives:
+        return [f"No reset archives found under {archives_root_rel}."]
+
+    lines = [f"Found {len(archives)} reset archive(s) under {archives_root_rel}:"]
+    for archive in archives:
+        archive_id = str(archive.get("archive_id") or "<unknown>")
+        integrity_status = str(archive.get("integrity_status") or "unknown")
+        archive_kind = "legacy" if archive.get("legacy") else "manifest"
+        created_at_text = format_archive_created_at(archive.get("created_at"))
+        entry_count = int(archive.get("entry_count", 0) or 0)
+        lines.append(
+            f"- {archive_id} | status={integrity_status} | kind={archive_kind} "
+            f"| created_at={created_at_text} | entries={entry_count}"
+        )
+
+        archive_rel = archive.get("archive_rel")
+        if isinstance(archive_rel, str) and archive_rel:
+            lines.append(f"  path: {archive_rel}")
+
+        preview_paths = archive.get("preview_paths")
+        inventory_line = "(empty)"
+        if isinstance(preview_paths, list) and preview_paths:
+            inventory_line = ", ".join(str(path) for path in preview_paths)
+            remaining_entry_count = int(archive.get("remaining_entry_count", 0) or 0)
+            if remaining_entry_count > 0:
+                inventory_line += f" (+{remaining_entry_count} more)"
+        lines.append(f"  inventory: {inventory_line}")
+
+        integrity_errors = archive.get("integrity_errors")
+        if isinstance(integrity_errors, list):
+            for error in integrity_errors:
+                if isinstance(error, str) and error:
+                    lines.append(f"  integrity_error: {error}")
+    return lines

@@ -6,7 +6,8 @@ surrogate backend, and restartable JSON state.
 ## Files
 
 - `run_bo.py`: driver for `suggest`, `ingest`, `status`, `demo`, `cancel`,
-  `retire`, `heartbeat`, `report`, `reset`, `validate`, and `doctor`.
+  `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `validate`, and
+  `doctor`.
 - `bo_config.json`: run budget, surrogate/acquisition choices, shared
   `feature_flags`, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.

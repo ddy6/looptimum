@@ -82,6 +82,9 @@ scalarized_direction = _OBJECTIVES.scalarized_direction
 
 build_reset_archive_manifest = _ARCHIVES.build_reset_archive_manifest
 copy_path_to_archive = _ARCHIVES.copy_path_to_archive
+list_reset_archives = _ARCHIVES.list_reset_archives
+render_reset_archive_listing = _ARCHIVES.render_reset_archive_listing
+reset_archives_root = _ARCHIVES.reset_archives_root
 reset_artifact_paths = _ARCHIVES.reset_artifact_paths
 write_archive_manifest = _ARCHIVES.write_archive_manifest
 
@@ -2092,6 +2095,19 @@ def cmd_reset(args: argparse.Namespace) -> None:
             _append_event(paths, "lock_released", command="reset", pid=os.getpid())
 
 
+def cmd_list_archives(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    paths = _runtime_paths(root, cfg)
+    archives = list_reset_archives(root, paths)
+    archives_root_rel = _relative_path(root, reset_archives_root(paths))
+    for line in render_reset_archive_listing(archives, archives_root_rel=archives_root_rel):
+        print(line)
+
+
 def cmd_validate(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     hard_errors: list[str] = []
@@ -2315,6 +2331,7 @@ def parse_args() -> argparse.Namespace:
             "heartbeat",
             "report",
             "reset",
+            "list-archives",
             "validate",
             "doctor",
         ],
@@ -2411,6 +2428,7 @@ def main() -> None:
         "heartbeat": cmd_heartbeat,
         "report": cmd_report,
         "reset": cmd_reset,
+        "list-archives": cmd_list_archives,
         "validate": cmd_validate,
         "doctor": cmd_doctor,
     }
