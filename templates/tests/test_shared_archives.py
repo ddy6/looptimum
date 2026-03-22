@@ -62,6 +62,37 @@ def _copy_existing_reset_targets(
     return archived
 
 
+def _write_manifest_archive(
+    root: Path,
+    runtime_paths: dict[str, Path],
+    archive_id: str,
+    *,
+    created_at: float,
+) -> Path:
+    archive_root = root / "state" / "reset_archives" / archive_id
+    archive_root.mkdir(parents=True, exist_ok=True)
+    archived = _copy_existing_reset_targets(root, archive_root, runtime_paths)
+    manifest = ARCHIVES.build_reset_archive_manifest(
+        root,
+        archive_root,
+        archived,
+        created_at=created_at,
+    )
+    ARCHIVES.write_archive_manifest(archive_root, manifest)
+    return archive_root
+
+
+def _write_legacy_archive(
+    root: Path,
+    runtime_paths: dict[str, Path],
+    archive_id: str,
+) -> Path:
+    archive_root = root / "state" / "reset_archives" / archive_id
+    archive_root.mkdir(parents=True, exist_ok=True)
+    _copy_existing_reset_targets(root, archive_root, runtime_paths)
+    return archive_root
+
+
 def test_build_and_inspect_reset_archive_manifest_round_trips(tmp_path: Path) -> None:
     root = tmp_path / "project"
     root.mkdir()
@@ -325,3 +356,42 @@ def test_restore_reset_archive_rolls_back_on_injected_apply_failure(
     assert (root / "examples" / "_demo_result.json").read_text(
         encoding="utf-8"
     ) == current_demo_text
+
+
+def test_plan_reset_archive_prune_with_age_keeps_unknown_age_legacy_archives(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    runtime_paths = _seed_runtime_artifacts(root)
+    _write_manifest_archive(root, runtime_paths, "reset-old", created_at=100.0)
+    _write_manifest_archive(root, runtime_paths, "reset-new", created_at=200.0)
+    _write_legacy_archive(root, runtime_paths, "reset-legacy")
+
+    plan = ARCHIVES.plan_reset_archive_prune(
+        root,
+        runtime_paths,
+        older_than_seconds=750.0,
+        now=1_000.0,
+    )
+
+    assert plan["prunable_archive_ids"] == ["reset-new", "reset-old"]
+    assert plan["kept_due_to_unknown_age"] == ["reset-legacy"]
+    assert plan["kept_archive_ids"] == ["reset-legacy"]
+
+
+def test_prune_reset_archives_keep_last_prunes_older_archives(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    runtime_paths = _seed_runtime_artifacts(root)
+    _write_manifest_archive(root, runtime_paths, "reset-old", created_at=100.0)
+    kept_archive = _write_manifest_archive(root, runtime_paths, "reset-new", created_at=200.0)
+    _write_legacy_archive(root, runtime_paths, "reset-legacy")
+
+    result = ARCHIVES.prune_reset_archives(root, runtime_paths, keep_last=1, now=1_000.0)
+
+    assert result["prunable_archive_ids"] == ["reset-old", "reset-legacy"]
+    assert result["pruned_count"] == 2
+    assert kept_archive.exists()
+    assert not (root / "state" / "reset_archives" / "reset-old").exists()
+    assert not (root / "state" / "reset_archives" / "reset-legacy").exists()

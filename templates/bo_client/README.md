@@ -7,7 +7,7 @@ surrogate backend, and restartable JSON state.
 
 - `run_bo.py`: driver for `suggest`, `ingest`, `status`, `demo`, `cancel`,
   `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`,
-  `validate`, and `doctor`.
+  `prune-archives`, `validate`, and `doctor`.
 - `bo_config.json`: run budget, surrogate/acquisition choices, shared
   `feature_flags`, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
@@ -43,6 +43,8 @@ surrogate backend, and restartable JSON state.
   `--lease-token` on `heartbeat` / `ingest`.
 - Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
   `state/trials/trial_<id>/manifest.json`, and explicit `report` outputs.
+- Archive-management commands cover inventory (`list-archives`), rollback
+  (`restore`), and retention cleanup (`prune-archives`).
 - Multi-objective manifests and reports preserve raw `objective_vector` values,
   scalarized ranking metadata, and Pareto summaries.
 - Acquisition decisions now include backend labels and feasibility metadata in

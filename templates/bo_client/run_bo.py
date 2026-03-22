@@ -83,6 +83,8 @@ scalarized_direction = _OBJECTIVES.scalarized_direction
 build_reset_archive_manifest = _ARCHIVES.build_reset_archive_manifest
 copy_path_to_archive = _ARCHIVES.copy_path_to_archive
 list_reset_archives = _ARCHIVES.list_reset_archives
+plan_reset_archive_prune = _ARCHIVES.plan_reset_archive_prune
+prune_reset_archives = _ARCHIVES.prune_reset_archives
 render_reset_archive_listing = _ARCHIVES.render_reset_archive_listing
 reset_archives_root = _ARCHIVES.reset_archives_root
 reset_artifact_paths = _ARCHIVES.reset_artifact_paths
@@ -479,6 +481,21 @@ def _confirm_restore(args: argparse.Namespace, *, root: Path, archive_id: str) -
     token = sys.stdin.readline().strip()
     if token != "RESTORE":
         raise ValueError("restore aborted: confirmation token mismatch")
+
+
+def _confirm_prune(args: argparse.Namespace, *, root: Path) -> None:
+    if args.yes:
+        return
+    if not sys.stdin.isatty():
+        raise ValueError("prune-archives is destructive; re-run with --yes for non-interactive use")
+
+    print(
+        f"Prune will permanently delete reset archives under {root / 'state' / 'reset_archives'}."
+    )
+    print("Type PRUNE to continue: ", end="", flush=True)
+    token = sys.stdin.readline().strip()
+    if token != "PRUNE":
+        raise ValueError("prune-archives aborted: confirmation token mismatch")
 
 
 def _require_finite_number(value: Any, *, field_name: str, trial_id: int) -> float:
@@ -2212,6 +2229,79 @@ def cmd_restore(args: argparse.Namespace) -> None:
                 _append_event(paths, "lock_released", command="restore", pid=os.getpid())
 
 
+def cmd_prune_archives(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    paths = _runtime_paths(root, cfg)
+    keep_last = args.keep_last
+    older_than_seconds = args.older_than_seconds
+    _confirm_prune(args, root=root)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="prune-archives",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            prune_result = prune_reset_archives(
+                root,
+                paths,
+                keep_last=keep_last,
+                older_than_seconds=older_than_seconds,
+            )
+            criteria = cast(JSONDict, prune_result["criteria"])
+            _append_event(
+                paths,
+                "archives_pruned",
+                pruned_count=prune_result["pruned_count"],
+                keep_last=criteria["keep_last"],
+                older_than_seconds=criteria["older_than_seconds"],
+            )
+
+            pruned_paths = cast(list[str], prune_result["pruned_paths"])
+            kept_ids = cast(list[str], prune_result["kept_archive_ids"])
+            unknown_age_kept = cast(list[str], prune_result["kept_due_to_unknown_age"])
+
+            if pruned_paths:
+                print(f"Pruned {len(pruned_paths)} reset archive(s).")
+            else:
+                print("No reset archives matched prune criteria.")
+
+            print("Criteria:")
+            print(f"- keep_last: {criteria['keep_last']}")
+            print(f"- older_than_seconds: {criteria['older_than_seconds']}")
+
+            print("Pruned archives:")
+            if pruned_paths:
+                for rel in pruned_paths:
+                    print(f"- {rel}")
+            else:
+                print("- (none)")
+
+            print("Kept archives:")
+            if kept_ids:
+                for archive_id in kept_ids:
+                    print(f"- {archive_id}")
+            else:
+                print("- (none)")
+
+            if unknown_age_kept:
+                print("Kept due to unknown age:")
+                for archive_id in unknown_age_kept:
+                    print(f"- {archive_id}")
+        finally:
+            _append_event(paths, "lock_released", command="prune-archives", pid=os.getpid())
+
+
 def cmd_validate(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     hard_errors: list[str] = []
@@ -2437,6 +2527,7 @@ def parse_args() -> argparse.Namespace:
             "reset",
             "list-archives",
             "restore",
+            "prune-archives",
             "validate",
             "doctor",
         ],
@@ -2492,9 +2583,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--yes",
         action="store_true",
-        help="For reset/restore: skip interactive confirmation prompt.",
+        help="For reset/restore/prune-archives: skip interactive confirmation prompt.",
     )
     parser.add_argument("--archive-id", help="For restore: reset archive id to rehydrate.")
+    parser.add_argument(
+        "--keep-last",
+        type=int,
+        help="For prune-archives: keep the newest N reset archives and prune older ones.",
+    )
+    parser.add_argument(
+        "--older-than-seconds",
+        type=float,
+        help="For prune-archives: prune archives with known age >= this threshold.",
+    )
     archive_group = parser.add_mutually_exclusive_group()
     archive_group.add_argument(
         "--archive",
@@ -2536,6 +2637,7 @@ def main() -> None:
         "reset": cmd_reset,
         "list-archives": cmd_list_archives,
         "restore": cmd_restore,
+        "prune-archives": cmd_prune_archives,
         "validate": cmd_validate,
         "doctor": cmd_doctor,
     }

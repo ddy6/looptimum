@@ -349,6 +349,13 @@ def _copy_runtime_artifacts_to_legacy_archive(
     return archive_root
 
 
+def _set_archive_manifest_created_at(archive_root: Path, *, created_at: float) -> None:
+    manifest_path = archive_root / "archive_manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["created_at"] = created_at
+    manifest_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
 def _write_runtime_marker_state(template_copy: Path, *, marker: str) -> None:
     state_dir = template_copy / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -552,6 +559,65 @@ def test_restore_rejects_broken_archive_without_mutating_runtime_state(
     assert (template_copy / "state" / "report.json").read_text(
         encoding="utf-8"
     ) == current_report_text
+
+
+def test_prune_archives_requires_yes_in_non_interactive_mode(template_copy: Path) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+    run_cmd(template_copy, "reset", "--yes")
+
+    out = run_cmd(
+        template_copy,
+        "prune-archives",
+        "--keep-last",
+        "0",
+        expect_ok=False,
+    )
+    assert out.returncode != 0
+    assert "re-run with --yes" in out.stderr
+
+
+def test_prune_archives_applies_keep_last_and_age_rules(template_copy: Path) -> None:
+    _seed_runtime_artifacts_for_reset(template_copy)
+    run_cmd(template_copy, "reset", "--yes")
+    archives_root = template_copy / "state" / "reset_archives"
+    old_archive = next(path for path in archives_root.iterdir() if path.is_dir())
+    _set_archive_manifest_created_at(old_archive, created_at=100.0)
+
+    _seed_runtime_artifacts_for_reset(template_copy)
+    run_cmd(template_copy, "reset", "--yes")
+    new_archive = next(
+        path for path in archives_root.iterdir() if path.is_dir() and path.name != old_archive.name
+    )
+    _set_archive_manifest_created_at(new_archive, created_at=200.0)
+
+    legacy_archive = _seed_legacy_archive_for_listing(
+        template_copy, archive_id="reset-legacy-prune"
+    )
+
+    out = run_cmd(
+        template_copy,
+        "prune-archives",
+        "--keep-last",
+        "1",
+        "--older-than-seconds",
+        "1",
+        "--yes",
+    )
+
+    assert "Pruned 1 reset archive(s)." in out.stdout
+    assert "Criteria:" in out.stdout
+    assert f"- state/reset_archives/{old_archive.name}" in out.stdout
+    assert "Kept due to unknown age:" in out.stdout
+    assert new_archive.name in out.stdout
+    assert legacy_archive.name in out.stdout
+    assert not old_archive.exists()
+    assert new_archive.exists()
+    assert legacy_archive.exists()
+
+    event_log_lines = (
+        (template_copy / "state" / "event_log.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    assert any('"event": "archives_pruned"' in line for line in event_log_lines)
 
 
 def test_validate_warnings_exit_zero_and_strict_nonzero(template_copy: Path) -> None:

@@ -10,7 +10,7 @@ Stable command names and required flag posture are documented in
 
 - core loop: `suggest`, `ingest`, `status`, `demo`
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
-- support ops: `report`, `reset`, `list-archives`, `restore`, `validate`, `doctor`
+- support ops: `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
 
 ## Core Loop Contract
 
@@ -107,7 +107,7 @@ Default file-backed artifacts under each template's `state/` path:
 
 - one controller/writer per state path is required; multi-controller writes to
   the same state path are unsupported.
-- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`, `restore`)
+- mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`, `restore`, `prune-archives`)
   run under exclusive file lock semantics.
 - batch allocation is atomic under that lock: contention or validation failure
   rejects the whole batch with no partial pending creation.
@@ -117,6 +117,9 @@ Default file-backed artifacts under each template's `state/` path:
   including legacy manifest-less archives and any integrity warnings.
 - `restore --archive-id <id> --yes` rehydrates archived runtime artifacts with
   integrity checks and all-or-nothing overwrite behavior.
+- `prune-archives --keep-last N --older-than-seconds S --yes` deletes only
+  archives that match the requested retention policy; legacy archives with
+  unknown age are never pruned by age alone.
 - stale pending handling can be automated via configured age policy or manual
   `retire`.
 - interruption recovery runbook:

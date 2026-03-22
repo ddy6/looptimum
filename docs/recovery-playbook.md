@@ -12,6 +12,7 @@ This playbook covers:
 - interrupted consumers / controller restarts
 - ingest failures and replay handling
 - stale pending trial recovery
+- reset archive inventory / restore / prune handling
 - canceled/killed/timeout operational handling in local and CI runs
 
 ## Fast Triage
@@ -21,7 +22,9 @@ This playbook covers:
    `python3 templates/bo_client/run_bo.py status --project-root <template_dir>`
 3. If state integrity is in question, run:
    `python3 templates/bo_client/run_bo.py validate --project-root <template_dir>`
-4. Then follow the decision tree below.
+4. If runtime artifacts were reset or look corrupted, inventory archives:
+   `python3 templates/bo_client/run_bo.py list-archives --project-root <template_dir>`
+5. Then follow the decision tree below.
 
 ## Compact Decision Tree
 
@@ -117,6 +120,57 @@ Recommended CI actions on non-zero:
    `trials/`, `report.json` if present),
 2. stop further mutating commands in that job,
 3. open incident/issue with command stderr + attached artifacts.
+
+### 5) Reset archive inventory and restore
+
+Inspect available runtime checkpoints:
+
+```bash
+python3 templates/bo_client/run_bo.py list-archives --project-root <template_dir>
+```
+
+Restore a specific archive:
+
+```bash
+python3 templates/bo_client/run_bo.py restore \
+  --project-root <template_dir> \
+  --archive-id <reset-id> \
+  --yes
+```
+
+Use restore when:
+
+- runtime state was accidentally reset
+- runtime artifacts were corrupted or partially deleted
+- you need to roll back to a known archived checkpoint before resuming
+
+Restore guarantees:
+
+- archive integrity is checked before mutation
+- live lock file is not restored
+- runtime-artifact overwrite is all-or-nothing with rollback on failure
+
+### 6) Archive retention and cleanup
+
+Preferred command:
+
+```bash
+python3 templates/bo_client/run_bo.py prune-archives \
+  --project-root <template_dir> \
+  --keep-last <N> \
+  --older-than-seconds <seconds> \
+  --yes
+```
+
+Retention rules:
+
+- `--keep-last N` always protects the newest `N` archives
+- `--older-than-seconds` only applies to archives with known manifest
+  timestamps
+- legacy manifest-less archives are not pruned by age alone
+
+Use `prune-archives` instead of manual filesystem deletion so retention actions
+are logged and validated under the normal mutation lock.
 
 ## Traceability Checklist
 

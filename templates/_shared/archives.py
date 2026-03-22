@@ -365,11 +365,19 @@ def list_reset_archives(
     return archives
 
 
-def format_archive_created_at(created_at: Any) -> str:
+def archive_created_at_seconds(archive: Mapping[str, Any]) -> float | None:
+    created_at = archive.get("created_at")
     if not isinstance(created_at, (int, float)) or isinstance(created_at, bool):
-        return "unknown"
+        return None
     created_at_value = float(created_at)
     if not math.isfinite(created_at_value):
+        return None
+    return created_at_value
+
+
+def format_archive_created_at(created_at: Any) -> str:
+    created_at_value = archive_created_at_seconds({"created_at": created_at})
+    if created_at_value is None:
         return "unknown"
     return time.strftime("%Y-%m-%d %H:%M:%S %Z", time.localtime(created_at_value))
 
@@ -609,4 +617,98 @@ def restore_reset_archive(
         "restored_paths": [str(entry["source_rel"]) for entry in restore_entries],
         "overwritten_paths": overwritten_paths,
         "ignored_paths": ignored_paths,
+    }
+
+
+def plan_reset_archive_prune(
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+    *,
+    keep_last: int | None = None,
+    older_than_seconds: float | None = None,
+    now: float | None = None,
+) -> ArchiveInspection:
+    if keep_last is None and older_than_seconds is None:
+        raise ValueError("prune-archives requires --keep-last and/or --older-than-seconds")
+    if keep_last is not None and keep_last < 0:
+        raise ValueError("--keep-last must be >= 0")
+    if older_than_seconds is not None:
+        if not math.isfinite(older_than_seconds) or older_than_seconds < 0:
+            raise ValueError("--older-than-seconds must be a finite value >= 0")
+
+    reference_time = time.time() if now is None else float(now)
+    if not math.isfinite(reference_time):
+        raise ValueError("prune reference time must be finite")
+
+    archives = list_reset_archives(project_root, runtime_paths)
+    prunable: list[ArchiveInspection] = []
+    kept: list[ArchiveInspection] = []
+    kept_due_to_unknown_age: list[ArchiveInspection] = []
+
+    for index, archive in enumerate(archives):
+        keep_by_count = keep_last is not None and index < keep_last
+        if keep_by_count:
+            kept.append(archive)
+            continue
+
+        created_at = archive_created_at_seconds(archive)
+        if older_than_seconds is not None:
+            if created_at is None:
+                kept.append(archive)
+                kept_due_to_unknown_age.append(archive)
+                continue
+            archive_age_seconds = max(0.0, reference_time - created_at)
+            if archive_age_seconds < older_than_seconds:
+                kept.append(archive)
+                continue
+
+        prunable.append(archive)
+
+    prunable_ids = [str(archive["archive_id"]) for archive in prunable]
+    return {
+        "criteria": {
+            "keep_last": keep_last,
+            "older_than_seconds": older_than_seconds,
+            "now": reference_time,
+        },
+        "archives": archives,
+        "prunable_archives": prunable,
+        "prunable_archive_ids": prunable_ids,
+        "kept_archives": kept,
+        "kept_archive_ids": [str(archive["archive_id"]) for archive in kept],
+        "kept_due_to_unknown_age": [
+            str(archive["archive_id"]) for archive in kept_due_to_unknown_age
+        ],
+    }
+
+
+def prune_reset_archives(
+    project_root: Path,
+    runtime_paths: Mapping[str, Path],
+    *,
+    keep_last: int | None = None,
+    older_than_seconds: float | None = None,
+    now: float | None = None,
+) -> ArchiveInspection:
+    plan = plan_reset_archive_prune(
+        project_root,
+        runtime_paths,
+        keep_last=keep_last,
+        older_than_seconds=older_than_seconds,
+        now=now,
+    )
+    pruned_paths: list[str] = []
+    for archive in plan["prunable_archives"]:
+        archive_root = resolve_reset_archive(
+            str(archive["archive_id"]),
+            project_root=project_root,
+            runtime_paths=runtime_paths,
+        )
+        _remove_path(archive_root)
+        pruned_paths.append(_relative_path(project_root, archive_root))
+
+    return {
+        **plan,
+        "pruned_count": len(pruned_paths),
+        "pruned_paths": pruned_paths,
     }

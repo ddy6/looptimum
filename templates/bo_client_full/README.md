@@ -10,8 +10,8 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `validate`,
-  `doctor`
+  `heartbeat`, `report`, `reset`, `list-archives`, `restore`,
+  `prune-archives`, `validate`, `doctor`
 - `bo_config.json`: includes shared `feature_flags`; only
   `enable_botorch_gp` and `fallback_to_proxy_if_unavailable` are active in this
   template today
@@ -52,6 +52,8 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
   `--lease-token` on `heartbeat` / `ingest`.
 - Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
   `state/trials/trial_<id>/manifest.json`, and explicit report outputs.
+- Archive-management commands cover inventory (`list-archives`), rollback
+  (`restore`), and retention cleanup (`prune-archives`).
 - Multi-objective manifests and reports preserve raw `objective_vector` values,
   scalarized ranking metadata, and Pareto summaries.
 

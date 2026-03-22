@@ -197,6 +197,17 @@ Multi-objective note:
 - Restore overwrites current runtime artifacts atomically: a failed restore
   rolls back to the pre-restore runtime state.
 
+### `prune-archives`
+
+- `prune-archives` is destructive and requires explicit confirmation or
+  `--yes`.
+- It applies retention criteria to `state/reset_archives/` without mutating
+  active runtime artifacts.
+- `--keep-last N` protects the newest `N` archives.
+- `--older-than-seconds S` prunes only archives with known `created_at`
+  timestamps whose age is at least `S`.
+- Legacy archives with unknown age remain protected from age-only prune rules.
+
 ### `validate`
 
 - `validate` checks config/schema/state consistency and basic corruption.
@@ -234,7 +245,7 @@ Multi-objective note:
 ## Locking Semantics
 
 - Mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`,
-  `restore`)
+  `restore`, `prune-archives`)
   use an exclusive lock file (`state/.looptimum.lock`).
 - `list-archives`, `status`, `validate`, and `doctor` are read-only and do not
   take the mutation lock.

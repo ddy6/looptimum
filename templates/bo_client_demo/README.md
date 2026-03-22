@@ -5,8 +5,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`,
-  `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `validate`,
-  `doctor`
+  `heartbeat`, `report`, `reset`, `list-archives`, `restore`,
+  `prune-archives`, `validate`, `doctor`
 - `bo_config.json`: budget, surrogate/acquisition, shared `feature_flags`,
   seed, paths
 - `parameter_space.json`: typed parameter bounds
@@ -37,6 +37,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   `--lease-token` on `heartbeat` / `ingest`.
 - Runtime artifacts include `state/event_log.jsonl` and per-trial manifests in
   `state/trials/trial_<id>/manifest.json`.
+- Archive-management commands cover inventory (`list-archives`), rollback
+  (`restore`), and retention cleanup (`prune-archives`).
 - Acquisition decisions include `surrogate_backend` and feasibility metadata in
   `state/acquisition_log.jsonl`.
 - Multi-objective manifests and reports preserve raw `objective_vector` values,

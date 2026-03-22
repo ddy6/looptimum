@@ -328,6 +328,7 @@ Best ranking rule:
 - `reset [--yes] [--no-archive]`: reset campaign runtime artifacts; archive is enabled by default.
 - `list-archives`: inspect reset archives and surface manifest/legacy integrity status.
 - `restore --archive-id <id> [--yes]`: restore archived runtime artifacts back into place.
+- `prune-archives [--keep-last N] [--older-than-seconds S] [--yes]`: remove older reset archives with explicit retention criteria.
 - `validate [--strict]`: sanity-check config/state; warnings are non-fatal unless `--strict`.
 - `doctor [--json]`: print environment/backend/state diagnostics.
 
@@ -344,7 +345,7 @@ Lease note:
 
 | Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
 |---|---|---|---|---|
-| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `validate`, `doctor`) |
+| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`) |
 | `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
 | `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) | full parity |
 
