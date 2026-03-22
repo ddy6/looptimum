@@ -243,6 +243,72 @@ def test_suggest_rejects_batch_when_max_pending_trials_would_be_exceeded(
     assert state["next_trial_id"] == 3
 
 
+def test_worker_leases_require_matching_token_for_heartbeat_and_ingest(
+    template_copy: Path,
+) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = _parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    lease_token = suggestion["lease_token"]
+    assert isinstance(lease_token, str) and lease_token
+
+    missing = run_cmd(
+        template_copy,
+        "heartbeat",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        expect_ok=False,
+    )
+    assert missing.returncode != 0
+    assert (
+        f"trial_id {suggestion['trial_id']} requires --lease-token for heartbeat" in missing.stderr
+    )
+
+    run_cmd(
+        template_copy,
+        "heartbeat",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        "--lease-token",
+        lease_token,
+    )
+
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.2},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_worker_lease_demo_result.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    wrong = run_cmd(
+        template_copy,
+        "ingest",
+        "--results-file",
+        str(result_path),
+        "--lease-token",
+        "wrong-token",
+        expect_ok=False,
+    )
+    assert wrong.returncode != 0
+    assert f"trial_id {suggestion['trial_id']} lease token mismatch for ingest" in wrong.stderr
+
+    run_cmd(
+        template_copy,
+        "ingest",
+        "--results-file",
+        str(result_path),
+        "--lease-token",
+        lease_token,
+    )
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["leased_pending"] == 0
+
+
 def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     template_copy: Path, tmp_path: Path
 ) -> None:

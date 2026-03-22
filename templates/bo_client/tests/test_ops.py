@@ -370,6 +370,92 @@ def test_validate_hard_failure_for_invalid_max_pending_trials(template_copy) -> 
     assert "ERROR: config validation failure: max_pending_trials must be >= 1" in out.stdout
 
 
+def test_validate_hard_failure_for_invalid_worker_leases_config(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"] = {"enabled": "yes"}
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: config validation failure: worker_leases.enabled must be a boolean" in out.stdout
+
+
+def test_heartbeat_requires_matching_lease_token_when_enabled(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    lease_token = suggestion["lease_token"]
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["worker_leases_enabled"] is True
+    assert status["leased_pending"] == 1
+
+    missing = run_cmd(
+        template_copy,
+        "heartbeat",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        expect_ok=False,
+    )
+    assert missing.returncode != 0
+    assert (
+        f"trial_id {suggestion['trial_id']} requires --lease-token for heartbeat" in missing.stderr
+    )
+
+    wrong = run_cmd(
+        template_copy,
+        "heartbeat",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        "--lease-token",
+        "wrong-token",
+        expect_ok=False,
+    )
+    assert wrong.returncode != 0
+    assert f"trial_id {suggestion['trial_id']} lease token mismatch for heartbeat" in wrong.stderr
+
+    ok = run_cmd(
+        template_copy,
+        "heartbeat",
+        "--trial-id",
+        str(suggestion["trial_id"]),
+        "--lease-token",
+        lease_token,
+        "--heartbeat-note",
+        "alive",
+    )
+    assert f"Heartbeat recorded for trial_id={suggestion['trial_id']}." in ok.stdout
+
+    manifest_path = (
+        template_copy / "state" / "trials" / f"trial_{suggestion['trial_id']}" / "manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["lease_token"] == lease_token
+    assert manifest["heartbeat_count"] == 1
+
+
+@pytest.mark.parametrize(("command", "extra_args"), [("cancel", []), ("retire", [])])
+def test_operator_commands_bypass_worker_lease_tokens(
+    template_copy, command: str, extra_args: list[str]
+) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    out = run_cmd(template_copy, command, "--trial-id", str(suggestion["trial_id"]), *extra_args)
+
+    assert out.returncode == 0
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert state["pending"] == []
+    assert state["observations"][0]["lease_token"] == suggestion["lease_token"]
+
+
 def test_validate_hard_failure_for_corrupt_state_file(template_copy) -> None:
     state_path = template_copy / "state" / "bo_state.json"
     state_path.write_text("{not valid json", encoding="utf-8")
@@ -645,6 +731,25 @@ def test_validate_hard_failure_for_manifest_missing_traceability_field(template_
     out = run_cmd(template_copy, "validate", expect_ok=False)
     assert out.returncode != 0
     assert "manifest missing required field 'artifact_path'" in out.stdout
+
+
+def test_validate_hard_failure_for_manifest_invalid_lease_token(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    manifest_path = (
+        template_copy / "state" / "trials" / f"trial_{suggestion['trial_id']}" / "manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["lease_token"] = 5
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "manifest lease_token" in out.stdout
 
 
 def test_doctor_json_reports_backend_and_status(template_copy) -> None:

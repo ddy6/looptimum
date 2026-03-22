@@ -15,6 +15,7 @@ import json
 import math
 import os
 import random
+import secrets
 import shutil
 import sys
 import time
@@ -85,6 +86,7 @@ pending_age_seconds = _RUNTIME.pending_age_seconds
 resolve_lock_timeout_seconds = _RUNTIME.resolve_lock_timeout_seconds
 resolve_max_pending_age_seconds = _RUNTIME.resolve_max_pending_age_seconds
 resolve_max_pending_trials = _RUNTIME.resolve_max_pending_trials
+resolve_worker_leases_enabled = _RUNTIME.resolve_worker_leases_enabled
 resolve_runtime_paths = _RUNTIME.resolve_runtime_paths
 save_trial_manifest = _RUNTIME.save_trial_manifest
 state_for_persist = _RUNTIME.state_for_persist
@@ -714,6 +716,7 @@ def _ensure_pending_manifest(
         manifest["heartbeat_note"] = pending_entry["heartbeat_note"]
     if "heartbeat_meta" in pending_entry:
         manifest["heartbeat_meta"] = pending_entry["heartbeat_meta"]
+    manifest["lease_token"] = pending_entry.get("lease_token")
     manifest["artifact_path"] = None
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
@@ -757,6 +760,7 @@ def _ensure_terminal_manifest(
         manifest["heartbeat_note"] = observation["heartbeat_note"]
     if "heartbeat_meta" in observation:
         manifest["heartbeat_meta"] = observation["heartbeat_meta"]
+    manifest["lease_token"] = observation.get("lease_token")
 
     artifact_path = observation.get("artifact_path")
     if artifact_path is not None and not isinstance(artifact_path, str):
@@ -792,6 +796,8 @@ def _observation_rows(state: dict) -> list[dict]:
             row["last_heartbeat_at"] = obs["last_heartbeat_at"]
         if "artifact_path" in obs:
             row["artifact_path"] = obs["artifact_path"]
+        if "lease_token" in obs:
+            row["lease_token"] = obs["lease_token"]
         rows.append(row)
     return rows
 
@@ -827,6 +833,8 @@ def _new_terminal_observation(
         observation["heartbeat_note"] = pending["heartbeat_note"]
     if "heartbeat_meta" in pending:
         observation["heartbeat_meta"] = pending["heartbeat_meta"]
+    if "lease_token" in pending:
+        observation["lease_token"] = pending["lease_token"]
     return observation
 
 
@@ -874,25 +882,34 @@ def _status_payload(
     max_pending_age: float | None,
     *,
     botorch_feature_flag: bool | None = None,
+    worker_leases_enabled: bool,
 ) -> dict:
     now = time.time()
     stale_pending = 0
+    leased_pending = 0
     if max_pending_age is not None:
         stale_pending = sum(
             1
             for pending in state["pending"]
             if pending_age_seconds(pending, now=now) > max_pending_age
         )
+    leased_pending = sum(
+        1
+        for pending in state["pending"]
+        if isinstance(pending.get("lease_token"), str) and bool(pending.get("lease_token"))
+    )
 
     payload = {
         "schema_version": state_schema_version(state),
         "observations": len(state["observations"]),
         "pending": len(state["pending"]),
+        "leased_pending": leased_pending,
         "next_trial_id": state["next_trial_id"],
         "best": state["best"],
         "stale_pending": stale_pending,
         "observations_by_status": _status_counts(state["observations"]),
         "max_pending_age_seconds": max_pending_age,
+        "worker_leases_enabled": worker_leases_enabled,
         "paths": {
             "state_file": _relative_path(root, paths["state_file"]),
             "observations_csv": _relative_path(root, paths["observations_csv"]),
@@ -1156,6 +1173,13 @@ def _validate_state_hard_checks(state: dict, objective_cfg: dict) -> list[str]:
                 observation_ids.append(int(observation["trial_id"]))
             if not isinstance(observation.get("params"), dict):
                 errors.append(f"state.observations[{idx}].params must be an object")
+            try:
+                _normalize_lease_token(
+                    observation.get("lease_token"),
+                    field_name=f"state.observations[{idx}].lease_token",
+                )
+            except ValueError as exc:
+                errors.append(str(exc))
             objectives = observation.get("objectives")
             if not isinstance(objectives, dict):
                 errors.append(f"state.observations[{idx}].objectives must be an object")
@@ -1208,6 +1232,13 @@ def _validate_state_hard_checks(state: dict, objective_cfg: dict) -> list[str]:
                 errors.append(f"state.pending[{idx}].params must be an object")
             if not isinstance(row.get("suggested_at"), (int, float)):
                 errors.append(f"state.pending[{idx}].suggested_at must be numeric")
+            try:
+                _normalize_lease_token(
+                    row.get("lease_token"),
+                    field_name=f"state.pending[{idx}].lease_token",
+                )
+            except ValueError as exc:
+                errors.append(str(exc))
         if len(pending_ids) != len(set(pending_ids)):
             errors.append("state.pending contains duplicate trial_id values")
 
@@ -1435,6 +1466,13 @@ def _validate_trial_manifests_hard(trials_dir: Path, objective_cfg: dict) -> lis
                 f"manifest artifact_path must be string or null: {manifest_path} "
                 f"(artifact_path={artifact_path!r})"
             )
+        try:
+            _normalize_lease_token(
+                manifest.get("lease_token"),
+                field_name=f"manifest lease_token at {manifest_path}",
+            )
+        except ValueError as exc:
+            errors.append(str(exc))
 
         if status in {"ok", "failed", "killed", "timeout"}:
             if "completed_at" not in manifest:
@@ -1473,6 +1511,41 @@ def _parse_heartbeat_meta(raw: str | None) -> dict | None:
     return parsed
 
 
+def _normalize_lease_token(value: Any, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string when present")
+    return value.strip()
+
+
+def _parse_cli_lease_token(raw: str | None) -> str | None:
+    return _normalize_lease_token(raw, field_name="--lease-token")
+
+
+def _build_lease_token() -> str:
+    return secrets.token_hex(16)
+
+
+def _require_matching_lease_token(
+    pending_entry: dict,
+    *,
+    provided_token: str | None,
+    trial_id: int,
+    command: str,
+) -> None:
+    expected = _normalize_lease_token(
+        pending_entry.get("lease_token"),
+        field_name=f"trial_id {trial_id} lease_token",
+    )
+    if expected is None:
+        return
+    if provided_token is None:
+        raise ValueError(f"trial_id {trial_id} requires --lease-token for {command}")
+    if provided_token != expected:
+        raise ValueError(f"trial_id {trial_id} lease token mismatch for {command}")
+
+
 def cmd_suggest(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     cfg, _ = load_contract_document(root, "bo_config")
@@ -1498,6 +1571,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
     max_pending_age = resolve_max_pending_age_seconds(cfg)
     max_pending_trials = resolve_max_pending_trials(cfg)
+    worker_leases_enabled = resolve_worker_leases_enabled(cfg)
     requested_count = _resolve_effective_suggest_count(cfg, args)
 
     with hold_exclusive_lock(
@@ -1603,6 +1677,8 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                         "params": cand,
                         "suggested_at": time.time(),
                     }
+                    if worker_leases_enabled:
+                        suggestion["lease_token"] = _build_lease_token()
                     validate_against_schema(
                         suggestion,
                         suggestion_schema,
@@ -1674,6 +1750,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+    lease_token = _parse_cli_lease_token(args.lease_token)
 
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
@@ -1731,6 +1808,12 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                     return
                 raise ValueError(format_contract_diff_error(trial_id, diffs))
 
+            _require_matching_lease_token(
+                pending[trial_id],
+                provided_token=lease_token,
+                trial_id=trial_id,
+                command="ingest",
+            )
             pending_params = canonicalize_conditional_params(
                 pending[trial_id].get("params", {}), params
             )
@@ -1770,6 +1853,8 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 observation["heartbeat_note"] = pending_entry["heartbeat_note"]
             if "heartbeat_meta" in pending_entry:
                 observation["heartbeat_meta"] = pending_entry["heartbeat_meta"]
+            if "lease_token" in pending_entry:
+                observation["lease_token"] = pending_entry["lease_token"]
 
             observation.update(heartbeat_fields)
             state["observations"].append(observation)
@@ -1962,6 +2047,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
     obj_cfg = _load_objective_config(root, cfg)
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+    lease_token = _parse_cli_lease_token(args.lease_token)
 
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
@@ -1985,6 +2071,12 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
 
             heartbeat_meta = _parse_heartbeat_meta(args.heartbeat_meta_json)
             pending_entry = state["pending"][index]
+            _require_matching_lease_token(
+                pending_entry,
+                provided_token=lease_token,
+                trial_id=int(args.trial_id),
+                command="heartbeat",
+            )
             pending_entry["last_heartbeat_at"] = heartbeat_at
             pending_entry["heartbeat_count"] = int(pending_entry.get("heartbeat_count", 0) or 0) + 1
             if args.heartbeat_note is not None:
@@ -2027,6 +2119,7 @@ def cmd_status(args: argparse.Namespace) -> None:
                 paths,
                 max_pending_age,
                 botorch_feature_flag=use_botorch_backend(args, cfg),
+                worker_leases_enabled=resolve_worker_leases_enabled(cfg),
             ),
             indent=2,
         )
@@ -2231,6 +2324,10 @@ def cmd_validate(args: argparse.Namespace) -> None:
         max_pending_trials = resolve_max_pending_trials(cfg)
     except Exception as exc:
         hard_errors.append(f"config validation failure: {exc}")
+    try:
+        resolve_worker_leases_enabled(cfg)
+    except Exception as exc:
+        hard_errors.append(f"config validation failure: {exc}")
 
     if hard_errors:
         for err in hard_errors:
@@ -2290,6 +2387,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         paths,
         max_pending_age,
         botorch_feature_flag=botorch_enabled,
+        worker_leases_enabled=resolve_worker_leases_enabled(cfg),
     )
 
     backend = str(cfg.get("surrogate", {}).get("type", "rbf_proxy")).lower()
@@ -2420,6 +2518,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--heartbeat-meta-json",
         help='For heartbeat: JSON object payload, e.g. \'{"worker":"node-1"}\'',
+    )
+    parser.add_argument(
+        "--lease-token",
+        help="For heartbeat/ingest: required when a pending trial carries a lease token.",
     )
     parser.add_argument(
         "--json-only",

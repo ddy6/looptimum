@@ -210,6 +210,31 @@ def test_suggest_rejects_batch_when_max_pending_trials_would_be_exceeded(templat
     assert state["next_trial_id"] == 3
 
 
+def test_suggest_emits_lease_tokens_when_worker_leases_enabled(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    out = run_cmd(template_copy, "suggest", "--count", "2", "--json-only")
+    bundle = parse_suggestion_bundle(out.stdout)
+    suggestions = bundle["suggestions"]
+    lease_tokens = [item["lease_token"] for item in suggestions]
+
+    assert all(isinstance(token, str) and token for token in lease_tokens)
+    assert len(set(lease_tokens)) == 2
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert [item["lease_token"] for item in state["pending"]] == lease_tokens
+
+    for suggestion, lease_token in zip(suggestions, lease_tokens, strict=True):
+        manifest_path = (
+            template_copy / "state" / "trials" / f"trial_{suggestion['trial_id']}" / "manifest.json"
+        )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["lease_token"] == lease_token
+
+
 def test_suggest_supports_mixed_search_space_with_surrogate_scoring(
     template_copy, tmp_path
 ) -> None:

@@ -17,6 +17,10 @@
     },
     "suggested_at": {
       "type": "number"
+    },
+    "lease_token": {
+      "type": "string",
+      "minLength": 1
     }
   }
 }

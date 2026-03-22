@@ -188,6 +188,59 @@ def test_duplicate_ingest_conflicting_replay_is_rejected_with_diff(template_copy
     assert "$.objectives.loss differs" in out.stderr
 
 
+def test_ingest_requires_matching_lease_token_when_enabled(template_copy) -> None:
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    lease_token = suggestion["lease_token"]
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.1},
+        "status": "ok",
+    }
+    path = template_copy / "examples" / "_ingest_with_lease.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    missing = run_cmd(template_copy, "ingest", "--results-file", str(path), expect_ok=False)
+    assert missing.returncode != 0
+    assert f"trial_id {suggestion['trial_id']} requires --lease-token for ingest" in missing.stderr
+
+    wrong = run_cmd(
+        template_copy,
+        "ingest",
+        "--results-file",
+        str(path),
+        "--lease-token",
+        "wrong-token",
+        expect_ok=False,
+    )
+    assert wrong.returncode != 0
+    assert f"trial_id {suggestion['trial_id']} lease token mismatch for ingest" in wrong.stderr
+
+    run_cmd(
+        template_copy,
+        "ingest",
+        "--results-file",
+        str(path),
+        "--lease-token",
+        lease_token,
+    )
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    observation = state["observations"][0]
+    assert observation["lease_token"] == lease_token
+
+    manifest_path = (
+        template_copy / "state" / "trials" / f"trial_{suggestion['trial_id']}" / "manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["lease_token"] == lease_token
+
+
 def test_ingest_canonicalizes_inactive_conditional_params_for_state_and_csv(template_copy) -> None:
     _configure_conditional_space(template_copy, seed=0)
     suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)

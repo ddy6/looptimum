@@ -168,6 +168,18 @@ def resolve_max_pending_trials(cfg: dict[str, Any]) -> int | None:
     return _as_positive_int(raw, field_name="max_pending_trials")
 
 
+def resolve_worker_leases_enabled(cfg: dict[str, Any]) -> bool:
+    raw = cfg.get("worker_leases")
+    if raw is None:
+        return False
+    if not isinstance(raw, dict):
+        raise ValueError(f"worker_leases must be an object, got: {raw!r}")
+    enabled = raw.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ValueError(f"worker_leases.enabled must be a boolean, got: {enabled!r}")
+    return enabled
+
+
 def atomic_write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}-{time.time_ns()}")

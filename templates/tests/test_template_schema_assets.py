@@ -74,6 +74,7 @@ def test_template_bo_configs_expose_batch_guardrail_defaults() -> None:
         assert cfg.get("batch_size") == 1
         assert "max_pending_trials" in cfg
         assert cfg["max_pending_trials"] is None
+        assert cfg.get("worker_leases") == {"enabled": False}
 
 
 def test_objective_schema_exposes_multi_objective_fields() -> None:
@@ -112,3 +113,9 @@ def test_constraints_schema_exposes_workstream3_rule_collections() -> None:
         "<=",
         ">=",
     ]
+
+
+def test_suggestion_schema_exposes_optional_lease_token() -> None:
+    schema = _load_json(SHARED_SCHEMAS / "suggestion_payload.schema.json")
+    assert schema["properties"]["lease_token"]["type"] == "string"
+    assert schema["properties"]["lease_token"]["minLength"] == 1
