@@ -141,15 +141,19 @@ See `docs/constraints.md` for rule details and troubleshooting guidance.
 
 ## Multi-Objective Handling
 
-Current public templates still optimize one primary objective.
+Current public templates support multi-objective authoring through
+`objective_schema.json`.
 
 Details:
 
-- primary objective is configured in `objective_schema.json`
-- best-so-far tracking uses only that primary objective
-- additional metrics can still be recorded outside the core contract
+- `objective_schema.json` can declare a primary objective, optional secondary
+  objectives, and optional scalarization policy
+- optimizer-facing ranking stays scalar or ordered internally
+- status, manifests, and reports preserve raw `objective_vector` values and
+  report a Pareto summary when multiple objectives are present
 
-If your problem is multi-objective, plan the scalarization policy explicitly.
+See `docs/examples/multi_objective/README.md` for the current public example
+pack.
 
 ## Reproducibility Guidance
 

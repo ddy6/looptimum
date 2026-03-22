@@ -1,0 +1,15 @@
+{
+  "primary_objective": {
+    "name": "loss",
+    "direction": "minimize"
+  },
+  "secondary_objectives": [
+    {
+      "name": "throughput",
+      "direction": "maximize"
+    }
+  ],
+  "scalarization": {
+    "policy": "lexicographic"
+  }
+}

@@ -18,6 +18,11 @@ The acquisition-log snapshots are unconstrained examples, so their
 
 They are for documentation examples, not replay into an active run.
 
+Scope note:
+
+- these snapshots remain single-objective examples
+- multi-objective report/status/manifests live in `../multi_objective/README.md`
+
 Integration pattern note:
 
 - these snapshots demonstrate artifact wiring and state transitions

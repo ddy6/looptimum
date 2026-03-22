@@ -7,9 +7,9 @@ Optimum trial targeting for expensive black-box evaluations improves sample effi
 
 Looptimum is a file-backed loop for optimum parameter targeting when each
 trial is costly (time, compute, money, or operational risk).
-You provide a parameter space and a scalar objective; Looptimum suggests the
+You provide a parameter space and objective schema; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable release: `v0.3.3`.
+Current stable release: `v0.3.5`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -25,8 +25,9 @@ For a spec-style contract summary, use
 - Private contact: [contact@looptimum.com](mailto:contact@looptimum.com)
 - Start here: [`PILOT.md`](PILOT.md), [`intake.md`](intake.md),
   [`docs/pilot-checklist.md`](docs/pilot-checklist.md)
-- Best initial fit: bounded numeric parameters, one scalar objective, and
-  expensive evaluations in client-controlled environments
+- Best initial fit: bounded parameter spaces, one scalar objective or explicit
+  scalarization rule, and expensive evaluations in client-controlled
+  environments
 - Scope and delivery are tailored to the project; contact for scope
 
 ## Common Triggers
@@ -41,7 +42,7 @@ For a spec-style contract summary, use
 
 Looptimum replaces ad hoc sweep loops with a small, explicit workflow:
 
-1. Define parameter bounds and objective direction.
+1. Define parameter bounds, objective schema, and optional constraints.
 2. `suggest` one trial.
 3. Run that trial in your environment.
 4. `ingest` the result and repeat.
@@ -200,7 +201,8 @@ expanded stub in
 - Each evaluation is expensive enough that sample efficiency matters.
 - Your evaluator runs as external jobs and you want a thin outer loop above
   training/evaluation infrastructure.
-- You can define one scalar objective (`minimize` or `maximize`).
+- You can define one scalar objective or an explicit scalarization /
+  lexicographic rule for multiple objectives.
 - You have a bounded parameter set (commonly small-to-moderate dimensional).
 - You want resumable, file-backed operation in local/offline/restricted
   environments.
@@ -217,9 +219,11 @@ expanded stub in
 
 ### Inputs
 
-- Parameter space definition (`float` and `int` currently supported in public
-  templates).
-- Objective schema (name + direction).
+- Parameter space definition (`float`, `int`, `bool`, and `categorical` in
+  public templates; numeric params can also declare `scale`, and params may use
+  `when` for conditional activation).
+- Objective schema (required `primary_objective`, optional
+  `secondary_objectives`, optional `scalarization` policy).
 - Trial budget and seed/config settings.
 
 ### `suggest` Output
@@ -236,8 +240,8 @@ Each suggestion includes:
 - `trial_id` (must match a pending trial)
 - `params` (must match suggested params exactly)
 - `objectives`:
-  - `status: ok` -> primary objective must be numeric and finite
-  - non-`ok` status -> primary objective must be `null`
+  - `status: ok` -> all configured objective values must be numeric and finite
+  - non-`ok` status -> all configured objective values must be `null`
 - `status`: `ok`, `failed`, `killed`, `timeout`
 
 ### `ingest` Optional Fields
@@ -259,8 +263,11 @@ Each suggestion includes:
 
 Best ranking rule:
 
-- `best` is computed only from `status: "ok"` observations and their primary
-  objective values.
+- `best` is computed only from `status: "ok"` observations.
+- Single-objective campaigns rank by the primary objective value.
+- Multi-objective campaigns rank by the configured scalarization or
+  lexicographic policy while preserving raw objective vectors in status,
+  manifests, and reports.
 - `penalty_objective` is never used to rank `best`.
 
 ### Local State Files
@@ -271,7 +278,9 @@ Best ranking rule:
 - `state/acquisition_log.jsonl`: append-only decision trace.
 - `state/event_log.jsonl`: append-only lifecycle/operations trace.
 - `state/trials/trial_<id>/manifest.json`: per-trial audit manifest.
-- `state/report.json` and `state/report.md`: explicit report outputs from `report`.
+- `state/report.json` and `state/report.md`: explicit report outputs from
+  `report`, including objective-config and Pareto summaries for multi-objective
+  campaigns.
 
 ### Compatibility Notes
 
@@ -280,10 +289,6 @@ Best ranking rule:
   `terminal_reason`.
 - For non-`ok` outcomes with no reason provided, ingest synthesizes
   `terminal_reason` as `status=<status>`.
-- Legacy `v0.2.x` non-`ok` payloads with numeric primary objective are
-  accepted in `v0.3.x`, normalized to
-  `objective: null` + `penalty_objective`, and emit a deprecation warning.
-- Sentinel primary-objective compatibility is planned for removal in `v0.4.0`.
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
   to `0.3.0` and persists on next mutating command.
 - Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
@@ -295,7 +300,7 @@ Best ranking rule:
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
   example `0.3 -> 0.4`) and require explicit compatibility notes.
-- Current patch tag in this line: `v0.3.3` (see `CHANGELOG.md`).
+- Current patch tag in this line: `v0.3.5` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior
@@ -335,6 +340,8 @@ The `examples/` folder shows integration patterns, not benchmark leaderboards.
 - `examples/toy-objectives/02_subprocess_cli/`: subprocess/CLI wrapper pattern
 - `examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end
   objective (`suggest -> evaluate -> ingest -> status`, typically under one minute)
+- `docs/examples/multi_objective/`: generated multi-objective report/state pack
+  with weighted-sum and lexicographic objective-schema examples
 
 Run the tiny end-to-end objective from repo root:
 

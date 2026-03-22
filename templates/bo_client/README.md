@@ -11,7 +11,8 @@ surrogate backend, and restartable JSON state.
   `feature_flags`, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
 - `constraints.json` (optional): hard-feasibility rules for `suggest`.
-- `objective_schema.json`: objective direction and failure policy.
+- `objective_schema.json`: primary objective, optional secondary objectives,
+  and optional scalarization policy.
 - `experiment_interface.md`: async experiment I/O contract.
 - `examples/`: sample success/failure result payloads and runnable command sequence.
 - `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
@@ -31,9 +32,11 @@ surrogate backend, and restartable JSON state.
 - Mutating commands use an exclusive lock file (`state/.looptimum.lock`);
   default behavior waits with timeout and supports `--fail-fast`.
 - `ingest` validates payload structure via `paths.ingest_schema_file` and
-  validates the primary objective value.
+  enforces the full configured `objectives` map.
 - Runtime artifacts include `state/event_log.jsonl`, per-trial manifests in
   `state/trials/trial_<id>/manifest.json`, and explicit `report` outputs.
+- Multi-objective manifests and reports preserve raw `objective_vector` values,
+  scalarized ranking metadata, and Pareto summaries.
 - Acquisition decisions now include backend labels and feasibility metadata in
   `state/acquisition_log.jsonl`; all-infeasible constrained attempts are logged
   before `suggest` exits nonzero.
@@ -58,7 +61,8 @@ No CLI changes are needed when switching backend.
 
 - `examples/example_results.json`: success (`status: "ok"`)
 - `examples/example_results_timeout.json`: non-`ok` sample
-  (`status: "timeout"`, `objective: null`, `terminal_reason`, `penalty_objective`)
+  (`status: "timeout"`, configured objectives `null`, `terminal_reason`,
+  `penalty_objective`)
 - `examples/example_run.sh [results-file]`: run script; optional arg selects
   which sample payload to ingest
 
@@ -68,6 +72,8 @@ No CLI changes are needed when switching backend.
   `examples/toy_objectives/03_tiny_quadratic_loop/`
 - Golden decision-trace sample:
   `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- Multi-objective example pack:
+  `docs/examples/multi_objective/README.md`
 - Text transcript of `suggest -> evaluate -> ingest -> status`:
   `docs/examples/decision_trace/cli_transcript.md`
 

@@ -174,7 +174,7 @@ For best results, record:
 Recommended approach:
 
 - return a canonical non-`ok` status (`failed`, `killed`, or `timeout`)
-- set primary objective to `null`
+- set all configured objective values to `null`
 - include `terminal_reason` (short string)
 - optionally include `penalty_objective` for non-`ok` statuses
 - keep `trial_id` and `params` unchanged
@@ -192,7 +192,7 @@ Common causes:
 
 - wrong `trial_id`
 - `params` mismatch (does not match the pending suggestion exactly)
-- missing primary objective
+- missing configured objective keys
 - non-numeric or NaN/Inf objective
 - schema mismatch
 

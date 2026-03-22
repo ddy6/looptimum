@@ -113,7 +113,7 @@ Default policy: top-k + median-of-repeats.
 
 Recommended procedure:
 
-1. rank candidate configs by primary objective
+1. rank candidate configs by the configured objective policy
 2. select top-k (for example `k=3` or `k=5`)
 3. run each candidate for `n` repeats (for example `n=3`)
 4. choose winner by median objective

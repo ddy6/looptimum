@@ -10,7 +10,8 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   seed, paths
 - `parameter_space.json`: typed parameter bounds
 - `constraints.json` (optional): hard-feasibility rules for `suggest`
-- `objective_schema.json`: objective direction and handling
+- `objective_schema.json`: primary objective, optional secondary objectives,
+  and optional scalarization policy
 - `experiment_interface.md`: async I/O contract
 - `examples/`: sample success/failure payloads and run script
 - `schemas/`: compatibility copies of shared schemas (`ingest_payload`,
@@ -30,12 +31,15 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   `state/trials/trial_<id>/manifest.json`.
 - Acquisition decisions include `surrogate_backend` and feasibility metadata in
   `state/acquisition_log.jsonl`.
+- Multi-objective manifests and reports preserve raw `objective_vector` values,
+  scalarized ranking metadata, and Pareto summaries.
 
 ## Example Payloads
 
 - `examples/example_results.json`: success (`status: "ok"`)
 - `examples/example_results_timeout.json`: non-`ok` sample
-  (`status: "timeout"`, `objective: null`, `terminal_reason`, `penalty_objective`)
+  (`status: "timeout"`, configured objectives `null`, `terminal_reason`,
+  `penalty_objective`)
 - `examples/example_run.sh [results-file]`: run script; optional arg selects
   which sample payload to ingest
 
@@ -45,5 +49,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   `examples/toy_objectives/03_tiny_quadratic_loop/`
 - Golden decision-trace sample:
   `docs/examples/decision_trace/golden_acquisition_log.jsonl`
+- Multi-objective example pack:
+  `docs/examples/multi_objective/README.md`
 - Text transcript of `suggest -> evaluate -> ingest -> status`:
   `docs/examples/decision_trace/cli_transcript.md`

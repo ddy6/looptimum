@@ -45,6 +45,7 @@ For full command sequences and resume behavior:
 ## Integration Assets
 
 - [Docs Examples](./examples/README.md)
+- [Multi-Objective Example Pack](./examples/multi_objective/README.md)
 - [Constraints Examples](./examples/constraints/README.md)
 - [State Snapshot References](./examples/state_snapshots/README.md)
 - [Decision-Trace References](./examples/decision_trace/README.md)

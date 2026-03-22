@@ -10,6 +10,7 @@ REGEN_SCRIPT = REPO_ROOT / "docs" / "examples" / "decision_trace" / "regenerate_
 CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 TYPE_SAFETY_DOC = REPO_ROOT / "docs" / "type-safety.md"
+MULTI_OBJECTIVE_EXAMPLE = REPO_ROOT / "docs" / "examples" / "multi_objective"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -76,3 +77,35 @@ def test_mypy_scope_and_type_safety_doc_are_present() -> None:
     doc_text = TYPE_SAFETY_DOC.read_text(encoding="utf-8")
     assert "Type-checking tool: `mypy`." in doc_text
     assert "Initial blocking CI gate scope" in doc_text
+
+
+def test_multi_objective_example_pack_has_expected_artifacts() -> None:
+    assert MULTI_OBJECTIVE_EXAMPLE.exists(), (
+        f"missing multi-objective example pack: {MULTI_OBJECTIVE_EXAMPLE}"
+    )
+
+    readme_path = MULTI_OBJECTIVE_EXAMPLE / "README.md"
+    weighted_schema = MULTI_OBJECTIVE_EXAMPLE / "objective_schema.json"
+    lexicographic_schema = MULTI_OBJECTIVE_EXAMPLE / "objective_schema_lexicographic.json"
+    status_path = MULTI_OBJECTIVE_EXAMPLE / "status_after_ingest.json"
+    report_path = MULTI_OBJECTIVE_EXAMPLE / "state" / "report.json"
+    manifest_path = MULTI_OBJECTIVE_EXAMPLE / "state" / "trials" / "trial_1" / "manifest.json"
+
+    for path in (
+        readme_path,
+        weighted_schema,
+        lexicographic_schema,
+        status_path,
+        report_path,
+        manifest_path,
+    ):
+        assert path.exists(), f"missing multi-objective example artifact: {path}"
+
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["objective_config"]["objective_names"] == ["loss", "throughput"]
+    assert report_payload["pareto_front"]["trial_ids"] == [1, 2]
+    assert report_payload["best"]["objective_vector"] == {"loss": 0.3, "throughput": 2.0}
+
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest_payload["scalarization_policy"] == "weighted_sum"
+    assert manifest_payload["objective_vector"] == {"loss": 0.3, "throughput": 2.0}

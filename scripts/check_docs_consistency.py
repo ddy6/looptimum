@@ -26,10 +26,12 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     "docs/index.md": (
         "(./quick-reference.md)",
         "(../quickstart/etl-pipeline-knob-tuning.md)",
+        "(./examples/multi_objective/README.md)",
     ),
     "docs/README.md": (
         "`quick-reference.md`",
         "`../quickstart/etl-pipeline-knob-tuning.md`",
+        "`examples/multi_objective/README.md`",
     ),
     "docs/quick-reference.md": (
         "## Public Command Surface (`v0.3.x`)",

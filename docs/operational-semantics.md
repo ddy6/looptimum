@@ -97,14 +97,18 @@ Status handling:
 - Canonical statuses: `ok`, `failed`, `killed`, `timeout`
 - `success` is accepted as a deprecated alias and normalized to `ok`
 
-Primary objective handling:
+Objective handling:
 
-- `status == "ok"`: primary objective must be numeric and finite.
-- non-`ok` status: primary objective is normalized to `null`.
+- `status == "ok"`: all configured objective values must be numeric and finite.
+- non-`ok` status: all configured objective values must be `null`.
 - optional `terminal_reason` is accepted for non-`ok` statuses.
 - optional `penalty_objective` is accepted for non-`ok` statuses.
-- `best` is computed only from `status == "ok"` primary objective values;
-  `penalty_objective` is not used for ranking.
+- `best` is computed only from `status == "ok"` observations.
+- Single-objective campaigns rank by the primary objective.
+- Multi-objective campaigns rank by the configured scalarization or
+  lexicographic policy; manifests and reports preserve raw `objective_vector`
+  data alongside scalarized metadata.
+- `penalty_objective` is not used for ranking.
 
 Terminal-reason handling:
 
@@ -116,7 +120,7 @@ Terminal-reason handling:
 Compatibility path (v0.2.x):
 
 - Legacy `failure_reason` remains the only accepted non-canonical alias in this
-  area; numeric primary objectives for non-`ok` payloads are rejected.
+  area; numeric objective values for non-`ok` payloads are rejected.
 
 ### `status`
 
@@ -132,6 +136,11 @@ Compatibility path (v0.2.x):
 - `paths` (state/log/artifact locations)
 
 It does not mutate state.
+
+Multi-objective note:
+
+- when multiple objectives are configured, `best` may also include
+  `scalarization_policy` and raw `objective_vector` fields.
 
 ### `cancel` and `retire`
 
@@ -152,6 +161,9 @@ It does not mutate state.
 
 - `report` is explicit (not auto-on-ingest).
 - It writes `state/report.json` and `state/report.md` atomically.
+- multi-objective reports include normalized `objective_config`, scalarized
+  ranking metadata, raw `objective_vector` values, and `pareto_front` summary
+  data.
 
 ### `reset`
 

@@ -138,7 +138,7 @@ Looptimum is usually not the best choice when:
 For first pilot execution:
 
 1. Start with a bounded subset of high-leverage parameters.
-2. Freeze one primary objective and failure policy.
+2. Freeze one objective policy and failure policy.
 3. Run 10-30 evaluations for initial learning.
 4. Review results, then expand bounds/variables only if needed.
 

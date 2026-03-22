@@ -1,0 +1,19 @@
+{
+  "primary_objective": {
+    "name": "loss",
+    "direction": "minimize"
+  },
+  "secondary_objectives": [
+    {
+      "name": "throughput",
+      "direction": "maximize"
+    }
+  ],
+  "scalarization": {
+    "policy": "weighted_sum",
+    "weights": {
+      "loss": 1.0,
+      "throughput": 1.0
+    }
+  }
+}

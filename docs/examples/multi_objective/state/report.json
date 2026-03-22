@@ -1,0 +1,210 @@
+{
+  "schema_version": "0.3.0",
+  "generated_at": 1774146359.1225019,
+  "objective": {
+    "name": "loss",
+    "direction": "minimize",
+    "best_objective_name": "scalarized",
+    "scalarization_policy": "weighted_sum"
+  },
+  "objective_config": {
+    "primary_objective": {
+      "name": "loss",
+      "direction": "minimize",
+      "tolerance": 0.0,
+      "failure_handling": "record_and_continue"
+    },
+    "secondary_objectives": [
+      {
+        "name": "throughput",
+        "direction": "maximize",
+        "tolerance": 0.0,
+        "failure_handling": "record_and_continue"
+      }
+    ],
+    "objectives": [
+      {
+        "name": "loss",
+        "direction": "minimize",
+        "tolerance": 0.0,
+        "failure_handling": "record_and_continue"
+      },
+      {
+        "name": "throughput",
+        "direction": "maximize",
+        "tolerance": 0.0,
+        "failure_handling": "record_and_continue"
+      }
+    ],
+    "objective_names": [
+      "loss",
+      "throughput"
+    ],
+    "scalarization": {
+      "policy": "weighted_sum",
+      "weights": {
+        "loss": 0.5,
+        "throughput": 0.5
+      }
+    }
+  },
+  "counts": {
+    "observations": 2,
+    "pending": 0,
+    "observations_by_status": {
+      "ok": 2,
+      "failed": 0,
+      "killed": 0,
+      "timeout": 0
+    },
+    "failure_rate": 0.0
+  },
+  "best": {
+    "trial_id": 1,
+    "objective_name": "scalarized",
+    "objective_value": -0.85,
+    "updated_at": 1774146359.0043159,
+    "scalarization_policy": "weighted_sum",
+    "objective_vector": {
+      "loss": 0.3,
+      "throughput": 2.0
+    }
+  },
+  "best_params": {
+    "x1": 0.18126486333322134,
+    "x2": 0.6614305484952444
+  },
+  "top_trials": [
+    {
+      "trial_id": 1,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.3,
+      "objective_vector": {
+        "loss": 0.3,
+        "throughput": 2.0
+      },
+      "scalarized_objective": -0.85,
+      "penalty_objective": null,
+      "suggested_at": 1774146358.822124,
+      "completed_at": 1774146358.881591,
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "terminal_reason": null,
+      "scalarization_policy": "weighted_sum",
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      }
+    },
+    {
+      "trial_id": 2,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.2,
+      "objective_vector": {
+        "loss": 0.2,
+        "throughput": 1.0
+      },
+      "scalarized_objective": -0.4,
+      "penalty_objective": null,
+      "suggested_at": 1774146358.944462,
+      "completed_at": 1774146359.004282,
+      "artifact_path": "state/trials/trial_2/ingest_payload.json",
+      "terminal_reason": null,
+      "scalarization_policy": "weighted_sum",
+      "params": {
+        "x1": 0.6771258268002703,
+        "x2": 0.7849113560871108
+      }
+    }
+  ],
+  "terminal_trials": [],
+  "objective_trace": [
+    {
+      "trial_id": 1,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.3,
+      "objective_vector": {
+        "loss": 0.3,
+        "throughput": 2.0
+      },
+      "scalarized_objective": -0.85,
+      "penalty_objective": null,
+      "suggested_at": 1774146358.822124,
+      "completed_at": 1774146358.881591,
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "terminal_reason": null,
+      "scalarization_policy": "weighted_sum"
+    },
+    {
+      "trial_id": 2,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.2,
+      "objective_vector": {
+        "loss": 0.2,
+        "throughput": 1.0
+      },
+      "scalarized_objective": -0.4,
+      "penalty_objective": null,
+      "suggested_at": 1774146358.944462,
+      "completed_at": 1774146359.004282,
+      "artifact_path": "state/trials/trial_2/ingest_payload.json",
+      "terminal_reason": null,
+      "scalarization_policy": "weighted_sum"
+    }
+  ],
+  "pareto_front": {
+    "count": 2,
+    "trial_ids": [
+      1,
+      2
+    ],
+    "trials": [
+      {
+        "trial_id": 1,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.3,
+        "objective_vector": {
+          "loss": 0.3,
+          "throughput": 2.0
+        },
+        "scalarized_objective": -0.85,
+        "penalty_objective": null,
+        "suggested_at": 1774146358.822124,
+        "completed_at": 1774146358.881591,
+        "artifact_path": "state/trials/trial_1/ingest_payload.json",
+        "terminal_reason": null,
+        "scalarization_policy": "weighted_sum",
+        "params": {
+          "x1": 0.18126486333322134,
+          "x2": 0.6614305484952444
+        }
+      },
+      {
+        "trial_id": 2,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.2,
+        "objective_vector": {
+          "loss": 0.2,
+          "throughput": 1.0
+        },
+        "scalarized_objective": -0.4,
+        "penalty_objective": null,
+        "suggested_at": 1774146358.944462,
+        "completed_at": 1774146359.004282,
+        "artifact_path": "state/trials/trial_2/ingest_payload.json",
+        "terminal_reason": null,
+        "scalarization_policy": "weighted_sum",
+        "params": {
+          "x1": 0.6771258268002703,
+          "x2": 0.7849113560871108
+        }
+      }
+    ]
+  },
+  "runtime_summary": null
+}

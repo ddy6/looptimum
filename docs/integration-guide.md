@@ -27,7 +27,7 @@ The Looptimum templates in `templates/` provide a restartable loop that:
 The loop does not need raw data or internal model internals. It just needs:
 
 - parameter values
-- one primary objective value (`number` for `ok`, `null` for non-`ok`)
+- one objective value per configured objective name
 - a trial status (`ok`, `failed`, `killed`, or `timeout`)
 
 ## Repository Paths You Will Use
@@ -113,9 +113,11 @@ Current public templates support:
 
 - `float`
 - `int`
+- `bool`
+- `categorical`
 
-Categorical parameters can be modeled with custom extensions, but are not
-native in the default `run_bo.py` implementations yet.
+Numeric parameters can also declare `scale`, and parameters may use `when` for
+conditional activation.
 
 ### 2. Run One Evaluation
 
@@ -207,10 +209,13 @@ Requirements:
 - `params` must exactly match the pending suggestion
 - `schema_version` should be forwarded from `suggest` output
 - status must be one of `ok`, `failed`, `killed`, `timeout`
-- for `status: ok`, primary objective must be numeric and finite
-- for non-`ok` statuses, primary objective should be `null`
+- for `status: ok`, all configured objective values must be numeric and finite
+- for non-`ok` statuses, all configured objective values should be `null`
 - for non-`ok` statuses, `terminal_reason` is recommended (short string)
 - optional `penalty_objective` can be included for non-`ok` statuses
+
+For multi-objective campaigns, include every configured objective key in the
+`objectives` map.
 
 ### 4. Ingest the Result
 
@@ -238,7 +243,7 @@ Schema path note:
 Runtime control commands used during long-running integrations:
 
 - `cancel --trial-id <id>`: operator-cancel pending trial and record a terminal
-  `killed` observation (`objective: null`).
+  `killed` observation (configured objectives `null`).
 - `retire --trial-id <id>`: retire a pending trial with an explicit reason.
 - `retire --stale [--max-age-seconds]`: retire pending trials beyond stale age
   threshold.
@@ -295,7 +300,7 @@ python3 templates/bo_client_demo/run_bo.py ingest \
   --results-file /path/to/result.json
 ```
 
-## Parameter -> Evaluation -> Scalar Objective Mapping
+## Parameter -> Evaluation -> Objective Mapping
 
 Define this mapping explicitly before running a pilot:
 
@@ -305,8 +310,9 @@ Define this mapping explicitly before running a pilot:
    - What process/job/function runs
 3. Raw outputs:
    - What metrics/artifacts are produced
-4. Scalarization:
-   - How one objective value is computed
+4. Scalarization / ordering:
+   - How one scalar objective value is computed, or how multiple objective
+     values are combined/prioritized
 5. Failure representation:
    - What happens when the run fails or is invalid
 
@@ -314,7 +320,8 @@ Use `intake.md` to capture this precisely.
 
 ## Objective Direction (Minimize vs Maximize)
 
-Objective direction is configured in `objective_schema.json` in your chosen template.
+Objective direction is configured in `objective_schema.json` in your chosen
+template.
 
 For `client_harness_template/run_one_eval.py --objective-schema`, use the JSON
 contract file `objective_schema.json`.
@@ -329,6 +336,40 @@ expected by the harness.
 
 - Do not silently negate values unless you intentionally changed the harness objective definition.
 
+## Multi-Objective Authoring
+
+`objective_schema.json` now supports:
+
+- `primary_objective`
+- optional `secondary_objectives`
+- optional `scalarization`
+
+Supported scalarization policies:
+
+- `weighted_sum`
+- `weighted_tchebycheff`
+- `lexicographic`
+
+Authoring rules:
+
+- `ingest` payloads must include all configured objective keys in `objectives`
+- `status: "ok"` requires numeric finite values for every configured objective
+- non-`ok` payloads require `null` for every configured objective
+- `best` and surrogate ranking use the configured scalarization / ordering
+  policy internally
+- reports and manifests preserve raw `objective_vector` values and scalarized
+  metadata for auditability
+
+Adapter note:
+
+- `client_harness_template/run_one_eval.py` is a single-objective starter
+  adapter; for multi-objective campaigns, build the result payload with the full
+  `objectives` map before calling `ingest`
+
+Reference example pack:
+
+- `docs/examples/multi_objective/README.md`
+
 ## Failure Modes and Recommended Handling
 
 A failed evaluation should usually still produce an ingest payload so the loop
@@ -338,12 +379,12 @@ can continue and the failure is recorded.
 
 - Keep `trial_id` and `params` unchanged
 - Use non-`ok` status (`failed`, `killed`, or `timeout`) as appropriate
-- Set primary objective to `null`
+- Set all configured objective values to `null`
 - Include `terminal_reason` as short failure context
 - Optionally include `penalty_objective` when numeric penalty ranking/reporting
   is useful
 - `penalty_objective` is not used for best-trial ranking; `best` is computed
-  from `status: "ok"` primary objective values only
+  from `status: "ok"` observations under the configured objective policy
 
 Compatibility note (legacy `v0.2.x` payloads):
 
@@ -363,7 +404,7 @@ Compatibility note (legacy `v0.2.x` payloads):
 Common `ingest` rejections include:
 
 - result schema violation
-- missing primary objective
+- missing configured objective keys
 - objective/status policy mismatch (`ok` requires numeric finite; non-`ok`
   requires `null`)
 - `trial_id` is not pending
@@ -499,7 +540,8 @@ Poor fits:
 - problems with cheap gradients and standard gradient-based solvers
 - extremely high-dimensional search spaces without strong structure
 - hard real-time control loops requiring millisecond decisions
-- situations where no scalar objective can be defined at all
+- situations where no scalar objective or acceptable scalarization / ordering
+  policy can be defined
 
 ## Suggested First Pilot Workflow
 

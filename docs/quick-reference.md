@@ -23,6 +23,11 @@ Stable command names and required flag posture are documented in
 4. `status`: reports run headline state (`observations`, `pending`, `best`,
    `next_trial_id`, and related metadata).
 
+Objective contract note:
+
+- `objective_schema.json` defines a required `primary_objective`, optional
+  `secondary_objectives`, and optional `scalarization` policy.
+
 Optional hard-feasibility contract:
 
 - `constraints.json`: validated by `validate` and enforced by `suggest`
@@ -45,13 +50,13 @@ Required:
 
 - `trial_id`: must match a currently pending trial
 - `params`: must exactly match suggested params
-- `objectives`: primary objective map by configured objective name
+- `objectives`: map containing every configured objective name
 - `status`: `ok`, `failed`, `killed`, or `timeout`
 
 Rules:
 
-- `status: ok` requires numeric finite primary objective.
-- non-`ok` status requires primary objective `null`.
+- `status: ok` requires numeric finite values for all configured objectives.
+- non-`ok` status requires `null` for all configured objectives.
 - optional `terminal_reason` (short string) is recommended for non-`ok`
   outcomes.
 - optional `penalty_objective` is allowed for non-`ok` outcomes.
@@ -59,11 +64,15 @@ Rules:
 Optional compatibility fields:
 
 - `schema_version` (emitted by runtime; optional in ingest schema)
+- legacy `success` alias (normalized to `ok`)
 - legacy `failure_reason` alias (normalized to `terminal_reason`)
 
 ## Result and Failure Semantics
 
-- `best` ranking uses only `status: "ok"` observations.
+- `best` ranking uses only `status: "ok"` observations and the configured
+  objective policy.
+- multi-objective campaigns preserve raw `objective_vector` values and
+  scalarized ranking metadata in status/manifests/reports.
 - `penalty_objective` is never used for `best` ranking.
 - non-`ok` payloads without an explicit reason are normalized to
   `terminal_reason: "status=<status>"`.
@@ -80,7 +89,8 @@ Default file-backed artifacts under each template's `state/` path:
 - `acquisition_log.jsonl`: append-only suggestion-decision trace
 - `event_log.jsonl`: append-only lifecycle/ops trace
 - `trials/trial_<id>/manifest.json`: per-trial manifest/audit record
-- `report.json` and `report.md`: explicit `report` command outputs
+- `report.json` and `report.md`: explicit `report` command outputs, including
+  objective-config and Pareto summaries for multi-objective campaigns
 
 ## Concurrency and Recovery
 

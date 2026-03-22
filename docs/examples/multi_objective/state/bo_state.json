@@ -1,0 +1,52 @@
+{
+  "schema_version": "0.3.0",
+  "meta": {
+    "created_at": 1774146358.822083,
+    "seed": 17
+  },
+  "observations": [
+    {
+      "trial_id": 1,
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      },
+      "objectives": {
+        "loss": 0.3,
+        "throughput": 2.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "suggested_at": 1774146358.822124,
+      "completed_at": 1774146358.881591
+    },
+    {
+      "trial_id": 2,
+      "params": {
+        "x1": 0.6771258268002703,
+        "x2": 0.7849113560871108
+      },
+      "objectives": {
+        "loss": 0.2,
+        "throughput": 1.0
+      },
+      "status": "ok",
+      "artifact_path": "state/trials/trial_2/ingest_payload.json",
+      "suggested_at": 1774146358.944462,
+      "completed_at": 1774146359.004282
+    }
+  ],
+  "pending": [],
+  "next_trial_id": 3,
+  "best": {
+    "trial_id": 1,
+    "objective_name": "scalarized",
+    "objective_value": -0.85,
+    "updated_at": 1774146359.0043159,
+    "scalarization_policy": "weighted_sum",
+    "objective_vector": {
+      "loss": 0.3,
+      "throughput": 2.0
+    }
+  }
+}

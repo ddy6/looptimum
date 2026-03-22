@@ -10,7 +10,9 @@ for implementation planning, not marketing collateral.
 
 Required before pilot execution:
 
-- Named primary objective and direction (`minimize` or `maximize`)
+- Named objective policy:
+  primary objective and direction, plus any secondary objectives /
+  scalarization rule if multi-objective
 - Parameter list with types and bounds (or explicit extension plan)
 - Failure policy for invalid/failed evaluations
 - One-evaluation interface definition (function, CLI, API, or job wrapper)
@@ -28,7 +30,7 @@ Recommended:
 
 | Area | Client Team | Looptimum Team | Joint |
 |---|---|---|---|
-| Objective definition | Own domain objective meaning and acceptance criteria | Review optimization framing | Finalize scalar objective and direction |
+| Objective definition | Own domain objective meaning and acceptance criteria | Review optimization framing | Finalize objective policy and direction(s) |
 | Parameter space | Provide parameter candidates, safe bounds, and constraints | Advise on sample-efficient framing | Freeze pilot parameter set |
 | Evaluator integration | Implement/run system-specific evaluation path | Provide harness pattern and payload contract support | Validate one end-to-end trial |
 | Runtime operations | Provide environment access, scheduling, and guardrails | Provide command workflow and troubleshooting guidance | Define retry/failure handling |
@@ -88,7 +90,7 @@ Define deterministic boundaries explicitly:
 Agree in advance:
 
 - What non-`ok` statuses you will emit (`failed`, `killed`, `timeout`)
-- Failure payload representation (`objective: null`, recommended
+- Failure payload representation (configured objectives `null`, recommended
   `terminal_reason`, optional `penalty_objective`)
 - Retry policy for transient failures
 - Operator workflow when ingest fails validation

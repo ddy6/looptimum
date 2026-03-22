@@ -1,0 +1,3 @@
+artifact_path,completed_at,objective_loss,objective_throughput,param_x1,param_x2,status,trial_id
+state/trials/trial_1/ingest_payload.json,1774146358.881591,0.3,2.0,0.18126486333322134,0.6614305484952444,ok,1
+state/trials/trial_2/ingest_payload.json,1774146359.004282,0.2,1.0,0.6771258268002703,0.7849113560871108,ok,2

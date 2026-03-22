@@ -1,0 +1,15 @@
+{"command": "suggest", "event": "lock_acquired", "pid": 2537, "timestamp": 1774146358.82192, "wait_seconds": 6.792019121348858e-06}
+{"event": "suggestion_created", "timestamp": 1774146358.8227022, "trial_id": 1}
+{"command": "suggest", "event": "lock_released", "pid": 2537, "timestamp": 1774146358.822944}
+{"command": "ingest", "event": "lock_acquired", "pid": 2538, "timestamp": 1774146358.881351, "wait_seconds": 7.166003342717886e-06}
+{"event": "ingest_applied", "status": "ok", "timestamp": 1774146358.882779, "trial_id": 1}
+{"command": "ingest", "event": "lock_released", "pid": 2538, "timestamp": 1774146358.8828318}
+{"command": "suggest", "event": "lock_acquired", "pid": 2539, "timestamp": 1774146358.944243, "wait_seconds": 6.874994141981006e-06}
+{"event": "suggestion_created", "timestamp": 1774146358.944999, "trial_id": 2}
+{"command": "suggest", "event": "lock_released", "pid": 2539, "timestamp": 1774146358.945324}
+{"command": "ingest", "event": "lock_acquired", "pid": 2540, "timestamp": 1774146359.004072, "wait_seconds": 4.1669991333037615e-06}
+{"event": "ingest_applied", "status": "ok", "timestamp": 1774146359.005455, "trial_id": 2}
+{"command": "ingest", "event": "lock_released", "pid": 2540, "timestamp": 1774146359.005502}
+{"command": "report", "event": "lock_acquired", "pid": 2544, "timestamp": 1774146359.122188, "wait_seconds": 7.0420210249722e-06}
+{"event": "report_generated", "report_json": "state/report.json", "report_md": "state/report.md", "timestamp": 1774146359.123185}
+{"command": "report", "event": "lock_released", "pid": 2544, "timestamp": 1774146359.123248}

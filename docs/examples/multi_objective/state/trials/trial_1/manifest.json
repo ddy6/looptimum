@@ -1,0 +1,28 @@
+{
+  "created_at": 1774146358.822203,
+  "trial_id": 1,
+  "status": "ok",
+  "terminal_reason": null,
+  "params": {
+    "x1": 0.18126486333322134,
+    "x2": 0.6614305484952444
+  },
+  "objective_name": "loss",
+  "objective_value": 0.3,
+  "objective_vector": {
+    "loss": 0.3,
+    "throughput": 2.0
+  },
+  "scalarized_objective": -0.85,
+  "scalarization_policy": "weighted_sum",
+  "penalty_objective": null,
+  "suggested_at": 1774146358.822124,
+  "completed_at": 1774146358.881591,
+  "last_heartbeat_at": null,
+  "heartbeat_count": 0,
+  "artifact_path": "state/trials/trial_1/ingest_payload.json",
+  "artifacts": {
+    "ingest_payload": "state/trials/trial_1/ingest_payload.json"
+  },
+  "updated_at": 1774146358.881591
+}

@@ -1,0 +1,12 @@
+{
+  "trial_id": 2,
+  "params": {
+    "x1": 0.6771258268002703,
+    "x2": 0.7849113560871108
+  },
+  "objectives": {
+    "loss": 0.2,
+    "throughput": 1.0
+  },
+  "status": "ok"
+}

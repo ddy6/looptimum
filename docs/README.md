@@ -25,11 +25,11 @@ Included files:
   state persistence, contamination controls, safe parallelism, and robust-best policy
 - `stability-guarantees.md`: public compatibility guarantees, deprecation
   policy, and breaking-change rules for `v0.3.x` (current patch:
-  `v0.3.3`)
+  `v0.3.5`)
 - `feedback-loop.md`: post-release feedback intake, issue-triage workflow,
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and
-  multi-objective boundaries
+  multi-objective handling
 - `constraints.md`: hard-constraint contract semantics, troubleshooting, and
   example authoring guidance
 - `decision-trace.md`: acquisition log schema and decision metadata guidance
@@ -46,6 +46,7 @@ Reference artifacts:
 
 - `../PILOT.md`
 - `examples/README.md`
+- `examples/multi_objective/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`
 - `examples/constraints/README.md`

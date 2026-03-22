@@ -125,9 +125,12 @@ After recovery, verify:
 1. `state/trials/trial_<id>/manifest.json` contains:
    - `status`, `terminal_reason`, `suggested_at`
    - terminal `completed_at`
+   - `objective_vector` and `scalarized_objective` when multi-objective is enabled
    - `penalty_objective` for failed/killed/timeout records
    - `artifact_path` (string when produced, else null)
 2. `state/report.json` includes:
+   - `objective_config`
    - `terminal_trials`
    - enriched `objective_trace`
+   - `pareto_front` when multiple objectives are configured
 3. `validate` returns zero (or zero warnings if non-strict policy accepted).
