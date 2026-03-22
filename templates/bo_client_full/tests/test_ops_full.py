@@ -480,6 +480,88 @@ def test_import_observations_csv_updates_multi_objective_best_and_manifests(
     assert rows[1]["source_trial_id"] == "full-1"
 
 
+def test_import_observations_permissive_multi_objective_writes_report(
+    template_copy: Path,
+) -> None:
+    _write_weighted_sum_objective_schema(template_copy)
+    import_path = template_copy / "examples" / "_import_multi_objective_permissive.csv"
+    _write_import_csv(
+        import_path,
+        fieldnames=[
+            "source_trial_id",
+            "status",
+            "param_x1",
+            "param_x2",
+            "objective_loss",
+            "objective_throughput",
+        ],
+        rows=[
+            {
+                "source_trial_id": "full-11",
+                "status": "ok",
+                "param_x1": "0.25",
+                "param_x2": "0.75",
+                "objective_loss": "0.3",
+                "objective_throughput": "2.0",
+            },
+            {
+                "source_trial_id": "full-12",
+                "status": "ok",
+                "param_x1": "0.5",
+                "param_x2": "0.5",
+                "objective_loss": "0.2",
+                "objective_throughput": "",
+            },
+        ],
+    )
+
+    out = run_cmd(
+        template_copy,
+        "import-observations",
+        "--input-file",
+        str(import_path),
+        "--import-mode",
+        "permissive",
+    )
+    assert (
+        "Imported 1 observation(s) from examples/_import_multi_objective_permissive.csv."
+        in out.stdout
+    )
+    assert "Rejected rows=1" in out.stdout
+
+    report_line = next(
+        line for line in out.stdout.splitlines() if line.startswith("Import report: ")
+    )
+    report_rel = report_line.split("Import report: ", 1)[1]
+    report = json.loads((template_copy / report_rel).read_text(encoding="utf-8"))
+    assert report["accepted_count"] == 1
+    assert report["rejected_count"] == 1
+    assert report["accepted_trial_ids"] == [1]
+    assert report["rejected_rows"][0]["row_number"] == 2
+    assert report["rejected_rows"][0]["source_trial_id"] == "full-12"
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 1
+    assert status["best"]["trial_id"] == 1
+    assert status["best"]["objective_name"] == "scalarized"
+    assert status["best"]["scalarization_policy"] == "weighted_sum"
+    assert status["best"]["objective_vector"] == {"loss": 0.3, "throughput": 2.0}
+
+    event_lines = (
+        (template_copy / "state" / "event_log.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    import_event = next(
+        json.loads(line)
+        for line in reversed(event_lines)
+        if '"event": "observations_imported"' in line
+    )
+    assert import_event["import_mode"] == "permissive"
+    assert import_event["accepted_count"] == 1
+    assert import_event["rejected_count"] == 1
+    assert import_event["import_report_path"] == report_rel
+    assert import_event["reject_report_path"] == report_rel
+
+
 def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy: Path) -> None:
     _seed_runtime_artifacts_for_reset(template_copy)
 

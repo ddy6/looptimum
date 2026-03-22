@@ -453,6 +453,50 @@ def test_import_observations_jsonl_canonicalizes_conditional_params(template_cop
     assert row["source_trial_id"] == "demo-41"
 
 
+def test_export_observations_csv_round_trips_conditional_campaign(template_copy: Path) -> None:
+    (template_copy / "parameter_space.json").write_text(
+        json.dumps(_conditional_parameter_space(), indent=2), encoding="utf-8"
+    )
+    import_path = template_copy / "examples" / "_export_roundtrip_seed.jsonl"
+    _write_import_jsonl(
+        import_path,
+        [
+            {
+                "source_trial_id": "demo-11",
+                "status": "ok",
+                "params": {"gate": 0, "x": 0.25, "momentum": 0.9},
+                "objectives": {"loss": 0.3},
+            },
+            {
+                "source_trial_id": "demo-12",
+                "status": "ok",
+                "params": {"gate": 1, "x": 0.75, "momentum": 0.4},
+                "objectives": {"loss": 0.2},
+            },
+        ],
+    )
+    run_cmd(template_copy, "import-observations", "--input-file", str(import_path))
+
+    export_path = template_copy / "examples" / "_observations_roundtrip.csv"
+    out = run_cmd(template_copy, "export-observations", "--output-file", str(export_path))
+    assert "Exported 2 observation(s) to examples/_observations_roundtrip.csv." in out.stdout
+    assert "Format: csv." in out.stdout
+
+    with export_path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows[0]["source_trial_id"] == "demo-11"
+    assert rows[0]["param_momentum"] == ""
+    assert rows[1]["source_trial_id"] == "demo-12"
+    assert rows[1]["param_momentum"] == "0.4"
+
+    run_cmd(template_copy, "reset", "--yes", "--no-archive")
+    run_cmd(template_copy, "import-observations", "--input-file", str(export_path))
+
+    state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
+    assert state["observations"][0]["params"] == {"gate": 0, "x": 0.25}
+    assert state["observations"][1]["params"] == {"gate": 1, "x": 0.75, "momentum": 0.4}
+
+
 def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy: Path) -> None:
     _seed_runtime_artifacts_for_reset(template_copy)
 

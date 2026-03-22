@@ -496,6 +496,110 @@ def test_import_observations_rejects_when_pending_trials_exist(template_copy) ->
     assert status["pending"] == 1
 
 
+def test_import_observations_permissive_writes_reject_report(template_copy) -> None:
+    import_path = template_copy / "examples" / "_import_permissive.jsonl"
+    _write_import_jsonl(
+        import_path,
+        [
+            {
+                "source_trial_id": "legacy-1",
+                "status": "ok",
+                "params": {"x1": 0.2, "x2": 0.8},
+                "objectives": {"loss": 0.15},
+            },
+            {
+                "source_trial_id": "legacy-2",
+                "status": "ok",
+                "params": {"bogus": 1.0},
+                "objectives": {"loss": 0.4},
+            },
+        ],
+    )
+
+    out = run_cmd(
+        template_copy,
+        "import-observations",
+        "--input-file",
+        str(import_path),
+        "--import-mode",
+        "permissive",
+    )
+    assert "Imported 1 observation(s) from examples/_import_permissive.jsonl." in out.stdout
+    assert "Rejected rows=1" in out.stdout
+
+    report_line = next(
+        line for line in out.stdout.splitlines() if line.startswith("Import report: ")
+    )
+    report_rel = report_line.split("Import report: ", 1)[1]
+    report = json.loads((template_copy / report_rel).read_text(encoding="utf-8"))
+    assert report["mode"] == "permissive"
+    assert report["accepted_count"] == 1
+    assert report["rejected_count"] == 1
+    assert report["accepted_trial_ids"] == [1]
+    assert report["rejected_rows"][0]["row_number"] == 2
+    assert report["rejected_rows"][0]["source_trial_id"] == "legacy-2"
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 1
+    assert status["pending"] == 0
+    assert status["next_trial_id"] == 2
+
+    event_lines = (
+        (template_copy / "state" / "event_log.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    import_event = next(
+        json.loads(line)
+        for line in reversed(event_lines)
+        if '"event": "observations_imported"' in line
+    )
+    assert import_event["import_mode"] == "permissive"
+    assert import_event["accepted_count"] == 1
+    assert import_event["rejected_count"] == 1
+    assert import_event["import_report_path"] == report_rel
+    assert import_event["reject_report_path"] == report_rel
+
+
+def test_export_observations_jsonl_round_trips_after_reset(template_copy) -> None:
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "objectives": {"loss": 0.2},
+        "status": "ok",
+    }
+    result_path = template_copy / "examples" / "_export_roundtrip_seed.json"
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    run_cmd(template_copy, "ingest", "--results-file", str(result_path))
+
+    export_path = template_copy / "examples" / "_observations_roundtrip.jsonl"
+    out = run_cmd(template_copy, "export-observations", "--output-file", str(export_path))
+    assert "Exported 1 observation(s) to examples/_observations_roundtrip.jsonl." in out.stdout
+    assert "Format: jsonl." in out.stdout
+
+    exported_rows = [
+        json.loads(line)
+        for line in export_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(exported_rows) == 1
+    assert exported_rows[0]["trial_id"] == 1
+    assert exported_rows[0]["params"] == suggestion["params"]
+    assert exported_rows[0]["objectives"] == {"loss": 0.2}
+    assert exported_rows[0]["status"] == "ok"
+    assert isinstance(exported_rows[0]["completed_at"], float)
+    assert isinstance(exported_rows[0]["suggested_at"], float)
+    assert isinstance(exported_rows[0]["artifact_path"], str)
+
+    run_cmd(template_copy, "reset", "--yes", "--no-archive")
+    run_cmd(template_copy, "import-observations", "--input-file", str(export_path))
+
+    status = json.loads(run_cmd(template_copy, "status").stdout)
+    assert status["observations"] == 1
+    assert status["pending"] == 0
+    assert status["next_trial_id"] == 2
+    assert status["best"]["trial_id"] == 1
+
+
 def test_reset_archives_by_default_and_clears_runtime_artifacts(template_copy) -> None:
     _seed_runtime_artifacts_for_reset(template_copy)
 

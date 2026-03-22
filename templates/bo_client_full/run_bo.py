@@ -119,7 +119,11 @@ canonicalize_conditional_params = _SEARCH_SPACE.canonicalize_conditional_params
 infer_observation_format = _OBSERVATIONS_IO.infer_observation_format
 load_observation_rows = _OBSERVATIONS_IO.load_observation_rows
 normalize_import_record = _OBSERVATIONS_IO.normalize_import_record
+normalize_import_records_permissive = _OBSERVATIONS_IO.normalize_import_records_permissive
+next_import_trial_id = _OBSERVATIONS_IO.next_import_trial_id
 plan_import_trial_ids = _OBSERVATIONS_IO.plan_import_trial_ids
+render_observations_csv = _OBSERVATIONS_IO.render_observations_csv
+render_observations_jsonl = _OBSERVATIONS_IO.render_observations_jsonl
 
 
 class ConstraintSamplingFailure(ValueError):
@@ -812,6 +816,12 @@ def _annotate_import_manifest(
         manifest.pop("source_trial_id", None)
     manifest["updated_at"] = imported_at
     save_trial_manifest(paths["trials_dir"], trial_id, manifest)
+
+
+def _import_report_path(paths: dict[str, Path], *, imported_at: float) -> Path:
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(imported_at))
+    micros = int((imported_at - math.floor(imported_at)) * 1_000_000)
+    return paths["import_reports_dir"] / f"import-{stamp}-{micros:06d}-{os.getpid()}.json"
 
 
 def _observation_rows(state: dict) -> list[dict]:
@@ -1933,9 +1943,12 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
 
     input_path = Path(args.input_file).resolve()
     row_format = args.format or infer_observation_format(input_path)
+    import_mode = str(args.import_mode or "strict").strip().lower()
     raw_rows = load_observation_rows(input_path, row_format)
     if not raw_rows:
         raise ValueError(f"No observation rows found in {input_path}")
+    if import_mode not in {"strict", "permissive"}:
+        raise ValueError("import-observations requires --import-mode strict|permissive")
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
@@ -1952,23 +1965,79 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
         )
         try:
             state = load_state(paths["state_file"])
-            planned_trial_ids = plan_import_trial_ids(state, len(raw_rows))
             imported_at = time.time()
             import_source = _relative_path(root, input_path)
+            import_report_rel: str | None = None
+            reject_report_rel: str | None = None
+            rejected_rows: list[dict] = []
 
-            normalized_rows = [
-                normalize_import_record(
-                    raw_row,
+            if import_mode == "strict":
+                planned_trial_ids = plan_import_trial_ids(state, len(raw_rows))
+                normalized_rows = [
+                    normalize_import_record(
+                        raw_row,
+                        row_format=row_format,
+                        params=params,
+                        objective_cfg=obj_cfg,
+                        local_trial_id=planned_trial_ids[index],
+                        imported_at=imported_at,
+                    )
+                    for index, raw_row in enumerate(raw_rows)
+                ]
+                next_trial_id_after_import = planned_trial_ids[-1] + 1
+            else:
+                start_trial_id = next_import_trial_id(state)
+                permissive_result = normalize_import_records_permissive(
+                    raw_rows,
                     row_format=row_format,
                     params=params,
                     objective_cfg=obj_cfg,
-                    local_trial_id=planned_trial_ids[index],
+                    next_trial_id=start_trial_id,
                     imported_at=imported_at,
                 )
-                for index, raw_row in enumerate(raw_rows)
-            ]
+                normalized_rows = permissive_result["accepted"]
+                rejected_rows = permissive_result["rejected"]
+                next_trial_id_after_import = int(permissive_result["next_trial_id"])
+                report_path = _import_report_path(paths, imported_at=imported_at)
+                report_payload = {
+                    "mode": import_mode,
+                    "import_source": import_source,
+                    "row_format": row_format,
+                    "imported_at": imported_at,
+                    "requested_count": len(raw_rows),
+                    "accepted_count": len(normalized_rows),
+                    "rejected_count": len(rejected_rows),
+                    "accepted_trial_ids": [
+                        int(record["observation"]["trial_id"]) for record in normalized_rows
+                    ],
+                    "rejected_rows": rejected_rows,
+                }
+                atomic_write_json(report_path, report_payload, indent=2)
+                import_report_rel = _relative_path(root, report_path)
+                if rejected_rows:
+                    reject_report_rel = import_report_rel
 
             imported_observations = [record["observation"] for record in normalized_rows]
+            if not imported_observations:
+                event_fields: dict[str, Any] = {
+                    "import_source": import_source,
+                    "imported_at": imported_at,
+                    "row_format": row_format,
+                    "import_mode": import_mode,
+                    "requested_count": len(raw_rows),
+                    "accepted_count": 0,
+                    "rejected_count": len(rejected_rows),
+                }
+                if import_report_rel is not None:
+                    event_fields["import_report_path"] = import_report_rel
+                if reject_report_rel is not None:
+                    event_fields["reject_report_path"] = reject_report_rel
+                _append_event(paths, "observations_imported", **event_fields)
+                detail = f" Reject report: {reject_report_rel}" if reject_report_rel else ""
+                raise ValueError(
+                    f"No observations imported from {import_source}; all {len(raw_rows)} row(s) were rejected.{detail}"
+                )
+
             for observation, record in zip(imported_observations, normalized_rows, strict=True):
                 source_trial_id = record.get("source_trial_id")
                 if source_trial_id is not None:
@@ -1991,26 +2060,88 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                     source_trial_id=source_trial_id,
                 )
 
-            if planned_trial_ids:
-                state["next_trial_id"] = planned_trial_ids[-1] + 1
+            state["next_trial_id"] = next_trial_id_after_import
             update_best(state, obj_cfg)
             _save_state_and_rows(paths, state)
-            _append_event(
-                paths,
-                "observations_imported",
-                import_source=import_source,
-                imported_at=imported_at,
-                row_format=row_format,
-                accepted_count=len(imported_observations),
-                rejected_count=0,
-            )
+            event_fields = {
+                "import_source": import_source,
+                "imported_at": imported_at,
+                "row_format": row_format,
+                "import_mode": import_mode,
+                "requested_count": len(raw_rows),
+                "accepted_count": len(imported_observations),
+                "rejected_count": len(rejected_rows),
+            }
+            if import_report_rel is not None:
+                event_fields["import_report_path"] = import_report_rel
+            if reject_report_rel is not None:
+                event_fields["reject_report_path"] = reject_report_rel
+            _append_event(paths, "observations_imported", **event_fields)
             print(f"Imported {len(imported_observations)} observation(s) from {import_source}.")
-            print(
-                f"Format: {row_format}. Observations={len(state['observations'])} "
-                f"Next trial id={state['next_trial_id']}"
-            )
+            if import_mode == "strict":
+                print(
+                    f"Format: {row_format}. Observations={len(state['observations'])} "
+                    f"Next trial id={state['next_trial_id']}"
+                )
+            else:
+                print(
+                    f"Format: {row_format}. Mode: {import_mode}. Observations={len(state['observations'])} "
+                    f"Next trial id={state['next_trial_id']}. Rejected rows={len(rejected_rows)}"
+                )
+                if import_report_rel is not None:
+                    print(f"Import report: {import_report_rel}")
         finally:
             _append_event(paths, "lock_released", command="import-observations", pid=os.getpid())
+
+
+def cmd_export_observations(args: argparse.Namespace) -> None:
+    if not args.output_file:
+        raise ValueError("export-observations requires --output-file")
+
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+
+    output_path = Path(args.output_file).resolve()
+    row_format = args.format or infer_observation_format(output_path)
+    paths = _runtime_paths(root, cfg)
+    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+
+    with hold_exclusive_lock(
+        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
+    ) as lock:
+        _append_event(
+            paths,
+            "lock_acquired",
+            command="export-observations",
+            pid=os.getpid(),
+            wait_seconds=lock.wait_seconds,
+        )
+        try:
+            state = load_state(paths["state_file"])
+            observations = state.get("observations", [])
+            if not isinstance(observations, list):
+                raise ValueError("state.observations must be a list")
+            exported_at = time.time()
+            export_path = _relative_path(root, output_path)
+            if row_format == "jsonl":
+                payload = render_observations_jsonl(observations)
+            else:
+                payload = render_observations_csv(observations)
+            atomic_write_text(output_path, payload)
+            _append_event(
+                paths,
+                "observations_exported",
+                export_path=export_path,
+                exported_at=exported_at,
+                row_format=row_format,
+                exported_count=len(observations),
+            )
+            print(f"Exported {len(observations)} observation(s) to {export_path}.")
+            print(f"Format: {row_format}.")
+        finally:
+            _append_event(paths, "lock_released", command="export-observations", pid=os.getpid())
 
 
 def cmd_cancel(args: argparse.Namespace) -> None:
@@ -2809,6 +2940,7 @@ def parse_args() -> argparse.Namespace:
             "suggest",
             "ingest",
             "import-observations",
+            "export-observations",
             "status",
             "demo",
             "cancel",
@@ -2826,10 +2958,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--results-file", default="examples/example_results.json")
     parser.add_argument("--input-file", help="For import-observations: CSV/JSONL input file.")
+    parser.add_argument("--output-file", help="For export-observations: CSV/JSONL output file.")
+    parser.add_argument(
+        "--import-mode",
+        choices=["strict", "permissive"],
+        default="strict",
+        help="For import-observations: strict or permissive row rejection handling.",
+    )
     parser.add_argument(
         "--format",
         choices=["csv", "jsonl"],
-        help="For import-observations: input format override.",
+        help="For import-observations/export-observations: format override.",
     )
     parser.add_argument("--steps", type=int, default=8)
     parser.add_argument("--trial-id", type=int)
@@ -2929,6 +3068,7 @@ def main() -> None:
         "suggest": cmd_suggest,
         "ingest": cmd_ingest,
         "import-observations": cmd_import_observations,
+        "export-observations": cmd_export_observations,
         "status": cmd_status,
         "demo": cmd_demo,
         "cancel": cmd_cancel,

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
+import json
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -265,3 +268,76 @@ def test_export_observation_json_record_stabilizes_known_fields_only() -> None:
         "completed_at": 11.0,
         "artifact_path": None,
     }
+
+
+def test_normalize_import_records_permissive_preserves_sequential_local_ids() -> None:
+    params = SEARCH_SPACE.normalize_search_space(
+        {"parameters": [{"name": "x", "type": "float", "bounds": [0.0, 1.0]}]}
+    )
+
+    result = OBS_IO.normalize_import_records_permissive(
+        [
+            {
+                "trial_id": "legacy-1",
+                "params": {"x": 0.25},
+                "objectives": {"loss": 0.1},
+                "status": "ok",
+            },
+            {
+                "trial_id": "legacy-2",
+                "params": {"bogus": 1.0},
+                "objectives": {"loss": 0.2},
+                "status": "ok",
+            },
+            {
+                "trial_id": "legacy-3",
+                "params": {"x": 0.75},
+                "objectives": {"loss": 0.3},
+                "status": "ok",
+            },
+        ],
+        row_format="jsonl",
+        params=params,
+        objective_cfg=_objective_cfg(),
+        next_trial_id=7,
+        imported_at=50.0,
+    )
+
+    accepted = result["accepted"]
+    assert [row["observation"]["trial_id"] for row in accepted] == [7, 8]
+    assert result["next_trial_id"] == 9
+    assert result["rejected"][0]["row_number"] == 2
+    assert result["rejected"][0]["source_trial_id"] == "legacy-2"
+
+
+def test_render_observations_jsonl_and_csv_round_trip() -> None:
+    observation = {
+        "trial_id": 5,
+        "source_trial_id": "legacy-5",
+        "params": {"x": 0.5},
+        "objectives": {"loss": 0.2},
+        "status": "ok",
+        "suggested_at": 10.0,
+        "completed_at": 11.0,
+        "artifact_path": "legacy/trial-5",
+    }
+
+    jsonl_text = OBS_IO.render_observations_jsonl([observation])
+    assert [json.loads(line) for line in jsonl_text.splitlines()] == [
+        OBS_IO.export_observation_json_record(observation)
+    ]
+
+    csv_text = OBS_IO.render_observations_csv([observation])
+    rows = list(csv.DictReader(StringIO(csv_text)))
+    assert rows == [
+        {
+            "artifact_path": "legacy/trial-5",
+            "completed_at": "11.0",
+            "objective_loss": "0.2",
+            "param_x": "0.5",
+            "source_trial_id": "legacy-5",
+            "status": "ok",
+            "suggested_at": "10.0",
+            "trial_id": "5",
+        }
+    ]

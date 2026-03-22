@@ -34,6 +34,7 @@ DEFAULT_PATHS = {
     "observations_csv": "state/observations.csv",
     "acquisition_log_file": "state/acquisition_log.jsonl",
     "event_log_file": "state/event_log.jsonl",
+    "import_reports_dir": "state/import_reports",
     "trials_dir": "state/trials",
     "lock_file": "state/.looptimum.lock",
     "report_json_file": "state/report.json",

@@ -4,6 +4,7 @@ import csv
 import importlib.util
 import json
 import math
+from io import StringIO
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -424,6 +425,15 @@ def plan_import_trial_ids(state: JSONDict, row_count: int) -> list[int]:
     return list(range(next_trial_id, next_trial_id + row_count))
 
 
+def next_import_trial_id(state: JSONDict) -> int:
+    pending = state.get("pending")
+    if not isinstance(pending, list):
+        raise ValueError("state.pending must be a list")
+    if pending:
+        raise ValueError("import-observations requires zero pending trials in the first pass")
+    return _require_trial_id(state.get("next_trial_id"), field_name="state.next_trial_id")
+
+
 def export_observation_json_record(observation: JSONDict) -> JSONDict:
     record = _require_object(observation, field_name="observation")
     _require_trial_id(record.get("trial_id"), field_name="observation.trial_id")
@@ -466,6 +476,59 @@ def flatten_observation_for_csv(observation: JSONDict) -> JSONDict:
 
 def flatten_observations_for_csv(observations: list[JSONDict]) -> list[JSONDict]:
     return [flatten_observation_for_csv(observation) for observation in observations]
+
+
+def render_observations_jsonl(observations: list[JSONDict]) -> str:
+    return "".join(
+        json.dumps(export_observation_json_record(observation)) + "\n"
+        for observation in observations
+    )
+
+
+def render_observations_csv(observations: list[JSONDict]) -> str:
+    rows = flatten_observations_for_csv(observations)
+    if not rows:
+        return ""
+    keys = sorted({key for row in rows for key in row.keys()})
+    buffer = StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=keys)
+    writer.writeheader()
+    writer.writerows(rows)
+    return buffer.getvalue()
+
+
+def _source_trial_id_hint(raw: Any, *, row_format: str) -> int | str | None:
+    normalized_format = _require_supported_format(row_format)
+    if not isinstance(raw, dict):
+        return None
+    try:
+        if normalized_format == "jsonl":
+            return _normalize_source_trial_id_from_jsonl(cast(JSONDict, raw))
+        return _normalize_source_trial_id_from_csv(cast(JSONDict, raw))
+    except ValueError:
+        return None
+
+
+def build_import_reject_record(
+    raw: Any,
+    *,
+    row_format: str,
+    row_number: int,
+    error: str,
+) -> JSONDict:
+    if not isinstance(row_number, int) or row_number < 1:
+        raise ValueError("row_number must be an integer >= 1")
+
+    payload: JSONDict = {
+        "row_number": row_number,
+        "row_format": _require_supported_format(row_format),
+        "error": str(error),
+        "row": raw,
+    }
+    source_trial_id = _source_trial_id_hint(raw, row_format=row_format)
+    if source_trial_id is not None:
+        payload["source_trial_id"] = source_trial_id
+    return payload
 
 
 def _normalize_common_observation_fields(
@@ -657,4 +720,49 @@ def normalize_import_record(
         "row_format": normalized_format,
         "source_trial_id": source_trial_id,
         "observation": observation,
+    }
+
+
+def normalize_import_records_permissive(
+    raw_rows: list[JSONDict],
+    *,
+    row_format: str,
+    params: list[JSONDict],
+    objective_cfg: JSONDict,
+    next_trial_id: int,
+    imported_at: float,
+) -> JSONDict:
+    current_trial_id = _require_trial_id(next_trial_id, field_name="next_trial_id")
+    accepted: list[JSONDict] = []
+    rejected: list[JSONDict] = []
+    normalized_format = _require_supported_format(row_format)
+
+    for row_number, raw_row in enumerate(raw_rows, start=1):
+        try:
+            accepted.append(
+                normalize_import_record(
+                    raw_row,
+                    row_format=normalized_format,
+                    params=params,
+                    objective_cfg=objective_cfg,
+                    local_trial_id=current_trial_id,
+                    imported_at=imported_at,
+                )
+            )
+        except ValueError as exc:
+            rejected.append(
+                build_import_reject_record(
+                    raw_row,
+                    row_format=normalized_format,
+                    row_number=row_number,
+                    error=str(exc),
+                )
+            )
+            continue
+        current_trial_id += 1
+
+    return {
+        "accepted": accepted,
+        "rejected": rejected,
+        "next_trial_id": current_trial_id,
     }
