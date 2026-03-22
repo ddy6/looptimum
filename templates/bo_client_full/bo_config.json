@@ -35,6 +35,7 @@
     "acquisition_log_file": "state/acquisition_log.jsonl",
     "constraints_schema_file": "../_shared/schemas/constraints.schema.json",
     "ingest_schema_file": "../_shared/schemas/ingest_payload.schema.json",
+    "objective_schema_schema_file": "../_shared/schemas/objective_schema.schema.json",
     "search_space_schema_file": "../_shared/schemas/search_space.schema.json",
     "suggestion_schema_file": "../_shared/schemas/suggestion_payload.schema.json"
   }

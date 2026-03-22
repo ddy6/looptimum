@@ -314,6 +314,53 @@ def test_validate_accepts_conditional_parameter_space(template_copy) -> None:
     assert "Validation passed." in out.stdout
 
 
+def test_validate_accepts_multi_objective_schema_with_weighted_sum(template_copy) -> None:
+    objective_path = template_copy / "objective_schema.json"
+    objective_path.write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "secondary_objectives": [{"name": "runtime", "direction": "minimize"}],
+                "scalarization": {
+                    "policy": "weighted_sum",
+                    "weights": {"loss": 3.0, "runtime": 1.0},
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "validate")
+    assert "Validation passed." in out.stdout
+
+
+def test_validate_rejects_invalid_multi_objective_scalarization(template_copy) -> None:
+    objective_path = template_copy / "objective_schema.json"
+    objective_path.write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "secondary_objectives": [{"name": "runtime", "direction": "minimize"}],
+                "scalarization": {
+                    "policy": "weighted_sum",
+                    "weights": {"loss": 1.0},
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    out = run_cmd(template_copy, "validate", expect_ok=False)
+    assert out.returncode != 0
+    assert "ERROR: objective_schema validation failure:" in out.stdout
+    assert (
+        "objective_schema.scalarization.weights must match declared objective names exactly"
+        in out.stdout
+    )
+
+
 def test_validate_accepts_well_formed_constraints_contract(template_copy) -> None:
     constraints_path = template_copy / "constraints.json"
     constraints_path.write_text(

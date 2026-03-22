@@ -40,6 +40,7 @@ def _load_shared_module(module_name: str, filename: str):
 
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _CONSTRAINTS = _load_shared_module("looptimum_shared_constraints", "constraints.py")
+_OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 
@@ -59,6 +60,8 @@ build_constraint_error_reason = _CONSTRAINTS.build_constraint_error_reason
 build_constraint_status = _CONSTRAINTS.build_constraint_status
 format_reject_summary = _CONSTRAINTS.format_reject_summary
 sample_feasible_candidates = _CONSTRAINTS.sample_feasible_candidates
+
+normalize_objective_schema = _OBJECTIVES.normalize_objective_schema
 
 append_jsonl = _RUNTIME.append_jsonl
 atomic_write_json = _RUNTIME.atomic_write_json
@@ -184,6 +187,20 @@ def _is_usable_observation(row: dict, objective_name: str) -> bool:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         return False
     return math.isfinite(float(value))
+
+
+def _load_objective_config(root: Path, cfg: dict) -> dict:
+    obj_cfg, obj_path = load_contract_document(root, "objective_schema")
+    if not isinstance(obj_cfg, dict):
+        raise ValueError("objective_schema must be an object")
+    objective_schema, _ = load_schema_from_paths(
+        root,
+        cfg.get("paths", {}),
+        key="objective_schema_schema_file",
+        default_rel="../_shared/schemas/objective_schema.schema.json",
+    )
+    validate_against_schema(obj_cfg, objective_schema, source_path=obj_path)
+    return normalize_objective_schema(obj_cfg)
 
 
 def _load_constraints(root: Path, cfg: dict, params: list[dict]) -> dict | None:
@@ -1364,9 +1381,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     params = normalize_search_space(space_cfg)
     constraints = _load_constraints(root, cfg, params)
 
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
 
@@ -1497,9 +1512,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
         raise ValueError(f"parameter_space must be an object: {space_path}")
     params = normalize_search_space(space_cfg)
 
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
 
@@ -1643,9 +1656,7 @@ def cmd_cancel(args: argparse.Namespace) -> None:
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
 
@@ -1706,9 +1717,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
 
@@ -1810,9 +1819,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
     objective_name = str(objective["name"])
 
@@ -1894,12 +1901,8 @@ def cmd_report(args: argparse.Namespace) -> None:
     cfg, _ = load_contract_document(root, "bo_config")
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
-    if not isinstance(objective, dict):
-        raise ValueError("objective_schema.primary_objective must be an object")
 
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
@@ -2074,12 +2077,8 @@ def cmd_validate(args: argparse.Namespace) -> None:
     objective_name = "loss"
     objective_direction = "minimize"
     try:
-        obj_cfg, _ = load_contract_document(root, "objective_schema")
-        if not isinstance(obj_cfg, dict):
-            raise ValueError("objective_schema must be an object")
-        objective = obj_cfg.get("primary_objective")
-        if not isinstance(objective, dict):
-            raise ValueError("objective_schema.primary_objective must be an object")
+        obj_cfg = _load_objective_config(root, cfg)
+        objective = obj_cfg["primary_objective"]
         objective_name = str(objective["name"])
         objective_direction = str(objective["direction"])
     except Exception as exc:
@@ -2130,9 +2129,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     if not isinstance(cfg, dict):
         raise ValueError("bo_config must be an object")
 
-    obj_cfg, _ = load_contract_document(root, "objective_schema")
-    if not isinstance(obj_cfg, dict):
-        raise ValueError("objective_schema must be an object")
+    obj_cfg = _load_objective_config(root, cfg)
     objective = obj_cfg["primary_objective"]
 
     paths = _runtime_paths(root, cfg)

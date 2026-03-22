@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Objective Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["primary_objective"],
+  "properties": {
+    "primary_objective": {
+      "$ref": "#/$defs/objective"
+    },
+    "secondary_objectives": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/objective"
+      }
+    },
+    "scalarization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy"],
+      "properties": {
+        "policy": {
+          "type": "string",
+          "enum": ["weighted_sum", "weighted_tchebycheff", "lexicographic"]
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "reference_point": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "direction"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["minimize", "maximize"]
+        },
+        "tolerance": {
+          "type": "number"
+        },
+        "failure_handling": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

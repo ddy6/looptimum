@@ -9,6 +9,7 @@ TEMPLATES = ("bo_client", "bo_client_demo", "bo_client_full")
 CANONICAL_FILES = (
     "constraints.schema.json",
     "ingest_payload.schema.json",
+    "objective_schema.schema.json",
     "search_space.schema.json",
     "suggestion_payload.schema.json",
 )
@@ -53,13 +54,32 @@ def test_template_bo_configs_share_feature_flag_shape() -> None:
         assert flags["enable_auth_preview"] is False
 
 
-def test_template_bo_configs_include_constraints_schema_path() -> None:
+def test_template_bo_configs_include_shared_schema_paths() -> None:
     for template in TEMPLATES:
         cfg_path = REPO_ROOT / "templates" / template / "bo_config.json"
         cfg = _load_json(cfg_path)
         paths = cfg.get("paths")
         assert isinstance(paths, dict), f"missing paths in {cfg_path}"
         assert paths.get("constraints_schema_file") == "../_shared/schemas/constraints.schema.json"
+        assert (
+            paths.get("objective_schema_schema_file")
+            == "../_shared/schemas/objective_schema.schema.json"
+        )
+
+
+def test_objective_schema_exposes_multi_objective_fields() -> None:
+    schema = _load_json(SHARED_SCHEMAS / "objective_schema.schema.json")
+    properties = schema["properties"]
+    assert set(properties) == {
+        "primary_objective",
+        "secondary_objectives",
+        "scalarization",
+    }
+    assert properties["scalarization"]["properties"]["policy"]["enum"] == [
+        "weighted_sum",
+        "weighted_tchebycheff",
+        "lexicographic",
+    ]
 
 
 def test_search_space_schema_exposes_workstream1_parameter_fields() -> None:
