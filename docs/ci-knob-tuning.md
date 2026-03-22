@@ -81,8 +81,12 @@ Why unsupported:
 Queueing guidance:
 
 - bound in-flight evaluations using explicit concurrency limit
+- keep `max_pending_trials` aligned with the largest controller batch you plan
+  to request
 - ingest results in deterministic order (by completion time or trial id)
 - on repeated lock contention, fail fast and retry controller job
+- if `worker_leases.enabled` is on, preserve `lease_token` with each worker task
+  and echo it on `heartbeat` / `ingest`
 
 ## 4) Contamination Controls
 
@@ -144,7 +148,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements-dev.txt
-      - run: python templates/bo_client/run_bo.py suggest --project-root templates/bo_client --json-only > /tmp/suggestion.json
+      - run: python templates/bo_client/run_bo.py suggest --project-root templates/bo_client --count 3 --jsonl > /tmp/suggestions.jsonl
       - uses: actions/upload-artifact@v4
         with:
           name: looptimum-state
@@ -163,7 +167,7 @@ jobs:
         with:
           name: looptimum-state
           path: templates/bo_client/state
-      - run: echo "Run external evaluator here; write result payload artifact"
+      - run: echo "Run one worker per JSONL line; preserve lease_token if present and write one result payload artifact per trial"
 
   controller_ingest:
     needs: evaluator

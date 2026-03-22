@@ -1,0 +1,32 @@
+{
+  "created_at": 1774185347.31701,
+  "trial_id": 1,
+  "status": "ok",
+  "terminal_reason": null,
+  "params": {
+    "x1": 0.18126486333322134,
+    "x2": 0.6614305484952444
+  },
+  "objective_name": "loss",
+  "objective_value": 0.115,
+  "objective_vector": {
+    "loss": 0.115
+  },
+  "scalarized_objective": 0.115,
+  "penalty_objective": null,
+  "suggested_at": 1774185347.316949,
+  "completed_at": 1774185347.5095959,
+  "last_heartbeat_at": 1774185347.44765,
+  "heartbeat_count": 1,
+  "lease_token": "64b843ef89ef485b65d09631d681077c",
+  "artifact_path": "state/trials/trial_1/ingest_payload.json",
+  "artifacts": {
+    "ingest_payload": "state/trials/trial_1/ingest_payload.json"
+  },
+  "updated_at": 1774185347.5095959,
+  "heartbeat_note": "worker-1 claimed",
+  "heartbeat_meta": {
+    "worker": "worker-1",
+    "queue": "batch"
+  }
+}

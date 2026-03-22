@@ -22,15 +22,18 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "## Trust Anchors",
         "(docs/quick-reference.md)",
         "(quickstart/etl-pipeline-knob-tuning.md)",
+        "docs/examples/batch_async/README.md",
     ),
     "docs/index.md": (
         "(./quick-reference.md)",
         "(../quickstart/etl-pipeline-knob-tuning.md)",
+        "(./examples/batch_async/README.md)",
         "(./examples/multi_objective/README.md)",
     ),
     "docs/README.md": (
         "`quick-reference.md`",
         "`../quickstart/etl-pipeline-knob-tuning.md`",
+        "`examples/batch_async/README.md`",
         "`examples/multi_objective/README.md`",
     ),
     "docs/quick-reference.md": (

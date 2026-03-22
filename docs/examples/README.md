@@ -10,6 +10,8 @@ Integration pattern note:
 
 Included:
 
+- `batch_async/`: generated bundle JSON, JSONL handoff, lease-token, and
+  state/report examples for batch suggest flows
 - `multi_objective/`: generated weighted-sum / lexicographic example pack with
   `status`, `report`, and trial-manifest outputs
 - `state_snapshots/`: sample state/log/CSV snapshots captured from a temp run

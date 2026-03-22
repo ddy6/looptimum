@@ -27,6 +27,13 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 - This demo variant intentionally leaves out BoTorch.
 - Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
   wait+timeout behavior and optional `--fail-fast`.
+- `suggest` keeps count-1 output backward compatible, supports locked batches
+  via `--count N` / `bo_config.batch_size`, and can emit worker-oriented
+  JSONL with `--jsonl`.
+- `max_pending_trials`, when configured, rejects the whole requested batch
+  before pending state is mutated.
+- optional worker leases add `lease_token` to suggestions and require matching
+  `--lease-token` on `heartbeat` / `ingest`.
 - Runtime artifacts include `state/event_log.jsonl` and per-trial manifests in
   `state/trials/trial_<id>/manifest.json`.
 - Acquisition decisions include `surrogate_backend` and feasibility metadata in
@@ -51,5 +58,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
   `docs/examples/decision_trace/golden_acquisition_log.jsonl`
 - Multi-objective example pack:
   `docs/examples/multi_objective/README.md`
+- Batch + async worker example pack:
+  `docs/examples/batch_async/README.md`
 - Text transcript of `suggest -> evaluate -> ingest -> status`:
   `docs/examples/decision_trace/cli_transcript.md`

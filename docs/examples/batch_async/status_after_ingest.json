@@ -1,0 +1,30 @@
+{
+  "schema_version": "0.3.0",
+  "observations": 2,
+  "pending": 0,
+  "leased_pending": 0,
+  "next_trial_id": 3,
+  "best": {
+    "trial_id": 2,
+    "objective_name": "loss",
+    "objective_value": 0.082,
+    "updated_at": 1774185347.571292
+  },
+  "stale_pending": 0,
+  "observations_by_status": {
+    "ok": 2,
+    "failed": 0,
+    "killed": 0,
+    "timeout": 0
+  },
+  "max_pending_age_seconds": 86400.0,
+  "worker_leases_enabled": true,
+  "paths": {
+    "state_file": "state/bo_state.json",
+    "observations_csv": "state/observations.csv",
+    "acquisition_log_file": "state/acquisition_log.jsonl",
+    "event_log_file": "state/event_log.jsonl",
+    "trials_dir": "state/trials",
+    "lock_file": "state/.looptimum.lock"
+  }
+}

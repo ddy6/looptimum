@@ -1,0 +1,155 @@
+{
+  "schema_version": "0.3.0",
+  "generated_at": 1774185347.63232,
+  "objective": {
+    "name": "loss",
+    "direction": "minimize",
+    "best_objective_name": "loss",
+    "scalarization_policy": "primary_only"
+  },
+  "objective_config": {
+    "primary_objective": {
+      "name": "loss",
+      "direction": "minimize",
+      "tolerance": 0.0,
+      "failure_handling": "record_and_continue"
+    },
+    "secondary_objectives": [],
+    "objectives": [
+      {
+        "name": "loss",
+        "direction": "minimize",
+        "tolerance": 0.0,
+        "failure_handling": "record_and_continue"
+      }
+    ],
+    "objective_names": [
+      "loss"
+    ],
+    "scalarization": {
+      "policy": "primary_only"
+    }
+  },
+  "counts": {
+    "observations": 2,
+    "pending": 0,
+    "observations_by_status": {
+      "ok": 2,
+      "failed": 0,
+      "killed": 0,
+      "timeout": 0
+    },
+    "failure_rate": 0.0
+  },
+  "best": {
+    "trial_id": 2,
+    "objective_name": "loss",
+    "objective_value": 0.082,
+    "updated_at": 1774185347.571292
+  },
+  "best_params": {
+    "x1": 0.6771258268002703,
+    "x2": 0.7849113560871108
+  },
+  "top_trials": [
+    {
+      "trial_id": 2,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.082,
+      "objective_vector": {
+        "loss": 0.082
+      },
+      "scalarized_objective": 0.082,
+      "penalty_objective": null,
+      "suggested_at": 1774185347.316996,
+      "completed_at": 1774185347.571264,
+      "artifact_path": "state/trials/trial_2/ingest_payload.json",
+      "terminal_reason": null,
+      "params": {
+        "x1": 0.6771258268002703,
+        "x2": 0.7849113560871108
+      }
+    },
+    {
+      "trial_id": 1,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.115,
+      "objective_vector": {
+        "loss": 0.115
+      },
+      "scalarized_objective": 0.115,
+      "penalty_objective": null,
+      "suggested_at": 1774185347.316949,
+      "completed_at": 1774185347.5095959,
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "terminal_reason": null,
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      }
+    }
+  ],
+  "terminal_trials": [],
+  "objective_trace": [
+    {
+      "trial_id": 1,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.115,
+      "objective_vector": {
+        "loss": 0.115
+      },
+      "scalarized_objective": 0.115,
+      "penalty_objective": null,
+      "suggested_at": 1774185347.316949,
+      "completed_at": 1774185347.5095959,
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "terminal_reason": null
+    },
+    {
+      "trial_id": 2,
+      "status": "ok",
+      "objective_name": "loss",
+      "objective_value": 0.082,
+      "objective_vector": {
+        "loss": 0.082
+      },
+      "scalarized_objective": 0.082,
+      "penalty_objective": null,
+      "suggested_at": 1774185347.316996,
+      "completed_at": 1774185347.571264,
+      "artifact_path": "state/trials/trial_2/ingest_payload.json",
+      "terminal_reason": null
+    }
+  ],
+  "pareto_front": {
+    "count": 1,
+    "trial_ids": [
+      2
+    ],
+    "trials": [
+      {
+        "trial_id": 2,
+        "status": "ok",
+        "objective_name": "loss",
+        "objective_value": 0.082,
+        "objective_vector": {
+          "loss": 0.082
+        },
+        "scalarized_objective": 0.082,
+        "penalty_objective": null,
+        "suggested_at": 1774185347.316996,
+        "completed_at": 1774185347.571264,
+        "artifact_path": "state/trials/trial_2/ingest_payload.json",
+        "terminal_reason": null,
+        "params": {
+          "x1": 0.6771258268002703,
+          "x2": 0.7849113560871108
+        }
+      }
+    ]
+  },
+  "runtime_summary": null
+}

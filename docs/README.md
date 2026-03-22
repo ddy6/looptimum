@@ -46,6 +46,7 @@ Reference artifacts:
 
 - `../PILOT.md`
 - `examples/README.md`
+- `examples/batch_async/README.md`
 - `examples/multi_objective/README.md`
 - `examples/state_snapshots/README.md`
 - `examples/decision_trace/README.md`

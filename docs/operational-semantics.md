@@ -57,21 +57,28 @@ State schema versioning rule:
 2. Initialize `state.meta.seed` from config if unset.
 3. Acquire exclusive lock for mutation.
 4. Optionally auto-retire stale pending trials (based on `max_pending_age_seconds`).
-5. Check budget using `observations + pending`.
-6. Generate candidate parameters and decision metadata.
-7. If all sampled attempts are infeasible, append a failure decision to
+5. Resolve requested batch count from `--count` or `bo_config.batch_size`.
+6. Reject the whole request if `max_pending_trials` or budget would be exceeded.
+7. Generate one or more candidate parameter payloads and decision records.
+8. If all sampled attempts are infeasible, append a failure decision to
    `acquisition_log.jsonl` and exit nonzero without creating pending state.
-8. On success, append a pending trial and increment `next_trial_id`.
-9. Write/update trial manifest for the pending trial.
-10. Append one JSON line to `acquisition_log.jsonl`.
-11. Append lifecycle events to `event_log.jsonl`.
-12. Persist updated state with atomic write.
-13. Print suggestion JSON.
+9. On success, append all pending trials and increment `next_trial_id` by the
+   allocated count.
+10. Write/update trial manifests for the pending trials.
+11. Append one JSON line per allocated trial to `acquisition_log.jsonl`.
+12. Append lifecycle events to `event_log.jsonl`.
+13. Persist updated state with atomic write.
+14. Print single-suggestion JSON, bundle JSON, or JSONL output.
 
 Important implications:
 
 - `suggest` is not idempotent; repeated calls usually produce new pending trials.
+- `count == 1` preserves the historical single-suggestion JSON contract.
+- `count > 1` defaults to bundle JSON and `--jsonl` emits one suggestion object
+  per line.
 - If budget is exhausted, no pending trial is created.
+- If `max_pending_trials` would be exceeded, the whole requested batch is
+  rejected before any pending state is created.
 - If constraints eliminate all sampled attempts, no pending trial is created and
   the failed decision is still logged for audit/debugging.
 - Automatic stale retirement is conservative and age-based; it records terminal
@@ -95,7 +102,6 @@ Important implications:
 Status handling:
 
 - Canonical statuses: `ok`, `failed`, `killed`, `timeout`
-- `success` is accepted as a deprecated alias and normalized to `ok`
 
 Objective handling:
 
@@ -112,15 +118,8 @@ Objective handling:
 
 Terminal-reason handling:
 
-- legacy `failure_reason` is accepted and normalized to `terminal_reason`
-  (deprecation warning).
 - if non-`ok` payloads omit both fields, `terminal_reason` is synthesized as
   `status=<status>`.
-
-Compatibility path (v0.2.x):
-
-- Legacy `failure_reason` remains the only accepted non-canonical alias in this
-  area; numeric objective values for non-`ok` payloads are rejected.
 
 ### `status`
 
@@ -128,11 +127,13 @@ Compatibility path (v0.2.x):
 
 - `observations`
 - `pending`
+- `leased_pending`
 - `next_trial_id`
 - `best`
 - `schema_version`
 - `stale_pending`
 - `observations_by_status`
+- `worker_leases_enabled`
 - `paths` (state/log/artifact locations)
 
 It does not mutate state.
@@ -154,6 +155,8 @@ Multi-objective note:
 
 - `heartbeat --trial-id <id>` updates pending liveness metadata:
   `last_heartbeat_at`, `heartbeat_count`, optional note/meta.
+- when worker leases are enabled and the pending trial carries `lease_token`,
+  `heartbeat` requires matching `--lease-token`.
 - `ingest` also accepts optional heartbeat fields in payload for compatibility
   with evaluator-side metadata pipelines.
 
@@ -194,8 +197,8 @@ Multi-objective note:
 - Pending is resolved by successful `ingest`.
 - Pending can be terminally resolved via `cancel`/`retire`.
 - Pending entries are counted toward budget.
-- Multiple pending entries can exist if `suggest` is called repeatedly before
-  ingesting results.
+- Multiple pending entries can exist if `suggest --count N` allocates a batch
+  or if `suggest` is called repeatedly before ingesting results.
 - Built-in stale handling exists:
   - automatic stale retirement in `suggest` (when `max_pending_age_seconds` is configured/enabled)
   - explicit stale retirement via `retire --stale`
@@ -215,6 +218,9 @@ Multi-objective note:
   use an exclusive lock file (`state/.looptimum.lock`).
 - Default behavior waits for lock with timeout; `--fail-fast` switches to
   immediate failure on contention.
+- Batch `suggest` allocation, lease-aware `heartbeat`, and lease-aware `ingest`
+  fail as a whole under lock contention; Looptimum does not partially mutate
+  state before returning the contention error.
 - Read-oriented commands (`status`, `validate`, `doctor`) do not require
   exclusive lock.
 

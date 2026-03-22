@@ -62,8 +62,7 @@ When behavior is deprecated in `v0.3.x`:
 
 Current deprecations:
 
-- `success` status alias is normalized to `ok`.
-- legacy `failure_reason` ingest field is normalized to `terminal_reason`.
+- none tracked in the current public contract surface
 
 ## What May Change Without a Breaking Bump
 

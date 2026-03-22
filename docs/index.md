@@ -45,6 +45,7 @@ For full command sequences and resume behavior:
 ## Integration Assets
 
 - [Docs Examples](./examples/README.md)
+- [Batch + Async Worker Example Pack](./examples/batch_async/README.md)
 - [Multi-Objective Example Pack](./examples/multi_objective/README.md)
 - [Constraints Examples](./examples/constraints/README.md)
 - [State Snapshot References](./examples/state_snapshots/README.md)

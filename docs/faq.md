@@ -181,11 +181,6 @@ Recommended approach:
 
 This preserves traceability and allows the loop to continue.
 
-Compatibility note:
-
-- legacy `failure_reason` is accepted as an alias and normalized to
-  `terminal_reason`
-
 ## What if `ingest` rejects my result payload?
 
 Common causes:

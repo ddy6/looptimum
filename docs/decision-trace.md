@@ -9,7 +9,8 @@ Decision traces are written as JSON Lines:
 
 - `state/acquisition_log.jsonl`
 
-Each line corresponds to one `suggest` decision attempt.
+Each line corresponds to one trial-level `suggest` decision attempt. Batch
+`suggest --count N` writes one line per allocated trial.
 
 Related runtime log:
 
@@ -58,6 +59,8 @@ Top-level fields:
 Important nuance:
 
 - successful `suggest` attempts create pending state for that `trial_id`
+- batched successful `suggest` commands create one such record per allocated
+  trial id
 - all-infeasible `suggest` attempts still log a decision, but they do not
   create a pending trial or increment authoritative state
 

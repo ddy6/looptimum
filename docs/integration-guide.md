@@ -19,9 +19,10 @@ Opinionated mainstream starting point:
 
 The Looptimum templates in `templates/` provide a restartable loop that:
 
-1. Suggests one parameter set (`suggest`)
-2. Waits for your system to run one evaluation
-3. Ingests a result payload (`ingest`)
+1. Suggests one parameter set by default, or a locked batch when requested
+   (`suggest`)
+2. Waits for your system to run one or more external evaluations
+3. Ingests result payloads (`ingest`)
 4. Updates state and repeats
 
 The loop does not need raw data or internal model internals. It just needs:
@@ -94,18 +95,64 @@ Example (repo root):
 python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo --json-only
 ```
 
-This emits a suggestion containing:
+This emits one canonical suggestion containing:
 
 - `schema_version`
 - `trial_id`
 - `params`
 - `suggested_at`
 
+Batch example:
+
+```bash
+python3 templates/bo_client_demo/run_bo.py suggest \
+  --project-root templates/bo_client_demo \
+  --count 3 \
+  --jsonl
+```
+
+Batch output rules:
+
+- `count == 1`: historical single-suggestion JSON object
+- `count > 1`: bundle JSON with `schema_version`, `count`, and `suggestions`
+- `--jsonl`: one canonical suggestion JSON object per line for worker fan-out
+- when `worker_leases.enabled` is true, each suggestion also includes
+  `lease_token`
+
 Important:
 
 - Treat `trial_id` and `params` as immutable for that trial.
-- The `suggest` command also records a pending trial in the state file.
+- The `suggest` command records pending trial state for every allocated
+  suggestion in the batch.
 - Use `--json-only` when piping/parsing output programmatically.
+- `max_pending_trials`, when configured, rejects the whole requested batch
+  before pending state is mutated.
+
+### Batch Suggest + Async Worker Handoff
+
+Recommended worker-oriented flow:
+
+1. controller runs `suggest --count N --jsonl`
+2. each worker consumes one JSON line (`trial_id`, `params`,
+   optional `lease_token`)
+3. worker sends `heartbeat --trial-id <id> --lease-token <token>` while work is
+   in progress when leases are enabled
+4. worker writes canonical result JSON
+5. controller or worker-side wrapper runs `ingest --results-file ...`
+   and echoes `--lease-token <token>` when required
+
+Operational notes:
+
+- `bo_config.batch_size` sets the default requested batch size; `--count`
+  overrides it per command
+- `lease_token` is opaque and user-facing only at the CLI boundary; it is not
+  part of the ingest payload JSON
+- lock contention fails the whole mutation, so Looptimum does not partially
+  allocate a batch
+
+Reference example pack:
+
+- `docs/examples/batch_async/README.md`
 
 ### Parameter Types (Current Public Templates)
 
@@ -385,10 +432,6 @@ can continue and the failure is recorded.
   is useful
 - `penalty_objective` is not used for best-trial ranking; `best` is computed
   from `status: "ok"` observations under the configured objective policy
-
-Compatibility note (legacy `v0.2.x` payloads):
-
-- Legacy `failure_reason` is accepted and normalized to `terminal_reason`.
 
 ### Common Failure Modes
 

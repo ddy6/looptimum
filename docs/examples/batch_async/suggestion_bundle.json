@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.3.0",
+  "count": 2,
+  "suggestions": [
+    {
+      "schema_version": "0.3.0",
+      "trial_id": 1,
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      },
+      "suggested_at": 1774185347.316949,
+      "lease_token": "64b843ef89ef485b65d09631d681077c"
+    },
+    {
+      "schema_version": "0.3.0",
+      "trial_id": 2,
+      "params": {
+        "x1": 0.6771258268002703,
+        "x2": 0.7849113560871108
+      },
+      "suggested_at": 1774185347.316996,
+      "lease_token": "111961171b99931d6d33fef722eb1d06"
+    }
+  ]
+}

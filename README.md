@@ -14,7 +14,8 @@ For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
 keeps state and decision trace local, which fits restricted and client-controlled
-environments. The usage model stays simple (`suggest -> evaluate -> ingest`);
+environments. The usage model stays simple (`suggest -> evaluate -> ingest`,
+with optional locked batches);
 see [`docs/how-it-works.md`](docs/how-it-works.md) for algorithm behavior and
 tuning consequences.
 For a spec-style contract summary, use
@@ -43,7 +44,7 @@ For a spec-style contract summary, use
 Looptimum replaces ad hoc sweep loops with a small, explicit workflow:
 
 1. Define parameter bounds, objective schema, and optional constraints.
-2. `suggest` one trial.
+2. `suggest` one trial by default, or allocate a locked batch with `--count N`.
 3. Run that trial in your environment.
 4. `ingest` the result and repeat.
 
@@ -228,12 +229,23 @@ expanded stub in
 
 ### `suggest` Output
 
+Count `1` keeps the historical single-suggestion payload. Count `> 1` emits a
+bundle JSON object by default:
+
+- `schema_version`
+- `count`
+- `suggestions` (array of canonical suggestion payloads)
+
+Use `--jsonl` to emit one canonical suggestion JSON object per line for worker
+handoff.
+
 Each suggestion includes:
 
 - `schema_version` (semver string, emitted by runtime)
 - `trial_id`
 - `params`
 - `suggested_at`
+- `lease_token` (only when `worker_leases.enabled` is true)
 
 ### `ingest` Required Fields
 
@@ -284,9 +296,7 @@ Best ranking rule:
 
 ### Compatibility Notes
 
-- `success` is accepted as a deprecated alias and normalized to `ok`.
-- Legacy `failure_reason` is accepted as a deprecated alias and normalized to
-  `terminal_reason`.
+- Canonical statuses are `ok`, `failed`, `killed`, and `timeout`.
 - For non-`ok` outcomes with no reason provided, ingest synthesizes
   `terminal_reason` as `status=<status>`.
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
@@ -319,6 +329,13 @@ Best ranking rule:
 - `validate [--strict]`: sanity-check config/state; warnings are non-fatal unless `--strict`.
 - `doctor [--json]`: print environment/backend/state diagnostics.
 
+Lease note:
+
+- when `worker_leases.enabled` is true, `suggest` emits `lease_token` and
+  workers must echo it on `heartbeat` and `ingest`
+- `max_pending_trials`, when configured, rejects the whole requested batch
+  before any pending state is created
+
 ## Templates (Choose Your Starting Level)
 
 ### Template Matrix (Feature Parity + Intended Use)
@@ -342,6 +359,8 @@ The `examples/` folder shows integration patterns, not benchmark leaderboards.
   objective (`suggest -> evaluate -> ingest -> status`, typically under one minute)
 - `docs/examples/multi_objective/`: generated multi-objective report/state pack
   with weighted-sum and lexicographic objective-schema examples
+- `docs/examples/batch_async/`: batch bundle, JSONL handoff, lease-token, and
+  pending-state example pack
 
 Run the tiny end-to-end objective from repo root:
 
@@ -447,3 +466,15 @@ python3 templates/bo_client_demo/run_bo.py suggest \
   --project-root templates/bo_client_demo \
   --json-only
 ```
+
+For worker fan-out, use line-delimited output:
+
+```bash
+python3 templates/bo_client_demo/run_bo.py suggest \
+  --project-root templates/bo_client_demo \
+  --count 3 \
+  --jsonl
+```
+
+Bundle JSON, JSONL handoff, `max_pending_trials`, and lease-token examples are
+captured in `docs/examples/batch_async/README.md`.

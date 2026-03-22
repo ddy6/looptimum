@@ -14,8 +14,8 @@ Stable command names and required flag posture are documented in
 
 ## Core Loop Contract
 
-1. `suggest`: emits one trial proposal (`trial_id`, `params`, `suggested_at`,
-   `schema_version`) and records pending state on success.
+1. `suggest`: emits one trial proposal by default, or a locked batch when
+   `--count N` / `bo_config.batch_size` requests more than one suggestion.
 2. evaluator: runs externally using `params`; Looptimum does not execute your
    workload.
 3. `ingest`: validates trial identity and payload shape, then clears pending
@@ -34,15 +34,28 @@ Optional hard-feasibility contract:
 
 ## `suggest` Output (Canonical Fields)
 
+Single-suggestion output (`count == 1`) is the canonical object:
+
 - `schema_version`: semver string emitted by runtime
 - `trial_id`: unique integer identifier in run scope
 - `params`: exact parameter payload for external evaluation
 - `suggested_at`: suggestion timestamp
+- `lease_token`: optional opaque worker-claim token when leases are enabled
+
+Batch output (`count > 1`) defaults to:
+
+- `schema_version`
+- `count`
+- `suggestions`: array of canonical suggestion objects
+
+`--jsonl` emits the same suggestion objects one per line for worker handoff.
 
 Constraint note:
 
 - if constraints eliminate all sampled attempts, `suggest` exits nonzero,
   creates no pending trial, and records the failure in `acquisition_log.jsonl`
+- if `max_pending_trials` would be exceeded, the whole requested batch is
+  rejected before pending state is mutated
 
 ## `ingest` Payload Contract
 
@@ -60,12 +73,10 @@ Rules:
 - optional `terminal_reason` (short string) is recommended for non-`ok`
   outcomes.
 - optional `penalty_objective` is allowed for non-`ok` outcomes.
-
-Optional compatibility fields:
-
-- `schema_version` (emitted by runtime; optional in ingest schema)
-- legacy `success` alias (normalized to `ok`)
-- legacy `failure_reason` alias (normalized to `terminal_reason`)
+- `schema_version` is emitted by runtime and remains optional in the ingest
+  schema.
+- when a pending trial carries `lease_token`, the CLI requires matching
+  `--lease-token` on `ingest`; the token is not embedded in the ingest payload
 
 ## Result and Failure Semantics
 
@@ -98,6 +109,8 @@ Default file-backed artifacts under each template's `state/` path:
   the same state path are unsupported.
 - mutating commands (`suggest`, `ingest`, lifecycle ops, `report`, `reset`)
   run under exclusive file lock semantics.
+- batch allocation is atomic under that lock: contention or validation failure
+  rejects the whole batch with no partial pending creation.
 - `reset` removes runtime artifacts with confirmation; archive is enabled by
   default unless `--no-archive` is passed.
 - stale pending handling can be automated via configured age policy or manual

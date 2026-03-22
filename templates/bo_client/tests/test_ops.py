@@ -838,6 +838,82 @@ def test_suggest_timeout_on_lock_contention_reports_clean_error(template_copy) -
     assert "Traceback" not in out.stderr
 
 
+def test_batched_suggest_fail_fast_on_lock_contention_has_no_side_effects(
+    template_copy,
+) -> None:
+    if sys.platform == "win32":
+        pytest.skip("fcntl lock semantics are POSIX-only")
+
+    holder = _start_lock_holder(template_copy / "state" / ".looptimum.lock")
+    try:
+        out = run_cmd(
+            template_copy,
+            "suggest",
+            "--count",
+            "3",
+            "--jsonl",
+            "--fail-fast",
+            "--lock-timeout-seconds",
+            "0",
+            expect_ok=False,
+        )
+    finally:
+        _stop_lock_holder(holder)
+
+    assert out.returncode != 0
+    assert "Could not acquire lock (fail-fast)" in out.stderr
+    assert not (template_copy / "state" / "bo_state.json").exists()
+    assert not (template_copy / "state" / "acquisition_log.jsonl").exists()
+    assert not (template_copy / "state" / "event_log.jsonl").exists()
+    assert not (template_copy / "state" / "trials").exists()
+
+
+def test_lease_heartbeat_fail_fast_on_lock_contention_preserves_pending_state(
+    template_copy,
+) -> None:
+    if sys.platform == "win32":
+        pytest.skip("fcntl lock semantics are POSIX-only")
+
+    cfg_path = template_copy / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["worker_leases"]["enabled"] = True
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    suggestion = parse_suggestion(run_cmd(template_copy, "suggest").stdout)
+    trial_id = suggestion["trial_id"]
+    lease_token = suggestion["lease_token"]
+    state_path = template_copy / "state" / "bo_state.json"
+    manifest_path = template_copy / "state" / "trials" / f"trial_{trial_id}" / "manifest.json"
+    before_state = json.loads(state_path.read_text(encoding="utf-8"))
+    before_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    holder = _start_lock_holder(template_copy / "state" / ".looptimum.lock")
+    try:
+        out = run_cmd(
+            template_copy,
+            "heartbeat",
+            "--trial-id",
+            str(trial_id),
+            "--lease-token",
+            lease_token,
+            "--heartbeat-note",
+            "lock-contended",
+            "--fail-fast",
+            "--lock-timeout-seconds",
+            "0",
+            expect_ok=False,
+        )
+    finally:
+        _stop_lock_holder(holder)
+
+    assert out.returncode != 0
+    assert "Could not acquire lock (fail-fast)" in out.stderr
+    after_state = json.loads(state_path.read_text(encoding="utf-8"))
+    after_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert after_state == before_state
+    assert after_manifest == before_manifest
+
+
 def test_read_commands_work_while_mutation_lock_is_held(template_copy) -> None:
     if sys.platform == "win32":
         pytest.skip("fcntl lock semantics are POSIX-only")

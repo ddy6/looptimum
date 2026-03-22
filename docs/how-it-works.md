@@ -8,6 +8,8 @@ and how to run Looptimum in a way that is predictable in real operations.
 Looptimum is a file-backed suggest/evaluate/ingest workflow:
 
 1. `suggest` proposes one trial from bounded parameter space.
+   By default this is one trial; `--count N` / `batch_size` can allocate a
+   locked batch.
 2. Your evaluator runs that trial in your environment.
 3. `ingest` records the outcome (`ok` or non-`ok`) and updates state.
 4. Repeat until budget or stop policy is reached.
@@ -40,7 +42,8 @@ Suggestion behavior has two phases:
 1. Warmup (`initial_random`): bounded random sampling for the first
    `initial_random_trials`.
 2. Surrogate acquisition (`surrogate_acquisition`): sample a candidate pool,
-   score candidates with surrogate + acquisition policy, emit the top score.
+   score candidates with surrogate + acquisition policy, emit the top-ranked
+   candidate or locked batch.
 
 This keeps early exploration broad, then shifts to model-guided search once
 there is enough signal.

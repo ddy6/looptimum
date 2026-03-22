@@ -11,6 +11,7 @@ CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 TYPE_SAFETY_DOC = REPO_ROOT / "docs" / "type-safety.md"
 MULTI_OBJECTIVE_EXAMPLE = REPO_ROOT / "docs" / "examples" / "multi_objective"
+BATCH_ASYNC_EXAMPLE = REPO_ROOT / "docs" / "examples" / "batch_async"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -109,3 +110,67 @@ def test_multi_objective_example_pack_has_expected_artifacts() -> None:
     manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest_payload["scalarization_policy"] == "weighted_sum"
     assert manifest_payload["objective_vector"] == {"loss": 0.3, "throughput": 2.0}
+
+
+def test_batch_async_example_pack_has_expected_artifacts() -> None:
+    assert BATCH_ASYNC_EXAMPLE.exists(), f"missing batch/async example pack: {BATCH_ASYNC_EXAMPLE}"
+
+    readme_path = BATCH_ASYNC_EXAMPLE / "README.md"
+    config_path = BATCH_ASYNC_EXAMPLE / "bo_config.json"
+    bundle_path = BATCH_ASYNC_EXAMPLE / "suggestion_bundle.json"
+    jsonl_path = BATCH_ASYNC_EXAMPLE / "suggestions.jsonl"
+    status_suggest_path = BATCH_ASYNC_EXAMPLE / "status_after_batch_suggest.json"
+    status_ingest_path = BATCH_ASYNC_EXAMPLE / "status_after_ingest.json"
+    report_path = BATCH_ASYNC_EXAMPLE / "state" / "report.json"
+    manifest_path = BATCH_ASYNC_EXAMPLE / "state" / "trials" / "trial_1" / "manifest.json"
+
+    for path in (
+        readme_path,
+        config_path,
+        bundle_path,
+        jsonl_path,
+        status_suggest_path,
+        status_ingest_path,
+        report_path,
+        manifest_path,
+    ):
+        assert path.exists(), f"missing batch/async example artifact: {path}"
+
+    config_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    assert config_payload["batch_size"] == 2
+    assert config_payload["max_pending_trials"] == 3
+    assert config_payload["worker_leases"] == {"enabled": True}
+
+    bundle_payload = json.loads(bundle_path.read_text(encoding="utf-8"))
+    assert bundle_payload["count"] == 2
+    assert [item["trial_id"] for item in bundle_payload["suggestions"]] == [1, 2]
+    assert all(item["lease_token"] for item in bundle_payload["suggestions"])
+
+    jsonl_payloads = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert [item["trial_id"] for item in jsonl_payloads] == [1, 2]
+    assert [item["lease_token"] for item in jsonl_payloads] == [
+        item["lease_token"] for item in bundle_payload["suggestions"]
+    ]
+
+    suggest_status = json.loads(status_suggest_path.read_text(encoding="utf-8"))
+    assert suggest_status["pending"] == 2
+    assert suggest_status["leased_pending"] == 2
+    assert suggest_status["worker_leases_enabled"] is True
+
+    ingest_status = json.loads(status_ingest_path.read_text(encoding="utf-8"))
+    assert ingest_status["pending"] == 0
+    assert ingest_status["leased_pending"] == 0
+    assert ingest_status["best"]["trial_id"] == 2
+
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["counts"]["observations"] == 2
+    assert report_payload["top_trials"][0]["trial_id"] == 2
+
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest_payload["lease_token"] == bundle_payload["suggestions"][0]["lease_token"]
+    assert manifest_payload["heartbeat_count"] == 1
+    assert manifest_payload["heartbeat_meta"] == {"worker": "worker-1", "queue": "batch"}
