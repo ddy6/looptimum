@@ -73,6 +73,7 @@ def test_mypy_scope_and_type_safety_doc_are_present() -> None:
     assert "templates/_shared/*.py" in files
     assert "templates/bo_client/run_bo.py" in files
     assert "client_harness_template/run_one_eval.py" in files
+    assert "client_harness_template/starterkit_*.py" in files
     assert mypy_cfg.get("disallow_untyped_defs") is True
     assert mypy_cfg.get("disallow_any_generics") is True
 
@@ -80,6 +81,7 @@ def test_mypy_scope_and_type_safety_doc_are_present() -> None:
     doc_text = TYPE_SAFETY_DOC.read_text(encoding="utf-8")
     assert "Type-checking tool: `mypy`." in doc_text
     assert "Initial blocking CI gate scope" in doc_text
+    assert "`client_harness_template/starterkit_*.py`" in doc_text
 
 
 def test_multi_objective_example_pack_has_expected_artifacts() -> None:
