@@ -45,6 +45,21 @@ def _basic_auth_header(username: str, password: str) -> dict[str, str]:
     return {"Authorization": f"Basic {token}"}
 
 
+def _bearer_auth_header(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _encode_jwt_segment(payload: dict[str, object]) -> str:
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _oidc_test_token(*, sub: str, iss: str, aud: str, roles: list[str]) -> str:
+    header = _encode_jwt_segment({"alg": "none", "typ": "JWT"})
+    payload = _encode_jwt_segment({"sub": sub, "iss": iss, "aud": aud, "roles": roles})
+    return f"{header}.{payload}."
+
+
 def test_build_service_auth_config_defaults_to_disabled_mode() -> None:
     config = build_service_auth_config()
 
@@ -57,6 +72,13 @@ def test_build_service_auth_config_rejects_basic_mode_without_users() -> None:
         ServiceConfigError, match="basic service auth mode requires at least one configured user"
     ):
         build_service_auth_config(auth_mode="basic")
+
+
+def test_build_service_auth_config_rejects_oidc_mode_without_config() -> None:
+    with pytest.raises(
+        ServiceConfigError, match="oidc service auth mode requires explicit OIDC config"
+    ):
+        build_service_auth_config(auth_mode="oidc")
 
 
 def test_build_service_auth_config_rejects_duplicate_usernames() -> None:
@@ -157,3 +179,84 @@ def test_resolve_local_dev_principal_returns_normalized_principal() -> None:
     assert principal.username == "admin"
     assert principal.role == "admin"
     assert principal.auth_mode == "basic"
+
+
+def test_oidc_bearer_routes_accept_valid_claims_and_map_roles(tmp_path: Path) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    campaign_root = tmp_path / "campaigns" / "preview-root"
+    _write_campaign_root(campaign_root)
+    app = create_app(
+        build_service_config(
+            registry_file,
+            auth_mode="oidc",
+            oidc_config={
+                "issuer": "https://issuer.example.test",
+                "audience": "looptimum-preview",
+                "role_mapping": {
+                    "group:admins": "admin",
+                    "group:viewers": "viewer",
+                },
+            },
+        )
+    )
+    admin_token = _oidc_test_token(
+        sub="admin@example.test",
+        iss="https://issuer.example.test",
+        aud="looptimum-preview",
+        roles=["group:admins"],
+    )
+    viewer_token = _oidc_test_token(
+        sub="viewer@example.test",
+        iss="https://issuer.example.test",
+        aud="looptimum-preview",
+        roles=["group:viewers"],
+    )
+
+    with TestClient(app) as client:
+        create_response = client.post(
+            "/campaigns",
+            json={"root_path": str(campaign_root)},
+            headers=_bearer_auth_header(admin_token),
+        )
+        list_response = client.get(
+            "/campaigns",
+            headers=_bearer_auth_header(viewer_token),
+        )
+
+    assert create_response.status_code == 201
+    assert create_response.json()["campaign_id"] == "preview-root"
+    assert list_response.status_code == 200
+    assert list_response.json()["campaigns"][0]["campaign_id"] == "preview-root"
+
+
+def test_oidc_bearer_routes_reject_unmapped_roles_with_claim_error(tmp_path: Path) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    app = create_app(
+        build_service_config(
+            registry_file,
+            auth_mode="oidc",
+            oidc_config={
+                "issuer": "https://issuer.example.test",
+                "audience": "looptimum-preview",
+                "role_mapping": {"group:viewers": "viewer"},
+            },
+        )
+    )
+    token = _oidc_test_token(
+        sub="mystery@example.test",
+        iss="https://issuer.example.test",
+        aud="looptimum-preview",
+        roles=["group:unknown"],
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/campaigns", headers=_bearer_auth_header(token))
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == 'Bearer realm="Looptimum Service Preview"'
+    assert response.json() == {
+        "error": {
+            "code": "invalid_token_claims",
+            "message": "OIDC bearer token roles did not map to a service role via claim 'roles'",
+        }
+    }

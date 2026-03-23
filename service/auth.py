@@ -12,11 +12,12 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from service.config import ServiceAuthConfig
+from service.config import ServiceAuthConfig, ServiceOidcConfig
 from service.models import AuthAuditEvent, AuthenticatedPrincipal, LocalAuthUser, ServiceRole
 from service.registry import ServiceRegistryError
 
 _BASIC_REALM = 'Basic realm="Looptimum Service Preview"'
+_BEARER_REALM = 'Bearer realm="Looptimum Service Preview"'
 _HEALTH_PATH = "/health"
 _ROLE_ORDER: dict[ServiceRole, int] = {"viewer": 0, "operator": 1, "admin": 2}
 
@@ -34,6 +35,14 @@ def _unauthorized_response(*, code: str, message: str) -> JSONResponse:
         status_code=status.HTTP_401_UNAUTHORIZED,
         content=_error_payload(code=code, message=message),
         headers={"WWW-Authenticate": _BASIC_REALM},
+    )
+
+
+def _bearer_unauthorized_response(*, code: str, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content=_error_payload(code=code, message=message),
+        headers={"WWW-Authenticate": _BEARER_REALM},
     )
 
 
@@ -56,6 +65,35 @@ def _decode_basic_authorization(header_value: str) -> tuple[str, str]:
     if not separator or not username:
         raise ValueError("Authorization header must encode username:password credentials")
     return username, password
+
+
+def _decode_bearer_authorization(header_value: str) -> str:
+    scheme, _, token = header_value.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise ValueError("Authorization header must use Bearer auth")
+    return token.strip()
+
+
+def _decode_base64url_segment(segment: str) -> bytes:
+    padded = segment + "=" * ((4 - len(segment) % 4) % 4)
+    try:
+        return base64.urlsafe_b64decode(padded.encode("ascii"))
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError("Bearer token must contain valid base64url-encoded JWT segments") from exc
+
+
+def _decode_unverified_jwt_claims(token: str) -> dict[str, Any]:
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise ValueError("Bearer token must be a JWT with three dot-separated segments")
+    _header, payload_segment, _signature = parts
+    try:
+        payload = json.loads(_decode_base64url_segment(payload_segment).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Bearer token payload must decode to a JSON object") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Bearer token payload must decode to a JSON object")
+    return payload
 
 
 def _match_local_user(
@@ -82,6 +120,86 @@ def resolve_local_dev_principal(
     if user is None:
         raise ValueError("Authentication failed for the provided preview credentials")
     return AuthenticatedPrincipal(username=user.username, role=user.role, auth_mode="basic")
+
+
+def _normalize_token_audience(raw_value: Any) -> list[str]:
+    if isinstance(raw_value, str):
+        value = raw_value.strip()
+        return [] if not value else [value]
+    if isinstance(raw_value, list):
+        audiences: list[str] = []
+        for item in raw_value:
+            if not isinstance(item, str):
+                raise ValueError(
+                    "OIDC bearer token audience claim must be a string or string array"
+                )
+            normalized = item.strip()
+            if normalized:
+                audiences.append(normalized)
+        return audiences
+    raise ValueError("OIDC bearer token audience claim must be a string or string array")
+
+
+def _resolve_role_from_claims(
+    oidc_config: ServiceOidcConfig, claims: dict[str, Any]
+) -> ServiceRole:
+    raw_roles = claims.get(oidc_config.role_claim)
+    role_values: list[str] = []
+    if isinstance(raw_roles, str):
+        normalized = raw_roles.strip()
+        if normalized:
+            role_values.append(normalized)
+    elif isinstance(raw_roles, list):
+        for item in raw_roles:
+            if isinstance(item, str):
+                normalized = item.strip()
+                if normalized:
+                    role_values.append(normalized)
+    else:
+        raise ValueError(
+            f"OIDC bearer token must include a string or string-array '{oidc_config.role_claim}' claim"
+        )
+
+    mapped_roles: list[ServiceRole] = []
+    role_mapping = oidc_config.role_mapping or {}
+    for role_value in role_values:
+        mapped = role_mapping.get(role_value)
+        if mapped is not None:
+            mapped_roles.append(mapped)
+    if not mapped_roles:
+        raise ValueError(
+            f"OIDC bearer token roles did not map to a service role via claim '{oidc_config.role_claim}'"
+        )
+    return max(mapped_roles, key=lambda role: _ROLE_ORDER[role])
+
+
+def resolve_oidc_principal(
+    auth_config: ServiceAuthConfig, authorization_header: str | None
+) -> AuthenticatedPrincipal:
+    if auth_config.mode != "oidc" or auth_config.oidc is None:
+        raise ValueError(f"unsupported auth mode for OIDC resolution: {auth_config.mode}")
+    if authorization_header is None:
+        raise ValueError("Authentication is required for this preview route")
+    token = _decode_bearer_authorization(authorization_header)
+    claims = _decode_unverified_jwt_claims(token)
+    oidc_config = auth_config.oidc
+
+    issuer = claims.get("iss")
+    if not isinstance(issuer, str) or issuer.strip() != oidc_config.issuer:
+        raise ValueError("OIDC bearer token issuer did not match the configured issuer")
+
+    audiences = _normalize_token_audience(claims.get("aud"))
+    if oidc_config.audience not in audiences:
+        raise ValueError("OIDC bearer token audience did not match the configured audience")
+
+    subject = claims.get(oidc_config.subject_claim)
+    if not isinstance(subject, str) or not subject.strip():
+        raise ValueError(
+            f"OIDC bearer token must include a non-empty '{oidc_config.subject_claim}' claim"
+        )
+
+    role = _resolve_role_from_claims(oidc_config, claims)
+    return AuthenticatedPrincipal(username=subject.strip(), role=role, auth_mode="oidc")
 
 
 def record_auth_audit_event(
@@ -120,18 +238,34 @@ class ServiceAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         try:
-            principal = resolve_local_dev_principal(
-                auth_config,
-                request.headers.get("Authorization"),
-            )
+            if auth_config.mode == "basic":
+                principal = resolve_local_dev_principal(
+                    auth_config,
+                    request.headers.get("Authorization"),
+                )
+            elif auth_config.mode == "oidc":
+                principal = resolve_oidc_principal(
+                    auth_config,
+                    request.headers.get("Authorization"),
+                )
+            else:
+                raise ValueError(f"unsupported service auth mode: {auth_config.mode}")
         except ValueError as exc:
             message = str(exc)
             code = "auth_required"
-            if "failed" in message or "valid base64" in message:
-                code = "invalid_credentials"
-            elif "HTTP Basic" in message:
+            if auth_config.mode == "basic":
+                if "failed" in message or "valid base64" in message:
+                    code = "invalid_credentials"
+                elif "HTTP Basic" in message:
+                    code = "unsupported_auth_scheme"
+                return _unauthorized_response(code=code, message=message)
+            if "issuer" in message or "audience" in message or "claim" in message:
+                code = "invalid_token_claims"
+            elif "JWT" in message or "base64url" in message:
+                code = "invalid_bearer_token"
+            elif "Bearer auth" in message:
                 code = "unsupported_auth_scheme"
-            return _unauthorized_response(code=code, message=message)
+            return _bearer_unauthorized_response(code=code, message=message)
 
         request.state.service_principal = principal
         return await call_next(request)
