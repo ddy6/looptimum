@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -44,6 +44,42 @@ class CampaignDetailResponse(BaseModel):
     status: dict[str, Any]
     paths: dict[str, str]
     artifacts: dict[str, bool]
+
+
+class SuggestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    count: int | None = None
+    output_mode: Literal["json", "jsonl"] = "json"
+    lock_timeout_seconds: float | None = None
+    fail_fast: bool = False
+
+
+class IngestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    payload: dict[str, Any]
+    lease_token: str | None = None
+    lock_timeout_seconds: float | None = None
+    fail_fast: bool = False
+
+
+class ResetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    yes: bool = False
+    archive: bool | None = None
+    lock_timeout_seconds: float | None = None
+    fail_fast: bool = False
+
+
+class RestoreRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    archive_id: str
+    yes: bool = False
+    lock_timeout_seconds: float | None = None
+    fail_fast: bool = False
 
 
 class HealthResponse(BaseModel):

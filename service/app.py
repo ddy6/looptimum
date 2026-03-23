@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from service.config import ServiceConfig, build_service_config
 from service.models import (
@@ -12,6 +12,10 @@ from service.models import (
     CampaignRecord,
     CampaignRegistrationRequest,
     HealthResponse,
+    IngestRequest,
+    ResetRequest,
+    RestoreRequest,
+    SuggestRequest,
 )
 from service.registry import (
     CampaignConflictError,
@@ -24,9 +28,14 @@ from service.registry import (
 from service.runtime import (
     ReportNotGeneratedError,
     RuntimeArtifactError,
+    RuntimeCommandError,
     build_campaign_detail,
     build_status_payload,
+    ingest_via_runtime,
     load_report_payload,
+    reset_via_runtime,
+    restore_via_runtime,
+    suggest_via_runtime,
 )
 
 
@@ -65,6 +74,13 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=_error_payload(code="runtime_artifact_error", message=str(exc)),
         )
+    if isinstance(exc, RuntimeCommandError):
+        payload = _error_payload(code=exc.code, message=exc.message)
+        if exc.stdout.strip():
+            payload["error"]["stdout"] = exc.stdout
+        if exc.stderr.strip():
+            payload["error"]["stderr"] = exc.stderr
+        return JSONResponse(status_code=exc.status_code, content=payload)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=_error_payload(code="registry_state_error", message=str(exc)),
@@ -118,5 +134,54 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     @app.get("/campaigns/{campaign_id}/report")
     def get_campaign_report(campaign_id: str) -> dict[str, Any]:
         return load_report_payload(registry.get_campaign_root(campaign_id))
+
+    @app.post("/campaigns/{campaign_id}/suggest", response_model=None)
+    def suggest_for_campaign(
+        campaign_id: str,
+        payload: SuggestRequest | None = None,
+    ) -> Any:
+        request = payload or SuggestRequest()
+        response_payload, ndjson_output = suggest_via_runtime(
+            registry.get_campaign_root(campaign_id),
+            count=request.count,
+            output_mode=request.output_mode,
+            lock_timeout_seconds=request.lock_timeout_seconds,
+            fail_fast=request.fail_fast,
+        )
+        if ndjson_output is not None:
+            return PlainTextResponse(ndjson_output, media_type="application/x-ndjson")
+        if response_payload is None:
+            return {}
+        return response_payload
+
+    @app.post("/campaigns/{campaign_id}/ingest")
+    def ingest_for_campaign(campaign_id: str, payload: IngestRequest) -> dict[str, Any]:
+        return ingest_via_runtime(
+            registry.get_campaign_root(campaign_id),
+            payload=payload.payload,
+            lease_token=payload.lease_token,
+            lock_timeout_seconds=payload.lock_timeout_seconds,
+            fail_fast=payload.fail_fast,
+        )
+
+    @app.post("/campaigns/{campaign_id}/reset")
+    def reset_campaign(campaign_id: str, payload: ResetRequest) -> dict[str, Any]:
+        return reset_via_runtime(
+            registry.get_campaign_root(campaign_id),
+            yes=payload.yes,
+            archive=payload.archive,
+            lock_timeout_seconds=payload.lock_timeout_seconds,
+            fail_fast=payload.fail_fast,
+        )
+
+    @app.post("/campaigns/{campaign_id}/restore")
+    def restore_campaign(campaign_id: str, payload: RestoreRequest) -> dict[str, Any]:
+        return restore_via_runtime(
+            registry.get_campaign_root(campaign_id),
+            archive_id=payload.archive_id,
+            yes=payload.yes,
+            lock_timeout_seconds=payload.lock_timeout_seconds,
+            fail_fast=payload.fail_fast,
+        )
 
     return app
