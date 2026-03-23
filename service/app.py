@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, status
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from service.config import ServiceConfig, build_service_config
+from service.dashboard import ASSETS_DIR, render_dashboard_shell
 from service.models import (
     CampaignDetailResponse,
     CampaignListResponse,
@@ -24,6 +26,7 @@ from service.registry import (
     InvalidCampaignRootError,
     PreviewDisabledError,
     ServiceRegistryError,
+    validate_campaign_root,
 )
 from service.runtime import (
     DecisionTraceNotGeneratedError,
@@ -116,6 +119,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url=None,
     )
+    app.mount("/dashboard/assets", StaticFiles(directory=ASSETS_DIR), name="dashboard-assets")
 
     @app.exception_handler(ServiceRegistryError)
     async def handle_registry_error(_request: Any, exc: ServiceRegistryError) -> JSONResponse:
@@ -129,6 +133,16 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
             registry_file=str(service_config.registry_file),
             campaign_count=len(registry.list_campaigns()),
         )
+
+    @app.get("/dashboard", response_class=HTMLResponse)
+    def get_dashboard_root() -> HTMLResponse:
+        return HTMLResponse(render_dashboard_shell())
+
+    @app.get("/dashboard/campaigns/{campaign_id}", response_class=HTMLResponse)
+    def get_dashboard_campaign(campaign_id: str) -> HTMLResponse:
+        record = registry.get_campaign(campaign_id)
+        validate_campaign_root(record.root_path)
+        return HTMLResponse(render_dashboard_shell(current_campaign_id=record.campaign_id))
 
     @app.get("/campaigns", response_model=CampaignListResponse)
     def list_campaigns() -> CampaignListResponse:
