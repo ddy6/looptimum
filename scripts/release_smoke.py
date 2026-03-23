@@ -11,14 +11,17 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
-
-from fastapi.testclient import TestClient
-
-from service.app import create_app
-from service.config import build_service_config
+from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from service.app import create_app  # noqa: E402
+from service.config import build_service_config  # noqa: E402
+
 TEMPLATES_SRC = REPO_ROOT / "templates"
 TINY_LOOP_SCRIPT = (
     REPO_ROOT / "examples" / "toy_objectives" / "03_tiny_quadratic_loop" / "run_tiny_loop.py"
@@ -126,7 +129,7 @@ def _basic_auth_header(username: str, password: str) -> dict[str, str]:
 
 
 def _status_payload(raw: str, *, context: str) -> dict[str, Any]:
-    payload = json.loads(raw)
+    payload = cast(dict[str, Any], json.loads(raw))
     _require_keys(
         payload,
         [
