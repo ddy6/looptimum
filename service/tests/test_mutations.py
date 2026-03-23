@@ -100,6 +100,17 @@ def _normalize_suggest_response(payload: dict[str, object]) -> dict[str, object]
     return normalized
 
 
+def _normalize_jsonl_suggestions(text: str) -> list[dict[str, object]]:
+    normalized: list[dict[str, object]] = []
+    for raw_line in text.splitlines():
+        if not raw_line.strip():
+            continue
+        payload = json.loads(raw_line)
+        payload.pop("suggested_at", None)
+        normalized.append(payload)
+    return normalized
+
+
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_suggest_endpoint_matches_cli_bundle_payload_across_variants(
     tmp_path: Path, variant: str
@@ -116,6 +127,28 @@ def test_suggest_endpoint_matches_cli_bundle_payload_across_variants(
     assert response.status_code == 200
     cli_payload = json.loads(_run_cli(cli_root, "suggest", "--json-only", "--count", "2").stdout)
     assert _normalize_suggest_response(response.json()) == _normalize_suggest_response(cli_payload)
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_suggest_endpoint_supports_jsonl_output_mode_across_variants(
+    tmp_path: Path, variant: str
+) -> None:
+    service_root = _prepare_variant_copy(tmp_path, variant, target_name=f"{variant}_service_jsonl")
+    cli_root = _prepare_variant_copy(tmp_path, variant, target_name=f"{variant}_cli_jsonl")
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    app = create_app(build_service_config(registry_file))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(service_root)}).json()
+        response = client.post(
+            f"/campaigns/{created['campaign_id']}/suggest",
+            json={"count": 2, "output_mode": "jsonl"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    cli_payload = _run_cli(cli_root, "suggest", "--jsonl", "--count", "2").stdout
+    assert _normalize_jsonl_suggestions(response.text) == _normalize_jsonl_suggestions(cli_payload)
 
 
 def test_ingest_endpoint_supports_duplicate_noop(tmp_path: Path) -> None:
@@ -239,3 +272,33 @@ def test_reset_and_restore_round_trip_archive_id_and_artifacts(tmp_path: Path) -
     assert post_restore_status.json() == pre_reset_status
     assert post_restore_report.status_code == 200
     assert post_restore_report.json() == pre_reset_report
+
+
+def test_mutating_endpoint_fails_if_preview_flag_is_disabled_after_registration(
+    tmp_path: Path,
+) -> None:
+    project_root = _prepare_variant_copy(
+        tmp_path, "bo_client_demo", target_name="demo_preview_revoked"
+    )
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    app = create_app(build_service_config(registry_file))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+
+    cfg_path = project_root / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["feature_flags"]["enable_service_api_preview"] = False
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    with TestClient(app) as client:
+        response = client.post(f"/campaigns/{created['campaign_id']}/suggest", json={})
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "error": {
+            "code": "service_preview_disabled",
+            "message": "Campaign root is not service-enabled; set "
+            "feature_flags.enable_service_api_preview=true before registration",
+        }
+    }

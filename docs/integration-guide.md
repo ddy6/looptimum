@@ -42,6 +42,8 @@ The loop does not need raw data or internal model internals. It just needs:
   tracker helpers layered on the same public contracts
 - `docs/integration-starter-kit.md`: safe topology and retry guidance for those
   starter-kit helpers
+- `docs/service-api-preview.md`: preview-only local FastAPI wrapper over the
+  same file-backed runtime
 - `docs/aws-batch-integration.md`: optional AWS Batch executor path and recovery
   sidecar design
 - `examples/toy-objectives/`: reference integration patterns
@@ -235,6 +237,26 @@ Optional AWS path:
   canonical result, use
   [`docs/aws-batch-integration.md`](./aws-batch-integration.md)
 - AWS metadata stays out of canonical Looptimum state/report surfaces
+
+## Optional Local Service API Preview
+
+If you prefer an HTTP wrapper over the same runtime, the repo now includes a
+preview-only FastAPI layer under `service/`.
+
+Boundary rules:
+
+- it is local-first and file-backed, not a second optimizer authority
+- campaign roots must opt in with
+  `feature_flags.enable_service_api_preview = true`
+- the registry stores only campaign metadata; state remains inside each
+  registered campaign root
+- `report` is still explicit; the preview reads `state/report.json` but does
+  not generate it
+
+Detailed startup, registration, and endpoint guidance:
+
+- [`service-api-preview.md`](./service-api-preview.md)
+- [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
 
 ## Starter-Kit Sidecars and Safe Topology
 

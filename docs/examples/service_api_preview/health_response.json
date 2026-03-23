@@ -1,0 +1,6 @@
+{
+  "ok": true,
+  "preview": "service_api_preview",
+  "registry_file": "/abs/path/to/service_state/campaign_registry.json",
+  "campaign_count": 0
+}

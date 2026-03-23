@@ -78,6 +78,15 @@ Every core claim in this README has an auditable source:
 | Looptimum controller | Local machine, CI runner, or client host | `suggest`, `ingest`, `status`, lifecycle + ops commands, local state |
 | Evaluator | Your runtime (script, cluster job, lab workflow, API) | Execute one trial from suggested params |
 | State and logs | Local files under template `state/` | Resume, audit trail, best-so-far tracking |
+| Local service preview | Same host or nearby dev box | Preview-only FastAPI wrapper over registered campaign roots; metadata registry only |
+
+Preview note:
+
+- the optional Service API preview under `service/` is explicitly preview-scoped,
+  keeps campaign roots file-backed and authoritative, and is not part of the
+  stable `v0.3.x` compatibility surface
+- see [`docs/service-api-preview.md`](docs/service-api-preview.md) and
+  [`docs/examples/service_api_preview/README.md`](docs/examples/service_api_preview/README.md)
 
 ## Common Use Cases
 
@@ -146,6 +155,8 @@ For an opinionated mainstream scenario, see
 [`quickstart/etl-pipeline-knob-tuning.md`](quickstart/etl-pipeline-knob-tuning.md).
 For interruption triage and recovery actions, see
 `docs/recovery-playbook.md`.
+For the local FastAPI wrapper over the same file-backed runtime, see
+[`docs/service-api-preview.md`](docs/service-api-preview.md).
 For the dedicated tiny end-to-end objective walkthrough, see
 `examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
 

@@ -15,6 +15,7 @@ MULTI_OBJECTIVE_EXAMPLE = REPO_ROOT / "docs" / "examples" / "multi_objective"
 BATCH_ASYNC_EXAMPLE = REPO_ROOT / "docs" / "examples" / "batch_async"
 WARM_START_EXAMPLE = REPO_ROOT / "docs" / "examples" / "warm_start"
 STARTERKIT_EXAMPLE = REPO_ROOT / "docs" / "examples" / "starterkit"
+SERVICE_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "service_api_preview"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -346,3 +347,81 @@ def test_starterkit_example_pack_has_expected_artifacts() -> None:
     assert wandb_payload["config"]["objective_names"] == ["loss"]
     assert wandb_payload["summary"]["looptimum/top_trial_count"] == 2
     assert wandb_payload["history"]["looptimum/observations"] == 2.0
+
+
+def test_service_preview_example_pack_has_expected_artifacts() -> None:
+    assert SERVICE_PREVIEW_EXAMPLE.exists(), (
+        f"missing service preview example pack: {SERVICE_PREVIEW_EXAMPLE}"
+    )
+
+    readme_path = SERVICE_PREVIEW_EXAMPLE / "README.md"
+    health_path = SERVICE_PREVIEW_EXAMPLE / "health_response.json"
+    create_request_path = SERVICE_PREVIEW_EXAMPLE / "campaign_create_request.json"
+    create_response_path = SERVICE_PREVIEW_EXAMPLE / "campaign_create_response.json"
+    list_response_path = SERVICE_PREVIEW_EXAMPLE / "campaign_list_response.json"
+    detail_path = SERVICE_PREVIEW_EXAMPLE / "campaign_detail_response.json"
+    suggest_request_path = SERVICE_PREVIEW_EXAMPLE / "suggest_request.json"
+    suggest_response_path = SERVICE_PREVIEW_EXAMPLE / "suggest_response.json"
+    suggest_jsonl_path = SERVICE_PREVIEW_EXAMPLE / "suggest_response.jsonl"
+    ingest_request_path = SERVICE_PREVIEW_EXAMPLE / "ingest_request.json"
+    ingest_response_path = SERVICE_PREVIEW_EXAMPLE / "ingest_response.json"
+    status_path = SERVICE_PREVIEW_EXAMPLE / "status_after_ingest.json"
+    report_path = SERVICE_PREVIEW_EXAMPLE / "report_response.json"
+
+    for path in (
+        readme_path,
+        health_path,
+        create_request_path,
+        create_response_path,
+        list_response_path,
+        detail_path,
+        suggest_request_path,
+        suggest_response_path,
+        suggest_jsonl_path,
+        ingest_request_path,
+        ingest_response_path,
+        status_path,
+        report_path,
+    ):
+        assert path.exists(), f"missing service preview example artifact: {path}"
+
+    health_payload = json.loads(health_path.read_text(encoding="utf-8"))
+    assert health_payload["ok"] is True
+    assert health_payload["preview"] == "service_api_preview"
+
+    create_payload = json.loads(create_response_path.read_text(encoding="utf-8"))
+    assert create_payload["campaign_id"] == "bo_client_demo"
+    assert create_payload["label"] == "Demo Preview Campaign"
+
+    list_payload = json.loads(list_response_path.read_text(encoding="utf-8"))
+    assert list_payload["campaigns"][0]["campaign_id"] == "bo_client_demo"
+
+    detail_payload = json.loads(detail_path.read_text(encoding="utf-8"))
+    assert detail_payload["campaign"]["campaign_id"] == "bo_client_demo"
+    assert detail_payload["artifacts"]["report_json_exists"] is True
+
+    suggest_payload = json.loads(suggest_response_path.read_text(encoding="utf-8"))
+    assert suggest_payload["count"] == 2
+    assert [item["trial_id"] for item in suggest_payload["suggestions"]] == [1, 2]
+
+    jsonl_payloads = [
+        json.loads(line)
+        for line in suggest_jsonl_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert [item["trial_id"] for item in jsonl_payloads] == [1, 2]
+
+    ingest_payload = json.loads(ingest_response_path.read_text(encoding="utf-8"))
+    assert ingest_payload == {
+        "message": "Ingested trial_id=1. Observations=1",
+        "noop": False,
+    }
+
+    status_payload = json.loads(status_path.read_text(encoding="utf-8"))
+    assert status_payload["observations"] == 1
+    assert status_payload["pending"] == 1
+    assert status_payload["best"]["trial_id"] == 1
+
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["counts"]["observations"] == 1
+    assert report_payload["top_trials"][0]["trial_id"] == 1

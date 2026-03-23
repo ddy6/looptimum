@@ -48,6 +48,13 @@ State schema versioning rule:
 - Do not run multiple controllers intentionally against the same state path;
   lock contention is treated as an operational error surface.
 
+Service preview note:
+
+- the optional `service/` FastAPI layer is a preview-only wrapper over these
+  same runtime semantics; it does not introduce a second authoritative state
+  store and it still depends on the one-controller/file-lock model per
+  campaign root
+
 ## Command Semantics
 
 ### `suggest`

@@ -1,0 +1,10 @@
+{
+  "campaigns": [
+    {
+      "campaign_id": "bo_client_demo",
+      "root_path": "/abs/path/to/templates/bo_client_demo",
+      "label": "Demo Preview Campaign",
+      "created_at": 1774231703.197956
+    }
+  ]
+}

@@ -12,6 +12,8 @@ Included files:
   failure semantics, state definitions, compatibility posture)
 - `integration-guide.md`: end-to-end `suggest -> evaluate -> ingest` integration
   workflow plus lifecycle/ops command usage
+- `service-api-preview.md`: preview-only local FastAPI wrapper over registered
+  campaign roots, with startup steps, endpoint scope, and operational caveats
 - `integration-starter-kit.md`: optional scheduler, webhook-sidecar, and
   tracker-adapter deployment guidance for the starter-kit helpers
 - `aws-batch-integration.md`: optional AWS Batch evaluator path, config, sidecar
@@ -49,6 +51,7 @@ Reference artifacts:
 - `../PILOT.md`
 - `examples/README.md`
 - `examples/batch_async/README.md`
+- `examples/service_api_preview/README.md`
 - `examples/multi_objective/README.md`
 - `examples/warm_start/README.md`
 - `examples/starterkit/README.md`

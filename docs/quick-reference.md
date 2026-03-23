@@ -140,6 +140,25 @@ Reference assets:
 - `docs/integration-starter-kit.md`
 - `docs/examples/starterkit/README.md`
 
+## Preview Service API
+
+- `service/` is a preview-only local FastAPI wrapper over the same file-backed
+  runtime and is not part of the stable `v0.3.x` compatibility surface.
+- campaign registration requires
+  `feature_flags.enable_service_api_preview = true` inside the target
+  campaign's `bo_config.json`.
+- the service registry stores campaign id, label, root path, and created-at
+  metadata only; optimizer state remains authoritative in the campaign root.
+- current preview endpoints cover `GET /health`, campaign create/read/detail,
+  read-only `status`/`report`, and mutating `suggest`/`ingest`/`reset`/`restore`.
+- `report` stays artifact-backed: the preview endpoint reads existing
+  `state/report.json` and does not generate reports implicitly.
+
+Reference assets:
+
+- `docs/service-api-preview.md`
+- `docs/examples/service_api_preview/README.md`
+
 ## Observability and Governance
 
 - `health [--strict]` is the read-only machine-readable health surface; it

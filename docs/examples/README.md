@@ -12,6 +12,8 @@ Included:
 
 - `batch_async/`: generated bundle JSON, JSONL handoff, lease-token, and
   state/report examples for batch suggest flows
+- `service_api_preview/`: sample request/response payloads for the preview-only
+  local FastAPI wrapper over registered campaign roots
 - `multi_objective/`: generated weighted-sum / lexicographic example pack with
   `status`, `report`, and trial-manifest outputs
 - `warm_start/`: permissive warm-start import report plus JSONL/CSV observation

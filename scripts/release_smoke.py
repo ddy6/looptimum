@@ -12,6 +12,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from fastapi.testclient import TestClient
+
+from service.app import create_app
+from service.config import build_service_config
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES_SRC = REPO_ROOT / "templates"
 TINY_LOOP_SCRIPT = (
@@ -83,6 +88,15 @@ def _prepare_temp_templates(temp_root: Path) -> Path:
     )
     shutil.copytree(TEMPLATES_SRC, temp_templates, ignore=ignore)
     return temp_templates
+
+
+def _enable_service_preview(project_root: Path) -> None:
+    cfg_path = project_root / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    feature_flags = dict(cfg.get("feature_flags", {}))
+    feature_flags["enable_service_api_preview"] = True
+    cfg["feature_flags"] = feature_flags
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
 
 def _clean_state(project_root: Path) -> None:
@@ -374,6 +388,86 @@ def _smoke_tiny_loop(tiny_steps: int) -> None:
     print("[smoke] tiny loop passed")
 
 
+def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
+    print("[smoke] service preview")
+    _clean_state(project_root)
+    _enable_service_preview(project_root)
+
+    registry_file = temp_root / "service_state" / "campaign_registry.json"
+    app = create_app(build_service_config(registry_file))
+
+    with TestClient(app) as client:
+        health_response = client.get("/health")
+        if health_response.status_code != 200:
+            raise RuntimeError(f"service preview health failed: {health_response.text}")
+
+        create_response = client.post(
+            "/campaigns",
+            json={"root_path": str(project_root), "label": "Release Smoke Preview"},
+        )
+        if create_response.status_code != 201:
+            raise RuntimeError(f"service preview registration failed: {create_response.text}")
+
+        campaign = create_response.json()
+        campaign_id = str(campaign["campaign_id"])
+
+        suggest_response = client.post(f"/campaigns/{campaign_id}/suggest", json={})
+        if suggest_response.status_code != 200:
+            raise RuntimeError(f"service preview suggest failed: {suggest_response.text}")
+        suggestion = suggest_response.json()
+        _require_keys(
+            suggestion,
+            ["schema_version", "trial_id", "params", "suggested_at"],
+            context="service preview suggest",
+        )
+
+        objective_schema = json.loads(
+            (project_root / "objective_schema.json").read_text(encoding="utf-8")
+        )
+        primary_objective = str(objective_schema["primary_objective"]["name"])
+        ingest_response = client.post(
+            f"/campaigns/{campaign_id}/ingest",
+            json={
+                "payload": {
+                    "trial_id": suggestion["trial_id"],
+                    "params": suggestion["params"],
+                    "status": "ok",
+                    "objectives": {primary_objective: 0.1234},
+                }
+            },
+        )
+        if ingest_response.status_code != 200:
+            raise RuntimeError(f"service preview ingest failed: {ingest_response.text}")
+
+        status_response = client.get(f"/campaigns/{campaign_id}/status")
+        if status_response.status_code != 200:
+            raise RuntimeError(f"service preview status failed: {status_response.text}")
+        status_payload = status_response.json()
+        if int(status_payload["observations"]) != 1:
+            raise RuntimeError(
+                "service preview expected one observation after ingest, "
+                f"got {status_payload['observations']}"
+            )
+
+    run_bo = project_root / "run_bo.py"
+    _run(
+        [sys.executable, str(run_bo), "report", "--project-root", str(project_root)],
+        cwd=REPO_ROOT,
+    )
+
+    with TestClient(app) as client:
+        report_response = client.get(f"/campaigns/{campaign_id}/report")
+        if report_response.status_code != 200:
+            raise RuntimeError(f"service preview report failed: {report_response.text}")
+        report_payload = report_response.json()
+        if int(report_payload["counts"]["observations"]) != 1:
+            raise RuntimeError(
+                "service preview report expected one observation, "
+                f"got {report_payload['counts']['observations']}"
+            )
+    print("[smoke] service preview passed")
+
+
 def main() -> None:
     args = _parse_args()
     if args.demo_steps < 1:
@@ -393,6 +487,7 @@ def main() -> None:
                 demo_steps=args.demo_steps,
             )
         _smoke_tiny_loop(args.tiny_loop_steps)
+        _smoke_service_preview(temp_root, temp_templates / "bo_client_demo")
     finally:
         if args.keep_temp_dir:
             print(f"[smoke] kept temp root: {temp_root}")
