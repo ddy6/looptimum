@@ -6,6 +6,7 @@ import io
 import json
 import sys
 import tempfile
+import time
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from functools import lru_cache
 from pathlib import Path
@@ -22,7 +23,15 @@ class ReportNotGeneratedError(ServiceRegistryError):
     pass
 
 
+class DecisionTraceNotGeneratedError(ServiceRegistryError):
+    pass
+
+
 class RuntimeArtifactError(ServiceRegistryError):
+    pass
+
+
+class TrialNotFoundError(ServiceRegistryError):
     pass
 
 
@@ -91,6 +100,77 @@ def _load_runtime_cfg(root: Path, runtime_module: ModuleType) -> tuple[JSONDict,
         raise InvalidCampaignRootError("bo_config must be an object")
     paths = runtime_any._runtime_paths(root, cfg_doc)
     return cast(JSONDict, cfg_doc), cast(dict[str, Path], paths)
+
+
+def _load_campaign_context(
+    root: Path,
+) -> tuple[Path, ModuleType, Any, JSONDict, dict[str, Path], JSONDict, JSONDict]:
+    validated_root, runtime_module = _load_campaign_runtime(root)
+    runtime_any = cast(Any, runtime_module)
+    cfg, paths = _load_runtime_cfg(validated_root, runtime_module)
+    state = cast(JSONDict, runtime_any.load_state(paths["state_file"]))
+    objective_cfg = cast(JSONDict, runtime_any._load_objective_config(validated_root, cfg))
+    return validated_root, runtime_module, runtime_any, cfg, paths, state, objective_cfg
+
+
+def _load_jsonl_rows(path: Path) -> list[JSONDict]:
+    if not path.exists():
+        return []
+    rows: list[JSONDict] = []
+    for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw_line.strip():
+            continue
+        try:
+            payload = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            raise RuntimeArtifactError(f"invalid JSONL in {path}:{line_number}") from exc
+        if not isinstance(payload, dict):
+            raise RuntimeArtifactError(
+                f"expected JSON object in {path}:{line_number}, got {type(payload).__name__}"
+            )
+        rows.append(cast(JSONDict, payload))
+    return rows
+
+
+def _relative_path(runtime_any: Any, root: Path, path: Path) -> str:
+    return cast(str, runtime_any._relative_path(root, path))
+
+
+def _trial_ids(paths: dict[str, Path], state: JSONDict) -> list[int]:
+    ids = {
+        int(row["trial_id"])
+        for row in state.get("observations", [])
+        if isinstance(row, dict) and isinstance(row.get("trial_id"), int)
+    }
+    ids.update(
+        int(row["trial_id"])
+        for row in state.get("pending", [])
+        if isinstance(row, dict) and isinstance(row.get("trial_id"), int)
+    )
+    trials_root = paths["trials_dir"]
+    if trials_root.exists():
+        for child in trials_root.iterdir():
+            if not child.is_dir() or not child.name.startswith("trial_"):
+                continue
+            try:
+                ids.add(int(child.name.split("_", 1)[1]))
+            except ValueError:
+                continue
+    return sorted(ids)
+
+
+def _trial_sources(state: JSONDict) -> tuple[dict[int, JSONDict], dict[int, JSONDict]]:
+    observations = {
+        int(row["trial_id"]): cast(JSONDict, row)
+        for row in state.get("observations", [])
+        if isinstance(row, dict) and isinstance(row.get("trial_id"), int)
+    }
+    pending = {
+        int(row["trial_id"]): cast(JSONDict, row)
+        for row in state.get("pending", [])
+        if isinstance(row, dict) and isinstance(row.get("trial_id"), int)
+    }
+    return observations, pending
 
 
 def build_status_payload(root: Path) -> JSONDict:
@@ -169,6 +249,372 @@ def build_campaign_detail(record: CampaignRecord) -> CampaignDetailResponse:
             "report_json_exists": paths["report_json_file"].exists(),
             "report_md_exists": paths["report_md_file"].exists(),
         },
+    )
+
+
+def _build_trial_record(
+    *,
+    trial_id: int,
+    runtime_any: Any,
+    root: Path,
+    paths: dict[str, Path],
+    observations: dict[int, JSONDict],
+    pending: dict[int, JSONDict],
+    objective_cfg: JSONDict,
+    now: float,
+) -> JSONDict:
+    manifest = cast(JSONDict, runtime_any.load_trial_manifest(paths["trials_dir"], trial_id))
+    observation = observations.get(trial_id)
+    pending_entry = pending.get(trial_id)
+    source = observation or pending_entry
+    if source is None and not manifest:
+        raise TrialNotFoundError(f"trial not found: {trial_id}")
+
+    raw_objectives = None
+    if observation is not None:
+        raw_objectives = observation.get("objectives")
+    elif isinstance(manifest.get("objective_vector"), dict):
+        raw_objectives = manifest.get("objective_vector")
+
+    metadata = cast(JSONDict, runtime_any.build_objective_metadata(raw_objectives, objective_cfg))
+    manifest_path = runtime_any.trial_dir(paths["trials_dir"], trial_id) / "manifest.json"
+    record: JSONDict = {
+        "trial_id": trial_id,
+        "status": manifest.get("status", source.get("status") if source else None),
+        "terminal_reason": manifest.get(
+            "terminal_reason",
+            source.get("terminal_reason") if source else None,
+        ),
+        "params": manifest.get("params", source.get("params") if source else None),
+        "objective_name": manifest.get("objective_name", metadata["objective_name"]),
+        "objective_value": manifest.get("objective_value", metadata["objective_value"]),
+        "objective_vector": manifest.get("objective_vector", metadata["objective_vector"]),
+        "scalarized_objective": manifest.get(
+            "scalarized_objective",
+            metadata["scalarized_objective"],
+        ),
+        "penalty_objective": manifest.get(
+            "penalty_objective",
+            source.get("penalty_objective") if source else None,
+        ),
+        "suggested_at": manifest.get(
+            "suggested_at",
+            source.get("suggested_at") if source else None,
+        ),
+        "completed_at": manifest.get(
+            "completed_at",
+            source.get("completed_at") if source else None,
+        ),
+        "last_heartbeat_at": manifest.get(
+            "last_heartbeat_at",
+            source.get("last_heartbeat_at") if source else None,
+        ),
+        "heartbeat_count": int(
+            manifest.get("heartbeat_count", source.get("heartbeat_count", 0) if source else 0) or 0
+        ),
+        "lease_token": manifest.get("lease_token", source.get("lease_token") if source else None),
+        "artifact_path": manifest.get(
+            "artifact_path",
+            source.get("artifact_path") if source else None,
+        ),
+        "artifacts": manifest.get("artifacts", {}),
+        "created_at": manifest.get("created_at"),
+        "updated_at": manifest.get("updated_at"),
+        "manifest_path": _relative_path(runtime_any, root, manifest_path)
+        if manifest_path.exists()
+        else None,
+        "has_manifest": manifest_path.exists(),
+        "is_pending": pending_entry is not None,
+        "is_terminal": pending_entry is None,
+        "pending_age_seconds": None,
+    }
+    if "scalarization_policy" in manifest:
+        record["scalarization_policy"] = manifest["scalarization_policy"]
+    elif "scalarization_policy" in metadata:
+        record["scalarization_policy"] = metadata["scalarization_policy"]
+
+    for key in (
+        "heartbeat_note",
+        "heartbeat_meta",
+        "source_trial_id",
+        "import_source",
+        "import_format",
+        "imported_at",
+    ):
+        if key in manifest:
+            record[key] = manifest[key]
+        elif source is not None and key in source:
+            record[key] = source[key]
+
+    if pending_entry is not None:
+        record["pending_age_seconds"] = float(
+            runtime_any.pending_age_seconds(pending_entry, now=now)
+        )
+    return record
+
+
+def build_trial_summaries(root: Path) -> JSONDict:
+    (
+        validated_root,
+        _runtime_module,
+        runtime_any,
+        _cfg,
+        paths,
+        state,
+        objective_cfg,
+    ) = _load_campaign_context(root)
+    observations, pending = _trial_sources(state)
+    now = time.time()
+    trials = [
+        _build_trial_record(
+            trial_id=trial_id,
+            runtime_any=runtime_any,
+            root=validated_root,
+            paths=paths,
+            observations=observations,
+            pending=pending,
+            objective_cfg=objective_cfg,
+            now=now,
+        )
+        for trial_id in reversed(_trial_ids(paths, state))
+    ]
+    by_status: dict[str, int] = {}
+    for row in trials:
+        status = str(row.get("status", "unknown"))
+        by_status[status] = by_status.get(status, 0) + 1
+    return {
+        "count": len(trials),
+        "counts": {
+            "total": len(trials),
+            "pending": len(pending),
+            "terminal": len(observations),
+            "by_status": by_status,
+        },
+        "trials": trials,
+    }
+
+
+def load_trial_detail(root: Path, trial_id: int) -> JSONDict:
+    (
+        validated_root,
+        _runtime_module,
+        runtime_any,
+        _cfg,
+        paths,
+        state,
+        objective_cfg,
+    ) = _load_campaign_context(root)
+    observations, pending = _trial_sources(state)
+    trial = _build_trial_record(
+        trial_id=trial_id,
+        runtime_any=runtime_any,
+        root=validated_root,
+        paths=paths,
+        observations=observations,
+        pending=pending,
+        objective_cfg=objective_cfg,
+        now=time.time(),
+    )
+    decision = next(
+        (
+            row
+            for row in _load_jsonl_rows(paths["acquisition_log_file"])
+            if int(row.get("trial_id", -1)) == trial_id
+        ),
+        None,
+    )
+    return {"trial": trial, "decision": decision}
+
+
+def build_best_timeseries(root: Path) -> JSONDict:
+    (
+        _validated_root,
+        _runtime_module,
+        runtime_any,
+        _cfg,
+        _paths,
+        state,
+        objective_cfg,
+    ) = _load_campaign_context(root)
+    observations = [
+        cast(JSONDict, row)
+        for row in state.get("observations", [])
+        if isinstance(row, dict) and isinstance(row.get("trial_id"), int)
+    ]
+    observations.sort(
+        key=lambda row: (
+            float(row.get("completed_at", 0.0) or 0.0),
+            int(row["trial_id"]),
+        )
+    )
+
+    current_best_row: JSONDict | None = None
+    current_best_key: tuple[Any, ...] | None = None
+    points: list[JSONDict] = []
+    ignored_trial_ids: list[int] = []
+    for observation in observations:
+        trial_id = int(observation["trial_id"])
+        if str(observation.get("status", "")) != "ok":
+            ignored_trial_ids.append(trial_id)
+            continue
+        try:
+            metadata = cast(
+                JSONDict,
+                runtime_any.build_objective_metadata(observation.get("objectives"), objective_cfg),
+            )
+            rank_key = cast(
+                tuple[Any, ...],
+                runtime_any.best_rank_key(
+                    observation.get("objectives"),
+                    objective_cfg,
+                    trial_id=trial_id,
+                ),
+            )
+        except Exception:
+            ignored_trial_ids.append(trial_id)
+            continue
+
+        is_improvement = current_best_key is None or rank_key < current_best_key
+        if is_improvement or current_best_row is None:
+            current_best_row = observation
+            current_best_key = rank_key
+        best_record = cast(
+            JSONDict,
+            runtime_any.build_best_record(
+                current_best_row,
+                objective_cfg,
+                updated_at=float(observation.get("completed_at", time.time()) or time.time()),
+            ),
+        )
+        point: JSONDict = {
+            "trial_id": trial_id,
+            "completed_at": observation.get("completed_at"),
+            "objective_name": metadata["objective_name"],
+            "objective_value": metadata["objective_value"],
+            "objective_vector": metadata["objective_vector"],
+            "scalarized_objective": metadata["scalarized_objective"],
+            "is_improvement": is_improvement,
+            "best_trial_id": best_record["trial_id"],
+            "best_objective_name": best_record["objective_name"],
+            "best_objective_value": best_record["objective_value"],
+        }
+        if "scalarization_policy" in metadata:
+            point["scalarization_policy"] = metadata["scalarization_policy"]
+        if "objective_vector" in best_record:
+            point["best_objective_vector"] = best_record["objective_vector"]
+        points.append(point)
+
+    return {
+        "objective_name": runtime_any.primary_objective_name(objective_cfg),
+        "best_objective_name": runtime_any.best_objective_name(objective_cfg),
+        "scalarization_policy": runtime_any.scalarization_policy(objective_cfg),
+        "points": points,
+        "ignored_trial_ids": ignored_trial_ids,
+    }
+
+
+def build_alert_payload(root: Path) -> JSONDict:
+    (
+        _validated_root,
+        _runtime_module,
+        runtime_any,
+        cfg,
+        paths,
+        state,
+        _objective_cfg,
+    ) = _load_campaign_context(root)
+    pending_rows = [
+        cast(JSONDict, row)
+        for row in state.get("pending", [])
+        if isinstance(row, dict) and isinstance(row.get("trial_id"), int)
+    ]
+    now = time.time()
+    max_pending_age = runtime_any.resolve_max_pending_age_seconds(cfg)
+    stale_trial_ids: list[int] = []
+    oldest_age: float | None = None
+    for row in pending_rows:
+        age = float(runtime_any.pending_age_seconds(row, now=now))
+        if oldest_age is None or age > oldest_age:
+            oldest_age = age
+        if max_pending_age is not None and age > max_pending_age:
+            stale_trial_ids.append(int(row["trial_id"]))
+
+    leased_pending = sum(
+        1
+        for row in pending_rows
+        if isinstance(row.get("lease_token"), str) and bool(row.get("lease_token"))
+    )
+    return {
+        "pending_count": len(pending_rows),
+        "pending_trial_ids": [int(row["trial_id"]) for row in pending_rows],
+        "stale_pending_count": len(stale_trial_ids),
+        "stale_pending_trial_ids": stale_trial_ids,
+        "leased_pending_count": leased_pending,
+        "oldest_pending_age_seconds": oldest_age,
+        "max_pending_age_seconds": max_pending_age,
+        "report_available": paths["report_json_file"].exists(),
+        "decision_trace_available": paths["acquisition_log_file"].exists(),
+    }
+
+
+def load_decision_trace_payload(root: Path) -> JSONDict:
+    (
+        validated_root,
+        _runtime_module,
+        runtime_any,
+        _cfg,
+        paths,
+        _state,
+        _objective_cfg,
+    ) = _load_campaign_context(root)
+    entries = _load_jsonl_rows(paths["acquisition_log_file"])
+    return {
+        "available": paths["acquisition_log_file"].exists(),
+        "count": len(entries),
+        "path": _relative_path(runtime_any, validated_root, paths["acquisition_log_file"]),
+        "entries": entries,
+    }
+
+
+def load_report_markdown_text(root: Path) -> tuple[str, str]:
+    (
+        validated_root,
+        _runtime_module,
+        runtime_any,
+        _cfg,
+        paths,
+        _state,
+        _objective_cfg,
+    ) = _load_campaign_context(root)
+    report_path = paths["report_md_file"]
+    if not report_path.exists():
+        raise ReportNotGeneratedError(
+            f"report.md has not been generated for campaign root: {validated_root}"
+        )
+    return report_path.read_text(encoding="utf-8"), _relative_path(
+        runtime_any, validated_root, report_path
+    )
+
+
+def load_decision_trace_text(root: Path) -> tuple[str, str]:
+    (
+        validated_root,
+        _runtime_module,
+        runtime_any,
+        _cfg,
+        paths,
+        _state,
+        _objective_cfg,
+    ) = _load_campaign_context(root)
+    decision_trace_path = paths["acquisition_log_file"]
+    if not decision_trace_path.exists():
+        raise DecisionTraceNotGeneratedError(
+            f"acquisition_log.jsonl has not been generated for campaign root: {validated_root}"
+        )
+    return decision_trace_path.read_text(encoding="utf-8"), _relative_path(
+        runtime_any,
+        validated_root,
+        decision_trace_path,
     )
 
 

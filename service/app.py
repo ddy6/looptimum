@@ -26,13 +26,22 @@ from service.registry import (
     ServiceRegistryError,
 )
 from service.runtime import (
+    DecisionTraceNotGeneratedError,
     ReportNotGeneratedError,
     RuntimeArtifactError,
     RuntimeCommandError,
+    TrialNotFoundError,
+    build_alert_payload,
+    build_best_timeseries,
     build_campaign_detail,
     build_status_payload,
+    build_trial_summaries,
     ingest_via_runtime,
+    load_decision_trace_payload,
+    load_decision_trace_text,
+    load_report_markdown_text,
     load_report_payload,
+    load_trial_detail,
     reset_via_runtime,
     restore_via_runtime,
     suggest_via_runtime,
@@ -64,10 +73,20 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             content=_error_payload(code="campaign_not_found", message=str(exc)),
         )
+    if isinstance(exc, TrialNotFoundError):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=_error_payload(code="trial_not_found", message=str(exc)),
+        )
     if isinstance(exc, ReportNotGeneratedError):
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content=_error_payload(code="report_not_generated", message=str(exc)),
+        )
+    if isinstance(exc, DecisionTraceNotGeneratedError):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=_error_payload(code="decision_trace_not_generated", message=str(exc)),
         )
     if isinstance(exc, RuntimeArtifactError):
         return JSONResponse(
@@ -134,6 +153,56 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     @app.get("/campaigns/{campaign_id}/report")
     def get_campaign_report(campaign_id: str) -> dict[str, Any]:
         return load_report_payload(registry.get_campaign_root(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/trials")
+    def get_campaign_trials(campaign_id: str) -> dict[str, Any]:
+        return build_trial_summaries(registry.get_campaign_root(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/trials/{trial_id}")
+    def get_campaign_trial_detail(campaign_id: str, trial_id: int) -> dict[str, Any]:
+        return load_trial_detail(registry.get_campaign_root(campaign_id), trial_id)
+
+    @app.get("/campaigns/{campaign_id}/timeseries/best")
+    def get_campaign_best_timeseries(campaign_id: str) -> dict[str, Any]:
+        return build_best_timeseries(registry.get_campaign_root(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/alerts")
+    def get_campaign_alerts(campaign_id: str) -> dict[str, Any]:
+        return build_alert_payload(registry.get_campaign_root(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/decision-trace")
+    def get_campaign_decision_trace(campaign_id: str) -> dict[str, Any]:
+        return load_decision_trace_payload(registry.get_campaign_root(campaign_id))
+
+    @app.get("/campaigns/{campaign_id}/exports/report.json")
+    def export_campaign_report_json(campaign_id: str) -> JSONResponse:
+        payload = load_report_payload(registry.get_campaign_root(campaign_id))
+        return JSONResponse(
+            content=payload,
+            headers={"Content-Disposition": (f'attachment; filename="{campaign_id}-report.json"')},
+        )
+
+    @app.get("/campaigns/{campaign_id}/exports/report.md")
+    def export_campaign_report_markdown(campaign_id: str) -> PlainTextResponse:
+        text, _relative_path = load_report_markdown_text(registry.get_campaign_root(campaign_id))
+        return PlainTextResponse(
+            text,
+            media_type="text/markdown",
+            headers={"Content-Disposition": (f'attachment; filename="{campaign_id}-report.md"')},
+        )
+
+    @app.get("/campaigns/{campaign_id}/exports/decision-trace.jsonl")
+    def export_campaign_decision_trace(campaign_id: str) -> PlainTextResponse:
+        text, _relative_path = load_decision_trace_text(registry.get_campaign_root(campaign_id))
+        return PlainTextResponse(
+            text,
+            media_type="application/x-ndjson",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{campaign_id}-decision-trace.jsonl"'
+                )
+            },
+        )
 
     @app.post("/campaigns/{campaign_id}/suggest", response_model=None)
     def suggest_for_campaign(
