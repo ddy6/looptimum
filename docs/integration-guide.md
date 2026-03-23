@@ -258,6 +258,7 @@ Boundary rules:
 Detailed startup, registration, and endpoint guidance:
 
 - [`service-api-preview.md`](./service-api-preview.md)
+- [`auth-preview.md`](./auth-preview.md)
 - [`dashboard-preview.md`](./dashboard-preview.md)
 - [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
 - [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)

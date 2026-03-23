@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "auth_preview_disabled",
+    "message": "Campaign root is not auth-preview-enabled; set feature_flags.enable_auth_preview=true before using auth-protected preview routes"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "auth_required",
+    "message": "Authentication is required for this preview route"
+  }
+}

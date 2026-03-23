@@ -1,0 +1,17 @@
+[
+  {
+    "username": "viewer",
+    "password": "viewer-secret",
+    "role": "viewer"
+  },
+  {
+    "username": "operator",
+    "password": "operator-secret",
+    "role": "operator"
+  },
+  {
+    "username": "admin",
+    "password": "admin-secret",
+    "role": "admin"
+  }
+]

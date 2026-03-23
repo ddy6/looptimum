@@ -16,6 +16,9 @@ Included:
   local FastAPI wrapper over registered campaign roots
 - `dashboard_preview/`: captured preview dashboard HTML plus the JSON read
   models used for progress, alerts, drilldown, and export actions
+- `auth_preview/`: local-dev auth config, authorization failure payloads,
+  OIDC config reference, and service-owned auth audit-log examples for the
+  preview service/dashboard stack
 - `multi_objective/`: generated weighted-sum / lexicographic example pack with
   `status`, `report`, and trial-manifest outputs
 - `warm_start/`: permissive warm-start import report plus JSONL/CSV observation

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import shutil
 import subprocess
@@ -96,6 +97,7 @@ def _enable_service_preview(project_root: Path) -> None:
     feature_flags = dict(cfg.get("feature_flags", {}))
     feature_flags["enable_service_api_preview"] = True
     feature_flags["enable_dashboard_preview"] = True
+    feature_flags["enable_auth_preview"] = True
     cfg["feature_flags"] = feature_flags
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
@@ -116,6 +118,11 @@ def _require_keys(payload: dict[str, Any], keys: list[str], *, context: str) -> 
     for key in keys:
         if key not in payload:
             raise RuntimeError(f"Missing key '{key}' in {context}: {payload}")
+
+
+def _basic_auth_header(username: str, password: str) -> dict[str, str]:
+    token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    return {"Authorization": f"Basic {token}"}
 
 
 def _status_payload(raw: str, *, context: str) -> dict[str, Any]:
@@ -395,16 +402,36 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
     _enable_service_preview(project_root)
 
     registry_file = temp_root / "service_state" / "campaign_registry.json"
-    app = create_app(build_service_config(registry_file))
+    admin_headers = _basic_auth_header("admin", "admin-secret")
+    operator_headers = _basic_auth_header("operator", "operator-secret")
+    viewer_headers = _basic_auth_header("viewer", "viewer-secret")
+    app = create_app(
+        build_service_config(
+            registry_file,
+            auth_mode="basic",
+            auth_users=[
+                {"username": "viewer", "password": "viewer-secret", "role": "viewer"},
+                {"username": "operator", "password": "operator-secret", "role": "operator"},
+                {"username": "admin", "password": "admin-secret", "role": "admin"},
+            ],
+        )
+    )
 
     with TestClient(app) as client:
         health_response = client.get("/health")
         if health_response.status_code != 200:
             raise RuntimeError(f"service preview health failed: {health_response.text}")
+        unauthenticated_response = client.get("/campaigns")
+        if unauthenticated_response.status_code != 401:
+            raise RuntimeError(
+                "service preview expected authenticated /campaigns access; "
+                f"got {unauthenticated_response.status_code}: {unauthenticated_response.text}"
+            )
 
         create_response = client.post(
             "/campaigns",
             json={"root_path": str(project_root), "label": "Release Smoke Preview"},
+            headers=admin_headers,
         )
         if create_response.status_code != 201:
             raise RuntimeError(f"service preview registration failed: {create_response.text}")
@@ -412,13 +439,21 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
         campaign = create_response.json()
         campaign_id = str(campaign["campaign_id"])
 
-        dashboard_root_response = client.get("/dashboard")
+        list_response = client.get("/campaigns", headers=viewer_headers)
+        if list_response.status_code != 200:
+            raise RuntimeError(f"service preview campaign list failed: {list_response.text}")
+
+        dashboard_root_response = client.get("/dashboard", headers=viewer_headers)
         if dashboard_root_response.status_code != 200:
             raise RuntimeError(
                 f"service preview dashboard root failed: {dashboard_root_response.text}"
             )
 
-        suggest_response = client.post(f"/campaigns/{campaign_id}/suggest", json={})
+        suggest_response = client.post(
+            f"/campaigns/{campaign_id}/suggest",
+            json={},
+            headers=operator_headers,
+        )
         if suggest_response.status_code != 200:
             raise RuntimeError(f"service preview suggest failed: {suggest_response.text}")
         suggestion = suggest_response.json()
@@ -442,11 +477,15 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
                     "objectives": {primary_objective: 0.1234},
                 }
             },
+            headers=operator_headers,
         )
         if ingest_response.status_code != 200:
             raise RuntimeError(f"service preview ingest failed: {ingest_response.text}")
 
-        status_response = client.get(f"/campaigns/{campaign_id}/status")
+        status_response = client.get(
+            f"/campaigns/{campaign_id}/status",
+            headers=viewer_headers,
+        )
         if status_response.status_code != 200:
             raise RuntimeError(f"service preview status failed: {status_response.text}")
         status_payload = status_response.json()
@@ -463,7 +502,10 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
     )
 
     with TestClient(app) as client:
-        report_response = client.get(f"/campaigns/{campaign_id}/report")
+        report_response = client.get(
+            f"/campaigns/{campaign_id}/report",
+            headers=viewer_headers,
+        )
         if report_response.status_code != 200:
             raise RuntimeError(f"service preview report failed: {report_response.text}")
         report_payload = report_response.json()
@@ -472,7 +514,10 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
                 "service preview report expected one observation, "
                 f"got {report_payload['counts']['observations']}"
             )
-        dashboard_campaign_response = client.get(f"/dashboard/campaigns/{campaign_id}")
+        dashboard_campaign_response = client.get(
+            f"/dashboard/campaigns/{campaign_id}",
+            headers=viewer_headers,
+        )
         if dashboard_campaign_response.status_code != 200:
             raise RuntimeError(
                 f"service preview dashboard campaign failed: {dashboard_campaign_response.text}"

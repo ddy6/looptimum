@@ -153,13 +153,24 @@ Reference assets:
   read-only `status`/`report`, and mutating `suggest`/`ingest`/`reset`/`restore`.
 - `report` stays artifact-backed: the preview endpoint reads existing
   `state/report.json` and does not generate reports implicitly.
+- preview auth is optional; when enabled, `GET /health` stays unauthenticated,
+  all other routes require auth, campaign roots must opt in with
+  `feature_flags.enable_auth_preview = true`, and the service writes
+  `service_state/auth_audit_log.jsonl` for authz failures and privileged
+  actions.
+- role matrix:
+  - `viewer`: read-only API, dashboard, and exports
+  - `operator`: `viewer` plus `suggest` and `ingest`
+  - `admin`: `operator` plus campaign registration, `reset`, and `restore`
 
 Reference assets:
 
 - `docs/service-api-preview.md`
 - `docs/dashboard-preview.md`
+- `docs/auth-preview.md`
 - `docs/examples/service_api_preview/README.md`
 - `docs/examples/dashboard_preview/README.md`
+- `docs/examples/auth_preview/README.md`
 
 Dashboard companion note:
 

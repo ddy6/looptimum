@@ -1,0 +1,11 @@
+{
+  "issuer": "https://issuer.example.test",
+  "audience": "looptimum-preview",
+  "subject_claim": "sub",
+  "role_claim": "roles",
+  "role_mapping": {
+    "group:viewers": "viewer",
+    "group:operators": "operator",
+    "group:admins": "admin"
+  }
+}

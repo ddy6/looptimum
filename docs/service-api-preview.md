@@ -12,6 +12,8 @@ It is an optional HTTP layer over the same file-backed runtime used by the CLI.
   path, and created-at metadata, not optimizer state
 - no hosted orchestration claims: this preview is a local API wrapper, not a
   multi-tenant control plane
+- preview auth is available, but it remains local-first and service-scoped;
+  CLI/runtime file-backed flows stay authless and authoritative
 
 ## Startup
 
@@ -34,6 +36,13 @@ Required campaign-side opt-in:
 
 That flag must be present in the target campaign root's `bo_config.json`
 before registration.
+
+Optional service-auth preview:
+
+- use [`auth-preview.md`](./auth-preview.md) for local-dev auth startup,
+  role boundaries, audit-log posture, and OIDC preview caveats
+- when service auth preview is enabled, campaign roots must also set
+  `feature_flags.enable_auth_preview = true`
 
 ## Campaign Registration
 
@@ -88,6 +97,27 @@ Important parity rules:
 - campaign-bound dashboard routes additionally require
   `feature_flags.enable_dashboard_preview = true`
 
+## Auth Preview
+
+Preview auth is optional and disabled by default.
+
+When enabled:
+
+- `GET /health` remains unauthenticated for local probes
+- all other service routes require an authenticated principal
+- campaign roots must opt in with `feature_flags.enable_auth_preview = true`
+- roles apply at the route layer:
+  - `viewer`: read-only API, dashboard, and export endpoints
+  - `operator`: `viewer` permissions plus `suggest` and `ingest`
+  - `admin`: `operator` permissions plus campaign registration, `reset`, and
+    `restore`
+- the service writes a preview auth audit log under `service_state/`,
+  separate from campaign runtime event logs
+
+Reference doc:
+
+- [`auth-preview.md`](./auth-preview.md)
+
 ## Dashboard Companion
 
 The preview service now also mounts a read-only operator shell under
@@ -105,7 +135,8 @@ Reference docs:
 - mutating endpoints fail whole-command, matching CLI/runtime boundaries
 - the registry is only a lookup table for registered roots; deleting it does
   not delete campaign state
-- auth/multi-controller work is out of scope for this preview
+- preview auth is still preview-scoped and local-first; multi-controller work
+  remains out of scope for this service layer
 
 ## Example Pack
 
@@ -113,6 +144,7 @@ Reference request/response artifacts:
 
 - [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
 - [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
+- [`examples/auth_preview/README.md`](./examples/auth_preview/README.md)
 
 That pack includes sample payloads for campaign create/read, `suggest`,
 `ingest`, and `report`, captured from the preview service against a temp

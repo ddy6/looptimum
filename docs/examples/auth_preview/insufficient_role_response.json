@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "insufficient_role",
+    "message": "authenticated principal role 'viewer' does not satisfy required role 'operator' for POST /campaigns/bo_client_demo/suggest"
+  }
+}

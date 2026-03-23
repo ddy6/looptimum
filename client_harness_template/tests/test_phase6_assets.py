@@ -17,6 +17,7 @@ WARM_START_EXAMPLE = REPO_ROOT / "docs" / "examples" / "warm_start"
 STARTERKIT_EXAMPLE = REPO_ROOT / "docs" / "examples" / "starterkit"
 SERVICE_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "service_api_preview"
 DASHBOARD_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "dashboard_preview"
+AUTH_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "auth_preview"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -496,3 +497,78 @@ def test_dashboard_preview_example_pack_has_expected_artifacts() -> None:
     decision_trace_payload = json.loads(decision_trace_path.read_text(encoding="utf-8"))
     assert decision_trace_payload["available"] is True
     assert decision_trace_payload["count"] == 2
+
+
+def test_auth_preview_example_pack_has_expected_artifacts() -> None:
+    assert AUTH_PREVIEW_EXAMPLE.exists(), (
+        f"missing auth preview example pack: {AUTH_PREVIEW_EXAMPLE}"
+    )
+
+    readme_path = AUTH_PREVIEW_EXAMPLE / "README.md"
+    local_users_path = AUTH_PREVIEW_EXAMPLE / "local_dev_auth_users.json"
+    oidc_config_path = AUTH_PREVIEW_EXAMPLE / "oidc_config.json"
+    auth_required_path = AUTH_PREVIEW_EXAMPLE / "auth_required_response.json"
+    insufficient_role_path = AUTH_PREVIEW_EXAMPLE / "insufficient_role_response.json"
+    auth_preview_disabled_path = AUTH_PREVIEW_EXAMPLE / "auth_preview_disabled_response.json"
+    authenticated_list_path = AUTH_PREVIEW_EXAMPLE / "authenticated_campaign_list_response.json"
+    audit_log_path = AUTH_PREVIEW_EXAMPLE / "auth_audit_log.jsonl"
+
+    for path in (
+        readme_path,
+        local_users_path,
+        oidc_config_path,
+        auth_required_path,
+        insufficient_role_path,
+        auth_preview_disabled_path,
+        authenticated_list_path,
+        audit_log_path,
+    ):
+        assert path.exists(), f"missing auth preview example artifact: {path}"
+
+    local_users_payload = json.loads(local_users_path.read_text(encoding="utf-8"))
+    assert [user["role"] for user in local_users_payload] == ["viewer", "operator", "admin"]
+    assert [user["username"] for user in local_users_payload] == ["viewer", "operator", "admin"]
+
+    oidc_payload = json.loads(oidc_config_path.read_text(encoding="utf-8"))
+    assert oidc_payload["issuer"] == "https://issuer.example.test"
+    assert oidc_payload["audience"] == "looptimum-preview"
+    assert oidc_payload["role_mapping"]["group:admins"] == "admin"
+
+    auth_required_payload = json.loads(auth_required_path.read_text(encoding="utf-8"))
+    assert auth_required_payload["error"]["code"] == "auth_required"
+
+    insufficient_role_payload = json.loads(insufficient_role_path.read_text(encoding="utf-8"))
+    assert insufficient_role_payload["error"]["code"] == "insufficient_role"
+    assert "required role 'operator'" in insufficient_role_payload["error"]["message"]
+
+    auth_preview_disabled_payload = json.loads(
+        auth_preview_disabled_path.read_text(encoding="utf-8")
+    )
+    assert auth_preview_disabled_payload["error"]["code"] == "auth_preview_disabled"
+
+    authenticated_list_payload = json.loads(authenticated_list_path.read_text(encoding="utf-8"))
+    assert authenticated_list_payload["campaigns"][0]["campaign_id"] == "bo_client_demo"
+
+    audit_events = [
+        json.loads(line)
+        for line in audit_log_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert any(
+        event["event_type"] == "privileged_action"
+        and event["action"] == "register_campaign"
+        and event["outcome"] == "allowed"
+        for event in audit_events
+    )
+    assert any(
+        event["event_type"] == "authz_failure"
+        and event["action"] == "route_access"
+        and event["reason"] == "requires_role=operator"
+        for event in audit_events
+    )
+    assert any(
+        event["event_type"] == "authz_failure"
+        and event["action"] == "campaign_auth_preview_validation"
+        and event["reason"] == "campaign_auth_preview_disabled"
+        for event in audit_events
+    )

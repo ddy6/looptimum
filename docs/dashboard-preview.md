@@ -12,8 +12,9 @@ second runtime or state authority.
   and does not read campaign state files directly
 - read-only in Workstream 11: it does not expose `suggest`, `ingest`, `reset`,
   or `restore` controls
-- local operator mode: no auth, RBAC, SSO, or multi-controller coordination is
-  introduced here
+- optional preview auth may protect dashboard routes, but the UI remains
+  read-only and does not introduce cookie-session UX or a second policy layer
+- multi-controller coordination is still out of scope here
 
 ## Startup
 
@@ -37,7 +38,10 @@ Required campaign-side flags:
 
 `enable_service_api_preview` is still required for registration and service API
 access. `enable_dashboard_preview` is additionally required for campaign-bound
-dashboard routes such as `/dashboard/campaigns/<campaign_id>`.
+dashboard routes such as `/dashboard/campaigns/<campaign_id>`. When service
+auth preview is enabled, the campaign root must also set
+`enable_auth_preview = true` and the operator must authenticate as `viewer` or
+higher.
 
 ## Route Surface
 
@@ -60,15 +64,20 @@ The dashboard shell fetches the following read-only service endpoints:
 - `GET /campaigns/{campaign_id}/exports/report.md`
 - `GET /campaigns/{campaign_id}/exports/decision-trace.jsonl`
 
+Auth companion:
+
+- [`auth-preview.md`](./auth-preview.md)
+
 ## Operator Workflow
 
 Typical local preview flow:
 
 1. start the preview service
 2. register a campaign root with service preview enabled
-3. open `/dashboard`
-4. choose a registered campaign
-5. inspect progress, alerts, per-trial detail, and export links without
+3. if preview auth is enabled, authenticate as `viewer`, `operator`, or `admin`
+4. open `/dashboard`
+5. choose a registered campaign
+6. inspect progress, alerts, per-trial detail, and export links without
    leaving the preview service
 
 The dashboard is intended for monitoring and troubleshooting:
@@ -92,6 +101,7 @@ The dashboard is intended for monitoring and troubleshooting:
 Reference dashboard HTML and read-model payloads:
 
 - [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
+- [`examples/auth_preview/README.md`](./examples/auth_preview/README.md)
 
 That pack includes captured shell HTML plus the JSON responses the dashboard
 uses for trials, alerts, decision trace, and best-over-time rendering.
