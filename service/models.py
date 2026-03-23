@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 REGISTRY_SCHEMA_VERSION = "0.1.0-preview"
+ServiceRole = Literal["viewer", "operator", "admin"]
 
 
 class CampaignRecord(BaseModel):
@@ -14,6 +15,22 @@ class CampaignRecord(BaseModel):
     root_path: str
     label: str
     created_at: float
+
+
+class LocalAuthUser(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    username: str
+    password: str
+    role: ServiceRole
+
+
+class AuthenticatedPrincipal(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    username: str
+    role: ServiceRole
+    auth_mode: Literal["basic", "oidc"]
 
 
 class RegistrySnapshot(BaseModel):

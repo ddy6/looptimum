@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI, status
+from fastapi import Depends, FastAPI, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from service.auth import ServiceAuthMiddleware, require_authenticated_principal
 from service.config import ServiceConfig, build_service_config
 from service.dashboard import ASSETS_DIR, render_dashboard_shell
 from service.models import (
+    AuthenticatedPrincipal,
     CampaignDetailResponse,
     CampaignListResponse,
     CampaignRecord,
@@ -125,6 +127,8 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url=None,
     )
+    app.state.service_config = service_config
+    app.add_middleware(ServiceAuthMiddleware)
     app.mount("/dashboard/assets", StaticFiles(directory=ASSETS_DIR), name="dashboard-assets")
 
     @app.exception_handler(ServiceRegistryError)
@@ -141,61 +145,102 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         )
 
     @app.get("/dashboard", response_class=HTMLResponse)
-    def get_dashboard_root() -> HTMLResponse:
+    def get_dashboard_root(
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> HTMLResponse:
         return HTMLResponse(render_dashboard_shell())
 
     @app.get("/dashboard/campaigns/{campaign_id}", response_class=HTMLResponse)
-    def get_dashboard_campaign(campaign_id: str) -> HTMLResponse:
+    def get_dashboard_campaign(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> HTMLResponse:
         record = registry.get_campaign(campaign_id)
         validate_dashboard_root(record.root_path)
         return HTMLResponse(render_dashboard_shell(current_campaign_id=record.campaign_id))
 
     @app.get("/campaigns", response_model=CampaignListResponse)
-    def list_campaigns() -> CampaignListResponse:
+    def list_campaigns(
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> CampaignListResponse:
         return CampaignListResponse(campaigns=registry.list_campaigns())
 
     @app.post("/campaigns", response_model=CampaignRecord, status_code=status.HTTP_201_CREATED)
-    def create_campaign(payload: CampaignRegistrationRequest) -> CampaignRecord:
+    def create_campaign(
+        payload: CampaignRegistrationRequest,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> CampaignRecord:
         return registry.register_campaign(payload)
 
     @app.get("/campaigns/{campaign_id}", response_model=CampaignRecord)
-    def get_campaign(campaign_id: str) -> CampaignRecord:
+    def get_campaign(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> CampaignRecord:
         return registry.get_campaign(campaign_id)
 
     @app.get("/campaigns/{campaign_id}/detail", response_model=CampaignDetailResponse)
-    def get_campaign_detail(campaign_id: str) -> CampaignDetailResponse:
+    def get_campaign_detail(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> CampaignDetailResponse:
         return build_campaign_detail(registry.get_campaign(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/status")
-    def get_campaign_status(campaign_id: str) -> dict[str, Any]:
+    def get_campaign_status(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return build_status_payload(registry.get_campaign_root(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/report")
-    def get_campaign_report(campaign_id: str) -> dict[str, Any]:
+    def get_campaign_report(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return load_report_payload(registry.get_campaign_root(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/trials")
-    def get_campaign_trials(campaign_id: str) -> dict[str, Any]:
+    def get_campaign_trials(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return build_trial_summaries(registry.get_campaign_root(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/trials/{trial_id}")
-    def get_campaign_trial_detail(campaign_id: str, trial_id: int) -> dict[str, Any]:
+    def get_campaign_trial_detail(
+        campaign_id: str,
+        trial_id: int,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return load_trial_detail(registry.get_campaign_root(campaign_id), trial_id)
 
     @app.get("/campaigns/{campaign_id}/timeseries/best")
-    def get_campaign_best_timeseries(campaign_id: str) -> dict[str, Any]:
+    def get_campaign_best_timeseries(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return build_best_timeseries(registry.get_campaign_root(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/alerts")
-    def get_campaign_alerts(campaign_id: str) -> dict[str, Any]:
+    def get_campaign_alerts(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return build_alert_payload(registry.get_campaign_root(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/decision-trace")
-    def get_campaign_decision_trace(campaign_id: str) -> dict[str, Any]:
+    def get_campaign_decision_trace(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return load_decision_trace_payload(registry.get_campaign_root(campaign_id))
 
     @app.get("/campaigns/{campaign_id}/exports/report.json")
-    def export_campaign_report_json(campaign_id: str) -> JSONResponse:
+    def export_campaign_report_json(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> JSONResponse:
         payload = load_report_payload(registry.get_campaign_root(campaign_id))
         return JSONResponse(
             content=payload,
@@ -203,7 +248,10 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         )
 
     @app.get("/campaigns/{campaign_id}/exports/report.md")
-    def export_campaign_report_markdown(campaign_id: str) -> PlainTextResponse:
+    def export_campaign_report_markdown(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> PlainTextResponse:
         text, _relative_path = load_report_markdown_text(registry.get_campaign_root(campaign_id))
         return PlainTextResponse(
             text,
@@ -212,7 +260,10 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         )
 
     @app.get("/campaigns/{campaign_id}/exports/decision-trace.jsonl")
-    def export_campaign_decision_trace(campaign_id: str) -> PlainTextResponse:
+    def export_campaign_decision_trace(
+        campaign_id: str,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> PlainTextResponse:
         text, _relative_path = load_decision_trace_text(registry.get_campaign_root(campaign_id))
         return PlainTextResponse(
             text,
@@ -228,6 +279,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     def suggest_for_campaign(
         campaign_id: str,
         payload: SuggestRequest | None = None,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
     ) -> Any:
         request = payload or SuggestRequest()
         response_payload, ndjson_output = suggest_via_runtime(
@@ -244,7 +296,11 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         return response_payload
 
     @app.post("/campaigns/{campaign_id}/ingest")
-    def ingest_for_campaign(campaign_id: str, payload: IngestRequest) -> dict[str, Any]:
+    def ingest_for_campaign(
+        campaign_id: str,
+        payload: IngestRequest,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return ingest_via_runtime(
             registry.get_campaign_root(campaign_id),
             payload=payload.payload,
@@ -254,7 +310,11 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         )
 
     @app.post("/campaigns/{campaign_id}/reset")
-    def reset_campaign(campaign_id: str, payload: ResetRequest) -> dict[str, Any]:
+    def reset_campaign(
+        campaign_id: str,
+        payload: ResetRequest,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return reset_via_runtime(
             registry.get_campaign_root(campaign_id),
             yes=payload.yes,
@@ -264,7 +324,11 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         )
 
     @app.post("/campaigns/{campaign_id}/restore")
-    def restore_campaign(campaign_id: str, payload: RestoreRequest) -> dict[str, Any]:
+    def restore_campaign(
+        campaign_id: str,
+        payload: RestoreRequest,
+        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+    ) -> dict[str, Any]:
         return restore_via_runtime(
             registry.get_campaign_root(campaign_id),
             archive_id=payload.archive_id,

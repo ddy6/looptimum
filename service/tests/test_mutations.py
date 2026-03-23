@@ -89,7 +89,10 @@ def _ok_result_payload(
 def _normalize_suggest_response(payload: dict[str, object]) -> dict[str, object]:
     normalized = dict(payload)
     suggestions = []
-    for suggestion in payload.get("suggestions", []):
+    raw_suggestions = payload.get("suggestions")
+    if not isinstance(raw_suggestions, list):
+        raw_suggestions = []
+    for suggestion in raw_suggestions:
         if not isinstance(suggestion, dict):
             suggestions.append(suggestion)
             continue
