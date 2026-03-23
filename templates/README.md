@@ -31,11 +31,12 @@ use:
 Template-local `bo_config.json` files now share a common `feature_flags`
 scaffold:
 
-- active today: `enable_botorch_gp`,
-  `fallback_to_proxy_if_unavailable` (`bo_client_full` only)
-- reserved no-op preview flags:
+- active today:
+  `enable_botorch_gp`,
+  `fallback_to_proxy_if_unavailable` (`bo_client_full` only),
   `enable_service_api_preview`,
-  `enable_dashboard_preview`,
+  `enable_dashboard_preview`
+- reserved no-op preview flag:
   `enable_auth_preview`
 
 To vendor shared contract helpers/schemas into a standalone template copy:

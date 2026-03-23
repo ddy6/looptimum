@@ -1,0 +1,13 @@
+{
+  "pending_count": 1,
+  "pending_trial_ids": [
+    2
+  ],
+  "stale_pending_count": 0,
+  "stale_pending_trial_ids": [],
+  "leased_pending_count": 0,
+  "oldest_pending_age_seconds": 0.08750510215759277,
+  "max_pending_age_seconds": 86400.0,
+  "report_available": true,
+  "decision_trace_available": true
+}

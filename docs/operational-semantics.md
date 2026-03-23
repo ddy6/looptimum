@@ -54,6 +54,9 @@ Service preview note:
   same runtime semantics; it does not introduce a second authoritative state
   store and it still depends on the one-controller/file-lock model per
   campaign root
+- the preview dashboard mounted from that service layer is read-only,
+  API-backed only, and uses polling rather than direct state-file reads or
+  push infrastructure
 
 ## Command Semantics
 

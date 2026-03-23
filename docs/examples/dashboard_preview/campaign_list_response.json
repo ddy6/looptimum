@@ -1,0 +1,10 @@
+{
+  "campaigns": [
+    {
+      "campaign_id": "bo_client_demo",
+      "root_path": "/private/var/folders/zp/83g629bx4cd971jv0dzgltqw0000gn/T/looptimum_dashboard_example_yv8go55z/campaigns/bo_client_demo",
+      "label": "Dashboard Preview Campaign",
+      "created_at": 1774235793.543164
+    }
+  ]
+}

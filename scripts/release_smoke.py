@@ -95,6 +95,7 @@ def _enable_service_preview(project_root: Path) -> None:
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     feature_flags = dict(cfg.get("feature_flags", {}))
     feature_flags["enable_service_api_preview"] = True
+    feature_flags["enable_dashboard_preview"] = True
     cfg["feature_flags"] = feature_flags
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
@@ -411,6 +412,12 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
         campaign = create_response.json()
         campaign_id = str(campaign["campaign_id"])
 
+        dashboard_root_response = client.get("/dashboard")
+        if dashboard_root_response.status_code != 200:
+            raise RuntimeError(
+                f"service preview dashboard root failed: {dashboard_root_response.text}"
+            )
+
         suggest_response = client.post(f"/campaigns/{campaign_id}/suggest", json={})
         if suggest_response.status_code != 200:
             raise RuntimeError(f"service preview suggest failed: {suggest_response.text}")
@@ -465,6 +472,13 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
                 "service preview report expected one observation, "
                 f"got {report_payload['counts']['observations']}"
             )
+        dashboard_campaign_response = client.get(f"/dashboard/campaigns/{campaign_id}")
+        if dashboard_campaign_response.status_code != 200:
+            raise RuntimeError(
+                f"service preview dashboard campaign failed: {dashboard_campaign_response.text}"
+            )
+        if f'data-current-campaign-id="{campaign_id}"' not in dashboard_campaign_response.text:
+            raise RuntimeError("service preview dashboard campaign missing bound campaign id")
     print("[smoke] service preview passed")
 
 

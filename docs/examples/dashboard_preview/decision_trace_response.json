@@ -1,0 +1,51 @@
+{
+  "available": true,
+  "count": 2,
+  "path": "state/acquisition_log.jsonl",
+  "entries": [
+    {
+      "decision": {
+        "constraint_status": {
+          "accepted": 1,
+          "attempted": 1,
+          "enabled": false,
+          "feasible_ratio": 1.0,
+          "phase": "initial-random",
+          "reject_counts": {},
+          "rejected": 0,
+          "requested": 1,
+          "warning": null
+        },
+        "strategy": "initial_random",
+        "surrogate_backend": null
+      },
+      "telemetry": {
+        "suggest_latency_seconds": 4.15419926866889e-05
+      },
+      "timestamp": 1774235793.573901,
+      "trial_id": 1
+    },
+    {
+      "decision": {
+        "constraint_status": {
+          "accepted": 1,
+          "attempted": 1,
+          "enabled": false,
+          "feasible_ratio": 1.0,
+          "phase": "initial-random",
+          "reject_counts": {},
+          "rejected": 0,
+          "requested": 1,
+          "warning": null
+        },
+        "strategy": "initial_random",
+        "surrogate_backend": null
+      },
+      "telemetry": {
+        "suggest_latency_seconds": 3.14170029014349e-05
+      },
+      "timestamp": 1774235793.574076,
+      "trial_id": 2
+    }
+  ]
+}

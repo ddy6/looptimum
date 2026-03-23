@@ -1,0 +1,56 @@
+{
+  "trial": {
+    "trial_id": 1,
+    "status": "ok",
+    "terminal_reason": null,
+    "params": {
+      "x1": 0.18126486333322134,
+      "x2": 0.6614305484952444
+    },
+    "objective_name": "loss",
+    "objective_value": 0.21,
+    "objective_vector": {
+      "loss": 0.21
+    },
+    "scalarized_objective": 0.21,
+    "penalty_objective": null,
+    "suggested_at": 1774235793.57323,
+    "completed_at": 1774235793.577178,
+    "last_heartbeat_at": null,
+    "heartbeat_count": 0,
+    "lease_token": null,
+    "artifact_path": "state/trials/trial_1/ingest_payload.json",
+    "artifacts": {
+      "ingest_payload": "state/trials/trial_1/ingest_payload.json"
+    },
+    "created_at": 1774235793.5732749,
+    "updated_at": 1774235793.577178,
+    "manifest_path": "state/trials/trial_1/manifest.json",
+    "has_manifest": true,
+    "is_pending": false,
+    "is_terminal": true,
+    "pending_age_seconds": null
+  },
+  "decision": {
+    "decision": {
+      "constraint_status": {
+        "accepted": 1,
+        "attempted": 1,
+        "enabled": false,
+        "feasible_ratio": 1.0,
+        "phase": "initial-random",
+        "reject_counts": {},
+        "rejected": 0,
+        "requested": 1,
+        "warning": null
+      },
+      "strategy": "initial_random",
+      "surrogate_backend": null
+    },
+    "telemetry": {
+      "suggest_latency_seconds": 4.15419926866889e-05
+    },
+    "timestamp": 1774235793.573901,
+    "trial_id": 1
+  }
+}

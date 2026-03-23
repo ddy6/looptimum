@@ -23,10 +23,11 @@ from service.registry import (
     CampaignConflictError,
     CampaignNotFoundError,
     CampaignRegistry,
+    DashboardPreviewDisabledError,
     InvalidCampaignRootError,
     PreviewDisabledError,
     ServiceRegistryError,
-    validate_campaign_root,
+    validate_dashboard_root,
 )
 from service.runtime import (
     DecisionTraceNotGeneratedError,
@@ -65,6 +66,11 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content=_error_payload(code="service_preview_disabled", message=str(exc)),
+        )
+    if isinstance(exc, DashboardPreviewDisabledError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=_error_payload(code="dashboard_preview_disabled", message=str(exc)),
         )
     if isinstance(exc, CampaignConflictError):
         return JSONResponse(
@@ -141,7 +147,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     @app.get("/dashboard/campaigns/{campaign_id}", response_class=HTMLResponse)
     def get_dashboard_campaign(campaign_id: str) -> HTMLResponse:
         record = registry.get_campaign(campaign_id)
-        validate_campaign_root(record.root_path)
+        validate_dashboard_root(record.root_path)
         return HTMLResponse(render_dashboard_shell(current_campaign_id=record.campaign_id))
 
     @app.get("/campaigns", response_model=CampaignListResponse)

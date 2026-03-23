@@ -9,7 +9,12 @@ from service.app import create_app
 from service.config import build_service_config
 
 
-def _write_campaign_root(root: Path, *, service_enabled: bool = True) -> None:
+def _write_campaign_root(
+    root: Path,
+    *,
+    service_enabled: bool = True,
+    dashboard_enabled: bool = True,
+) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "run_bo.py").write_text("# preview runtime entrypoint\n", encoding="utf-8")
     (root / "parameter_space.json").write_text(
@@ -27,6 +32,7 @@ def _write_campaign_root(root: Path, *, service_enabled: bool = True) -> None:
             {
                 "feature_flags": {
                     "enable_service_api_preview": service_enabled,
+                    "enable_dashboard_preview": dashboard_enabled,
                 }
             },
             indent=2,
@@ -57,6 +63,10 @@ def test_dashboard_root_serves_preview_shell_and_assets(tmp_path: Path) -> None:
     assert "trial-detail-panel" in shell_response.text
     assert "decision-trace-panel" in shell_response.text
     assert "export-actions-panel" in shell_response.text
+    assert 'aria-live="polite"' in shell_response.text
+    assert 'aria-label="Registered campaigns"' in shell_response.text
+    assert 'aria-label="Best over time chart"' in shell_response.text
+    assert 'aria-disabled="true"' in shell_response.text
 
     assert css_response.status_code == 200
     assert css_response.headers["content-type"].startswith("text/css")
@@ -64,6 +74,7 @@ def test_dashboard_root_serves_preview_shell_and_assets(tmp_path: Path) -> None:
     assert ".preview-chip" in css_response.text
     assert ".timeseries-chart" in css_response.text
     assert ".trial-button" in css_response.text
+    assert "@media (max-width: 960px)" in css_response.text
 
     assert js_response.status_code == 200
     assert js_response.headers["content-type"].startswith("text/javascript")
@@ -78,6 +89,7 @@ def test_dashboard_root_serves_preview_shell_and_assets(tmp_path: Path) -> None:
     assert "/exports/report.json" in js_response.text
     assert "/exports/report.md" in js_response.text
     assert "/exports/decision-trace.jsonl" in js_response.text
+    assert 'button.type = "button"' in js_response.text
 
 
 def test_dashboard_campaign_route_binds_current_campaign_id(tmp_path: Path) -> None:
@@ -134,3 +146,31 @@ def test_dashboard_campaign_route_fails_if_preview_flag_is_revoked(tmp_path: Pat
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "service_preview_disabled"
+
+
+def test_dashboard_campaign_route_fails_if_dashboard_flag_is_revoked(tmp_path: Path) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    campaign_root = tmp_path / "campaigns" / "preview-root"
+    _write_campaign_root(campaign_root)
+
+    app = create_app(build_service_config(registry_file))
+    with TestClient(app) as client:
+        create_response = client.post("/campaigns", json={"root_path": str(campaign_root)})
+        assert create_response.status_code == 201
+
+    cfg_path = campaign_root / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["feature_flags"]["enable_dashboard_preview"] = False
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/campaigns/preview-root")
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "error": {
+            "code": "dashboard_preview_disabled",
+            "message": "Campaign root is not dashboard-enabled; set "
+            "feature_flags.enable_dashboard_preview=true before using the preview dashboard",
+        }
+    }

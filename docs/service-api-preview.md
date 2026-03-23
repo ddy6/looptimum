@@ -56,12 +56,22 @@ files, and has `feature_flags.enable_service_api_preview = true`.
 Current preview endpoints:
 
 - `GET /health`
+- `GET /dashboard`
+- `GET /dashboard/campaigns/{campaign_id}`
 - `GET /campaigns`
 - `POST /campaigns`
 - `GET /campaigns/{campaign_id}`
 - `GET /campaigns/{campaign_id}/detail`
 - `GET /campaigns/{campaign_id}/status`
 - `GET /campaigns/{campaign_id}/report`
+- `GET /campaigns/{campaign_id}/trials`
+- `GET /campaigns/{campaign_id}/trials/{trial_id}`
+- `GET /campaigns/{campaign_id}/timeseries/best`
+- `GET /campaigns/{campaign_id}/alerts`
+- `GET /campaigns/{campaign_id}/decision-trace`
+- `GET /campaigns/{campaign_id}/exports/report.json`
+- `GET /campaigns/{campaign_id}/exports/report.md`
+- `GET /campaigns/{campaign_id}/exports/decision-trace.jsonl`
 - `POST /campaigns/{campaign_id}/suggest`
 - `POST /campaigns/{campaign_id}/ingest`
 - `POST /campaigns/{campaign_id}/reset`
@@ -75,6 +85,18 @@ Important parity rules:
   archive-id flows
 - `report` stays read-only at the API layer and reads existing
   `state/report.json`
+- campaign-bound dashboard routes additionally require
+  `feature_flags.enable_dashboard_preview = true`
+
+## Dashboard Companion
+
+The preview service now also mounts a read-only operator shell under
+`/dashboard`. That shell uses the preview API only and does not read state
+files directly.
+
+Reference docs:
+
+- [`dashboard-preview.md`](./dashboard-preview.md)
 
 ## Operational Caveats
 
@@ -83,14 +105,16 @@ Important parity rules:
 - mutating endpoints fail whole-command, matching CLI/runtime boundaries
 - the registry is only a lookup table for registered roots; deleting it does
   not delete campaign state
-- dashboard/auth/multi-controller work is out of scope for this preview
+- auth/multi-controller work is out of scope for this preview
 
 ## Example Pack
 
 Reference request/response artifacts:
 
 - [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
+- [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
 
 That pack includes sample payloads for campaign create/read, `suggest`,
 `ingest`, and `report`, captured from the preview service against a temp
-`bo_client_demo` campaign root.
+`bo_client_demo` campaign root. The dashboard companion pack adds captured HTML
+and the read-model payloads consumed by the preview shell.

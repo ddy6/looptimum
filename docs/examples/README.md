@@ -14,6 +14,8 @@ Included:
   state/report examples for batch suggest flows
 - `service_api_preview/`: sample request/response payloads for the preview-only
   local FastAPI wrapper over registered campaign roots
+- `dashboard_preview/`: captured preview dashboard HTML plus the JSON read
+  models used for progress, alerts, drilldown, and export actions
 - `multi_objective/`: generated weighted-sum / lexicographic example pack with
   `status`, `report`, and trial-manifest outputs
 - `warm_start/`: permissive warm-start import report plus JSONL/CSV observation

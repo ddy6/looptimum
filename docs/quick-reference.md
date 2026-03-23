@@ -157,7 +157,19 @@ Reference assets:
 Reference assets:
 
 - `docs/service-api-preview.md`
+- `docs/dashboard-preview.md`
 - `docs/examples/service_api_preview/README.md`
+- `docs/examples/dashboard_preview/README.md`
+
+Dashboard companion note:
+
+- `/dashboard` and `/dashboard/campaigns/{campaign_id}` are preview-only
+  operator routes mounted from the service stack
+- campaign-bound dashboard routes require both
+  `feature_flags.enable_service_api_preview = true` and
+  `feature_flags.enable_dashboard_preview = true`
+- the dashboard remains read-only and consumes the service read-model/export
+  endpoints rather than reading state files directly
 
 ## Observability and Governance
 

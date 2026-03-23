@@ -86,7 +86,11 @@ Preview note:
   keeps campaign roots file-backed and authoritative, and is not part of the
   stable `v0.3.x` compatibility surface
 - see [`docs/service-api-preview.md`](docs/service-api-preview.md) and
+  [`docs/dashboard-preview.md`](docs/dashboard-preview.md)
+- example packs:
   [`docs/examples/service_api_preview/README.md`](docs/examples/service_api_preview/README.md)
+  and
+  [`docs/examples/dashboard_preview/README.md`](docs/examples/dashboard_preview/README.md)
 
 ## Common Use Cases
 
@@ -157,6 +161,8 @@ For interruption triage and recovery actions, see
 `docs/recovery-playbook.md`.
 For the local FastAPI wrapper over the same file-backed runtime, see
 [`docs/service-api-preview.md`](docs/service-api-preview.md).
+For the read-only operator shell mounted from that preview service, see
+[`docs/dashboard-preview.md`](docs/dashboard-preview.md).
 For the dedicated tiny end-to-end objective walkthrough, see
 `examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
 

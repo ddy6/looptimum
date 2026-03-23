@@ -32,6 +32,10 @@ class PreviewDisabledError(ServiceRegistryError):
     pass
 
 
+class DashboardPreviewDisabledError(ServiceRegistryError):
+    pass
+
+
 class CampaignConflictError(ServiceRegistryError):
     pass
 
@@ -91,22 +95,25 @@ def _atomic_write_text(path: Path, text: str) -> None:
     tmp_path.replace(path)
 
 
-def _validate_service_preview_flag(root: Path) -> None:
+def _validate_feature_flag(
+    root: Path,
+    *,
+    flag_name: str,
+    disabled_error: type[ServiceRegistryError],
+    disabled_message: str,
+) -> None:
     config_path = root / "bo_config.json"
     cfg = _load_json_object(config_path)
     raw_flags = cfg.get("feature_flags", {})
     if not isinstance(raw_flags, dict):
         raise InvalidCampaignRootError("bo_config.json feature_flags must be an object")
-    enabled = raw_flags.get("enable_service_api_preview", False)
+    enabled = raw_flags.get(flag_name, False)
     if not isinstance(enabled, bool):
         raise InvalidCampaignRootError(
-            "bo_config.json feature_flags.enable_service_api_preview must be a boolean"
+            f"bo_config.json feature_flags.{flag_name} must be a boolean"
         )
     if not enabled:
-        raise PreviewDisabledError(
-            "Campaign root is not service-enabled; set "
-            "feature_flags.enable_service_api_preview=true before registration"
-        )
+        raise disabled_error(disabled_message)
 
 
 def validate_campaign_root(path: str | Path) -> Path:
@@ -122,7 +129,29 @@ def validate_campaign_root(path: str | Path) -> Path:
             f"campaign root missing required files: {', '.join(sorted(missing))}"
         )
 
-    _validate_service_preview_flag(root)
+    _validate_feature_flag(
+        root,
+        flag_name="enable_service_api_preview",
+        disabled_error=PreviewDisabledError,
+        disabled_message=(
+            "Campaign root is not service-enabled; set "
+            "feature_flags.enable_service_api_preview=true before registration"
+        ),
+    )
+    return root
+
+
+def validate_dashboard_root(path: str | Path) -> Path:
+    root = validate_campaign_root(path)
+    _validate_feature_flag(
+        root,
+        flag_name="enable_dashboard_preview",
+        disabled_error=DashboardPreviewDisabledError,
+        disabled_message=(
+            "Campaign root is not dashboard-enabled; set "
+            "feature_flags.enable_dashboard_preview=true before using the preview dashboard"
+        ),
+    )
     return root
 
 

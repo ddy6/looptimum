@@ -1,0 +1,52 @@
+{
+  "campaign": {
+    "campaign_id": "bo_client_demo",
+    "root_path": "/private/var/folders/zp/83g629bx4cd971jv0dzgltqw0000gn/T/looptimum_dashboard_example_yv8go55z/campaigns/bo_client_demo",
+    "label": "Dashboard Preview Campaign",
+    "created_at": 1774235793.543164
+  },
+  "status": {
+    "schema_version": "0.3.0",
+    "observations": 1,
+    "pending": 1,
+    "leased_pending": 0,
+    "next_trial_id": 3,
+    "best": {
+      "trial_id": 1,
+      "objective_name": "loss",
+      "objective_value": 0.21,
+      "updated_at": 1774235793.577228
+    },
+    "stale_pending": 0,
+    "observations_by_status": {
+      "ok": 1,
+      "failed": 0,
+      "killed": 0,
+      "timeout": 0
+    },
+    "max_pending_age_seconds": 86400.0,
+    "worker_leases_enabled": false,
+    "paths": {
+      "state_file": "state/bo_state.json",
+      "observations_csv": "state/observations.csv",
+      "acquisition_log_file": "state/acquisition_log.jsonl",
+      "event_log_file": "state/event_log.jsonl",
+      "trials_dir": "state/trials",
+      "lock_file": "state/.looptimum.lock"
+    }
+  },
+  "paths": {
+    "state_file": "state/bo_state.json",
+    "observations_csv": "state/observations.csv",
+    "acquisition_log_file": "state/acquisition_log.jsonl",
+    "event_log_file": "state/event_log.jsonl",
+    "trials_dir": "state/trials",
+    "report_json_file": "state/report.json",
+    "report_md_file": "state/report.md"
+  },
+  "artifacts": {
+    "state_file_exists": true,
+    "report_json_exists": true,
+    "report_md_exists": true
+  }
+}

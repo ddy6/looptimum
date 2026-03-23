@@ -16,6 +16,7 @@ BATCH_ASYNC_EXAMPLE = REPO_ROOT / "docs" / "examples" / "batch_async"
 WARM_START_EXAMPLE = REPO_ROOT / "docs" / "examples" / "warm_start"
 STARTERKIT_EXAMPLE = REPO_ROOT / "docs" / "examples" / "starterkit"
 SERVICE_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "service_api_preview"
+DASHBOARD_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "dashboard_preview"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -425,3 +426,73 @@ def test_service_preview_example_pack_has_expected_artifacts() -> None:
     report_payload = json.loads(report_path.read_text(encoding="utf-8"))
     assert report_payload["counts"]["observations"] == 1
     assert report_payload["top_trials"][0]["trial_id"] == 1
+
+
+def test_dashboard_preview_example_pack_has_expected_artifacts() -> None:
+    assert DASHBOARD_PREVIEW_EXAMPLE.exists(), (
+        f"missing dashboard preview example pack: {DASHBOARD_PREVIEW_EXAMPLE}"
+    )
+
+    readme_path = DASHBOARD_PREVIEW_EXAMPLE / "README.md"
+    root_html_path = DASHBOARD_PREVIEW_EXAMPLE / "dashboard_root.html"
+    campaign_html_path = DASHBOARD_PREVIEW_EXAMPLE / "dashboard_campaign.html"
+    campaigns_path = DASHBOARD_PREVIEW_EXAMPLE / "campaign_list_response.json"
+    detail_path = DASHBOARD_PREVIEW_EXAMPLE / "campaign_detail_response.json"
+    trials_path = DASHBOARD_PREVIEW_EXAMPLE / "trials_response.json"
+    trial_detail_path = DASHBOARD_PREVIEW_EXAMPLE / "trial_detail_response.json"
+    timeseries_path = DASHBOARD_PREVIEW_EXAMPLE / "timeseries_best_response.json"
+    alerts_path = DASHBOARD_PREVIEW_EXAMPLE / "alerts_response.json"
+    decision_trace_path = DASHBOARD_PREVIEW_EXAMPLE / "decision_trace_response.json"
+
+    for path in (
+        readme_path,
+        root_html_path,
+        campaign_html_path,
+        campaigns_path,
+        detail_path,
+        trials_path,
+        trial_detail_path,
+        timeseries_path,
+        alerts_path,
+        decision_trace_path,
+    ):
+        assert path.exists(), f"missing dashboard preview example artifact: {path}"
+
+    root_html = root_html_path.read_text(encoding="utf-8")
+    assert "Looptimum Dashboard Preview" in root_html
+    assert 'data-current-campaign-id=""' in root_html
+    assert "/dashboard/assets/dashboard.css" in root_html
+
+    campaign_html = campaign_html_path.read_text(encoding="utf-8")
+    assert 'data-current-campaign-id="bo_client_demo"' in campaign_html
+    assert "best-timeseries-panel" in campaign_html
+    assert "trial-detail-panel" in campaign_html
+
+    campaigns_payload = json.loads(campaigns_path.read_text(encoding="utf-8"))
+    assert campaigns_payload["campaigns"][0]["campaign_id"] == "bo_client_demo"
+
+    detail_payload = json.loads(detail_path.read_text(encoding="utf-8"))
+    assert detail_payload["campaign"]["campaign_id"] == "bo_client_demo"
+    assert detail_payload["status"]["observations"] == 1
+
+    trials_payload = json.loads(trials_path.read_text(encoding="utf-8"))
+    assert trials_payload["count"] == 2
+    assert trials_payload["counts"]["pending"] == 1
+    assert trials_payload["trials"][0]["trial_id"] == 2
+
+    trial_detail_payload = json.loads(trial_detail_path.read_text(encoding="utf-8"))
+    assert trial_detail_payload["trial"]["trial_id"] == 1
+    assert trial_detail_payload["trial"]["status"] == "ok"
+
+    timeseries_payload = json.loads(timeseries_path.read_text(encoding="utf-8"))
+    assert timeseries_payload["points"][0]["trial_id"] == 1
+    assert timeseries_payload["points"][0]["is_improvement"] is True
+
+    alerts_payload = json.loads(alerts_path.read_text(encoding="utf-8"))
+    assert alerts_payload["pending_count"] == 1
+    assert alerts_payload["decision_trace_available"] is True
+    assert alerts_payload["report_available"] is True
+
+    decision_trace_payload = json.loads(decision_trace_path.read_text(encoding="utf-8"))
+    assert decision_trace_payload["available"] is True
+    assert decision_trace_payload["count"] == 2

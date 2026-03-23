@@ -44,6 +44,8 @@ The loop does not need raw data or internal model internals. It just needs:
   starter-kit helpers
 - `docs/service-api-preview.md`: preview-only local FastAPI wrapper over the
   same file-backed runtime
+- `docs/dashboard-preview.md`: preview-only read-only operator UI mounted from
+  the local service layer
 - `docs/aws-batch-integration.md`: optional AWS Batch executor path and recovery
   sidecar design
 - `examples/toy-objectives/`: reference integration patterns
@@ -256,7 +258,9 @@ Boundary rules:
 Detailed startup, registration, and endpoint guidance:
 
 - [`service-api-preview.md`](./service-api-preview.md)
+- [`dashboard-preview.md`](./dashboard-preview.md)
 - [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
+- [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
 
 ## Starter-Kit Sidecars and Safe Topology
 

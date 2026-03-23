@@ -1,0 +1,76 @@
+{
+  "count": 2,
+  "counts": {
+    "total": 2,
+    "pending": 1,
+    "terminal": 1,
+    "by_status": {
+      "pending": 1,
+      "ok": 1
+    }
+  },
+  "trials": [
+    {
+      "trial_id": 2,
+      "status": "pending",
+      "terminal_reason": null,
+      "params": {
+        "x1": 0.6771258268002703,
+        "x2": 0.7849113560871108
+      },
+      "objective_name": "loss",
+      "objective_value": null,
+      "objective_vector": {
+        "loss": null
+      },
+      "scalarized_objective": null,
+      "penalty_objective": null,
+      "suggested_at": 1774235793.573262,
+      "completed_at": null,
+      "last_heartbeat_at": null,
+      "heartbeat_count": 0,
+      "lease_token": null,
+      "artifact_path": null,
+      "artifacts": {},
+      "created_at": 1774235793.5736241,
+      "updated_at": 1774235793.5736241,
+      "manifest_path": "state/trials/trial_2/manifest.json",
+      "has_manifest": true,
+      "is_pending": true,
+      "is_terminal": false,
+      "pending_age_seconds": 0.08370399475097656
+    },
+    {
+      "trial_id": 1,
+      "status": "ok",
+      "terminal_reason": null,
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      },
+      "objective_name": "loss",
+      "objective_value": 0.21,
+      "objective_vector": {
+        "loss": 0.21
+      },
+      "scalarized_objective": 0.21,
+      "penalty_objective": null,
+      "suggested_at": 1774235793.57323,
+      "completed_at": 1774235793.577178,
+      "last_heartbeat_at": null,
+      "heartbeat_count": 0,
+      "lease_token": null,
+      "artifact_path": "state/trials/trial_1/ingest_payload.json",
+      "artifacts": {
+        "ingest_payload": "state/trials/trial_1/ingest_payload.json"
+      },
+      "created_at": 1774235793.5732749,
+      "updated_at": 1774235793.577178,
+      "manifest_path": "state/trials/trial_1/manifest.json",
+      "has_manifest": true,
+      "is_pending": false,
+      "is_terminal": true,
+      "pending_age_seconds": null
+    }
+  ]
+}
