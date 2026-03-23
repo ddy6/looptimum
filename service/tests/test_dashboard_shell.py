@@ -52,11 +52,18 @@ def test_dashboard_root_serves_preview_shell_and_assets(tmp_path: Path) -> None:
     assert "Service UI Preview" in shell_response.text
     assert "campaign-list-panel" in shell_response.text
     assert "campaign-detail-panel" in shell_response.text
+    assert "best-timeseries-panel" in shell_response.text
+    assert "trial-list-panel" in shell_response.text
+    assert "trial-detail-panel" in shell_response.text
+    assert "decision-trace-panel" in shell_response.text
+    assert "export-actions-panel" in shell_response.text
 
     assert css_response.status_code == 200
     assert css_response.headers["content-type"].startswith("text/css")
     assert ".dashboard-shell" in css_response.text
     assert ".preview-chip" in css_response.text
+    assert ".timeseries-chart" in css_response.text
+    assert ".trial-button" in css_response.text
 
     assert js_response.status_code == 200
     assert js_response.headers["content-type"].startswith("text/javascript")
@@ -64,6 +71,13 @@ def test_dashboard_root_serves_preview_shell_and_assets(tmp_path: Path) -> None:
     assert 'fetchJson(config.campaignsPath || "/campaigns")' in js_response.text
     assert "fetchJson(`/campaigns/${currentCampaignId}/detail`)" in js_response.text
     assert "fetchJson(`/campaigns/${currentCampaignId}/alerts`)" in js_response.text
+    assert "fetchJson(`/campaigns/${currentCampaignId}/timeseries/best`)" in js_response.text
+    assert "fetchJson(`/campaigns/${currentCampaignId}/trials`)" in js_response.text
+    assert "fetchJson(`/campaigns/${currentCampaignId}/decision-trace`)" in js_response.text
+    assert "fetchJson(`/campaigns/${currentCampaignId}/trials/${trialId}`)" in js_response.text
+    assert "/exports/report.json" in js_response.text
+    assert "/exports/report.md" in js_response.text
+    assert "/exports/decision-trace.jsonl" in js_response.text
 
 
 def test_dashboard_campaign_route_binds_current_campaign_id(tmp_path: Path) -> None:
@@ -81,6 +95,8 @@ def test_dashboard_campaign_route_binds_current_campaign_id(tmp_path: Path) -> N
     assert shell_response.status_code == 200
     assert 'data-current-campaign-id="preview-root"' in shell_response.text
     assert "Read-only operator shell over the preview API." in shell_response.text
+    assert "Recent Decision Trace" in shell_response.text
+    assert "Trial Detail" in shell_response.text
 
 
 def test_dashboard_campaign_route_returns_json_404_for_unknown_campaign(tmp_path: Path) -> None:

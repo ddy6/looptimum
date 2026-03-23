@@ -40,7 +40,7 @@ def render_dashboard_shell(*, current_campaign_id: str | None = None) -> str:
         </div>
       </header>
 
-      <main class="workspace">
+    <main class="workspace">
         <aside class="panel panel--rail" id="campaign-list-panel">
           <div class="panel__header">
             <div>
@@ -62,7 +62,7 @@ def render_dashboard_shell(*, current_campaign_id: str | None = None) -> str:
             <div class="preview-chip">Preview Only</div>
           </div>
           <div class="state-message" id="campaign-detail-state">
-            Choose a campaign to inspect its current status and alert headline.
+            Choose a campaign to inspect status, progress, alerts, and per-trial drilldowns.
           </div>
 
           <div class="detail-grid" id="campaign-detail-grid" hidden>
@@ -91,8 +91,158 @@ def render_dashboard_shell(*, current_campaign_id: str | None = None) -> str:
                 <div><dt>Pending Trials</dt><dd id="alerts-pending">-</dd></div>
                 <div><dt>Stale Pending</dt><dd id="alerts-stale">-</dd></div>
                 <div><dt>Oldest Pending Age</dt><dd id="alerts-oldest-age">-</dd></div>
+                <div><dt>Max Pending Age</dt><dd id="alerts-max-age">-</dd></div>
+                <div><dt>Leased Pending</dt><dd id="alerts-leased">-</dd></div>
                 <div><dt>Decision Trace</dt><dd id="alerts-decision-trace">-</dd></div>
               </dl>
+            </article>
+          </div>
+
+          <div class="monitor-grid" id="campaign-monitor-grid" hidden>
+            <article class="summary-card summary-card--wide" id="best-timeseries-panel">
+              <div class="summary-card__header">
+                <div>
+                  <div class="card-label">Best Over Time</div>
+                  <h3>Progress Curve</h3>
+                </div>
+                <p class="stack-note" id="timeseries-caption">
+                  Scalarized best-so-far history will load here.
+                </p>
+              </div>
+              <dl class="mini-stat-grid">
+                <div><dt>Primary Objective</dt><dd id="timeseries-primary-objective">-</dd></div>
+                <div><dt>Best Objective</dt><dd id="timeseries-best-objective">-</dd></div>
+                <div><dt>Scalarization</dt><dd id="timeseries-scalarization">-</dd></div>
+                <div><dt>Improvement Points</dt><dd id="timeseries-point-count">-</dd></div>
+                <div><dt>Ignored Trials</dt><dd id="timeseries-ignored-count">-</dd></div>
+                <div><dt>Current Best</dt><dd id="timeseries-current-best">-</dd></div>
+              </dl>
+              <div class="chart-shell">
+                <div class="state-message state-message--compact" id="timeseries-state">
+                  No best-over-time data loaded yet.
+                </div>
+                <svg
+                  id="best-timeseries-chart"
+                  class="timeseries-chart"
+                  viewBox="0 0 720 220"
+                  preserveAspectRatio="none"
+                  aria-label="Best over time chart"
+                  hidden
+                ></svg>
+              </div>
+            </article>
+
+            <article class="summary-card" id="export-actions-panel">
+              <div class="summary-card__header">
+                <div>
+                  <div class="card-label">Artifacts</div>
+                  <h3>Export Actions</h3>
+                </div>
+              </div>
+              <p class="stack-note" id="export-actions-note">
+                Download canonical report and decision-trace artifacts through the preview API.
+              </p>
+              <div class="action-grid">
+                <a
+                  class="action-link is-disabled"
+                  id="export-report-json"
+                  href="#"
+                  aria-disabled="true"
+                >
+                  Download report.json
+                </a>
+                <a
+                  class="action-link is-disabled"
+                  id="export-report-md"
+                  href="#"
+                  aria-disabled="true"
+                >
+                  Download report.md
+                </a>
+                <a
+                  class="action-link is-disabled"
+                  id="export-decision-trace"
+                  href="#"
+                  aria-disabled="true"
+                >
+                  Download decision trace
+                </a>
+              </div>
+            </article>
+
+            <article class="summary-card" id="decision-trace-panel">
+              <div class="summary-card__header">
+                <div>
+                  <div class="card-label">Decision Context</div>
+                  <h3>Recent Decision Trace</h3>
+                </div>
+              </div>
+              <div class="state-message state-message--compact" id="decision-trace-state">
+                No decision trace context loaded yet.
+              </div>
+              <div class="trace-list" id="decision-trace-list" hidden></div>
+            </article>
+          </div>
+
+          <div class="trial-layout" id="trial-layout" hidden>
+            <article class="summary-card" id="trial-list-panel">
+              <div class="summary-card__header">
+                <div>
+                  <div class="card-label">Observations</div>
+                  <h3>Trial List</h3>
+                </div>
+                <div class="summary-badge" id="trial-status-mix">-</div>
+              </div>
+              <dl class="mini-stat-grid mini-stat-grid--compact">
+                <div><dt>Total</dt><dd id="trial-count-total">-</dd></div>
+                <div><dt>Terminal</dt><dd id="trial-count-terminal">-</dd></div>
+                <div><dt>Pending</dt><dd id="trial-count-pending">-</dd></div>
+                <div><dt>By Status</dt><dd id="trial-count-by-status">-</dd></div>
+              </dl>
+              <div class="state-message state-message--compact" id="trial-list-state">
+                Trial summaries will appear after a campaign is selected.
+              </div>
+              <div class="trial-list" id="trial-list" hidden></div>
+            </article>
+
+            <article class="summary-card" id="trial-detail-panel">
+              <div class="summary-card__header">
+                <div>
+                  <div class="card-label">Drilldown</div>
+                  <h3 id="trial-detail-title">Trial Detail</h3>
+                </div>
+              </div>
+              <div class="state-message state-message--compact" id="trial-detail-state">
+                Select a trial to inspect params, objectives, and manifest metadata.
+              </div>
+              <div id="trial-detail-grid" hidden>
+                <dl class="kv-grid">
+                  <div><dt>Status</dt><dd id="trial-status-value">-</dd></div>
+                  <div><dt>Terminal Reason</dt><dd id="trial-terminal-reason">-</dd></div>
+                  <div><dt>Objective</dt><dd id="trial-objective-value">-</dd></div>
+                  <div><dt>Scalarized</dt><dd id="trial-scalarized-value">-</dd></div>
+                  <div><dt>Suggested At</dt><dd id="trial-suggested-at">-</dd></div>
+                  <div><dt>Completed At</dt><dd id="trial-completed-at">-</dd></div>
+                  <div><dt>Heartbeats</dt><dd id="trial-heartbeats">-</dd></div>
+                  <div><dt>Lease Token</dt><dd id="trial-lease-token">-</dd></div>
+                  <div><dt>Manifest Path</dt><dd id="trial-manifest-path">-</dd></div>
+                  <div><dt>Artifact Path</dt><dd id="trial-artifact-path">-</dd></div>
+                </dl>
+                <div class="code-columns">
+                  <section class="code-card">
+                    <div class="card-label">Params</div>
+                    <pre class="code-block" id="trial-params-json">{{}}</pre>
+                  </section>
+                  <section class="code-card">
+                    <div class="card-label">Objective Vector</div>
+                    <pre class="code-block" id="trial-objectives-json">{{}}</pre>
+                  </section>
+                </div>
+                <section class="code-card code-card--wide">
+                  <div class="card-label">Decision Context</div>
+                  <pre class="code-block" id="trial-decision-json">{{}}</pre>
+                </section>
+              </div>
             </article>
           </div>
         </section>
