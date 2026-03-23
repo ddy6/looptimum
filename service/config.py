@@ -12,7 +12,9 @@ from service.models import LocalAuthUser
 SERVICE_REGISTRY_FILE_ENV = "LOOPTIMUM_SERVICE_REGISTRY_FILE"
 SERVICE_AUTH_MODE_ENV = "LOOPTIMUM_SERVICE_AUTH_MODE"
 SERVICE_AUTH_USERS_ENV = "LOOPTIMUM_SERVICE_AUTH_USERS"
+SERVICE_AUTH_AUDIT_LOG_FILE_ENV = "LOOPTIMUM_SERVICE_AUTH_AUDIT_LOG_FILE"
 DEFAULT_SERVICE_REGISTRY_FILE = "service_state/campaign_registry.json"
+DEFAULT_SERVICE_AUTH_AUDIT_LOG_FILE = "service_state/auth_audit_log.jsonl"
 ServiceAuthMode = Literal["disabled", "basic"]
 
 
@@ -29,12 +31,22 @@ class ServiceAuthConfig:
 @dataclass(frozen=True, slots=True)
 class ServiceConfig:
     registry_file: Path
+    auth_audit_log_file: Path
     auth: ServiceAuthConfig
 
 
 def resolve_registry_file(path: str | Path | None = None) -> Path:
     raw = str(path) if path is not None else os.environ.get(SERVICE_REGISTRY_FILE_ENV)
     selected = raw if raw and raw.strip() else DEFAULT_SERVICE_REGISTRY_FILE
+    candidate = Path(selected).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (Path.cwd() / candidate).resolve()
+
+
+def resolve_auth_audit_log_file(registry_file: Path, path: str | Path | None = None) -> Path:
+    raw = str(path) if path is not None else os.environ.get(SERVICE_AUTH_AUDIT_LOG_FILE_ENV)
+    selected = raw if raw and raw.strip() else str(registry_file.parent / "auth_audit_log.jsonl")
     candidate = Path(selected).expanduser()
     if candidate.is_absolute():
         return candidate.resolve()
@@ -107,8 +119,14 @@ def build_service_config(
     *,
     auth_mode: str | None = None,
     auth_users: str | list[dict[str, Any]] | list[LocalAuthUser] | None = None,
+    auth_audit_log_file: str | Path | None = None,
 ) -> ServiceConfig:
+    registry_file = resolve_registry_file(path)
     return ServiceConfig(
-        registry_file=resolve_registry_file(path),
+        registry_file=registry_file,
+        auth_audit_log_file=resolve_auth_audit_log_file(
+            registry_file,
+            path=auth_audit_log_file,
+        ),
         auth=build_service_auth_config(auth_mode=auth_mode, auth_users=auth_users),
     )

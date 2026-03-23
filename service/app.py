@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from service.auth import ServiceAuthMiddleware, require_authenticated_principal
+from service.auth import (
+    ServiceAuthMiddleware,
+    ServiceAuthorizationError,
+    record_auth_audit_event,
+    require_admin_principal,
+    require_operator_principal,
+    require_viewer_principal,
+)
 from service.config import ServiceConfig, build_service_config
 from service.dashboard import ASSETS_DIR, render_dashboard_shell
 from service.models import (
@@ -22,6 +30,7 @@ from service.models import (
     SuggestRequest,
 )
 from service.registry import (
+    AuthPreviewDisabledError,
     CampaignConflictError,
     CampaignNotFoundError,
     CampaignRegistry,
@@ -29,6 +38,7 @@ from service.registry import (
     InvalidCampaignRootError,
     PreviewDisabledError,
     ServiceRegistryError,
+    validate_auth_root,
     validate_dashboard_root,
 )
 from service.runtime import (
@@ -73,6 +83,16 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content=_error_payload(code="dashboard_preview_disabled", message=str(exc)),
+        )
+    if isinstance(exc, AuthPreviewDisabledError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=_error_payload(code="auth_preview_disabled", message=str(exc)),
+        )
+    if isinstance(exc, ServiceAuthorizationError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=_error_payload(code="insufficient_role", message=str(exc)),
         )
     if isinstance(exc, CampaignConflictError):
         return JSONResponse(
@@ -135,6 +155,38 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     async def handle_registry_error(_request: Any, exc: ServiceRegistryError) -> JSONResponse:
         return _error_response(exc)
 
+    def _require_auth_enabled_record(
+        request: Request,
+        principal: AuthenticatedPrincipal | None,
+        campaign_id: str,
+    ) -> CampaignRecord:
+        record = registry.get_campaign(campaign_id)
+        if service_config.auth.mode == "disabled":
+            return record
+        try:
+            validate_auth_root(record.root_path)
+        except AuthPreviewDisabledError:
+            if principal is not None:
+                record_auth_audit_event(
+                    service_config.auth_audit_log_file,
+                    principal=principal,
+                    request=request,
+                    event_type="authz_failure",
+                    action="campaign_auth_preview_validation",
+                    outcome="denied",
+                    reason="campaign_auth_preview_disabled",
+                    campaign_id=record.campaign_id,
+                )
+            raise
+        return record
+
+    def _require_auth_enabled_root(
+        request: Request,
+        principal: AuthenticatedPrincipal | None,
+        campaign_id: str,
+    ) -> Path:
+        return Path(_require_auth_enabled_record(request, principal, campaign_id).root_path)
+
     @app.get("/health", response_model=HealthResponse)
     def get_health() -> HealthResponse:
         return HealthResponse(
@@ -146,102 +198,144 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     @app.get("/dashboard", response_class=HTMLResponse)
     def get_dashboard_root(
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        _principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> HTMLResponse:
         return HTMLResponse(render_dashboard_shell())
 
     @app.get("/dashboard/campaigns/{campaign_id}", response_class=HTMLResponse)
     def get_dashboard_campaign(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> HTMLResponse:
-        record = registry.get_campaign(campaign_id)
+        record = _require_auth_enabled_record(request, principal, campaign_id)
         validate_dashboard_root(record.root_path)
         return HTMLResponse(render_dashboard_shell(current_campaign_id=record.campaign_id))
 
     @app.get("/campaigns", response_model=CampaignListResponse)
     def list_campaigns(
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        _principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> CampaignListResponse:
         return CampaignListResponse(campaigns=registry.list_campaigns())
 
     @app.post("/campaigns", response_model=CampaignRecord, status_code=status.HTTP_201_CREATED)
     def create_campaign(
+        request: Request,
         payload: CampaignRegistrationRequest,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> CampaignRecord:
-        return registry.register_campaign(payload)
+        if service_config.auth.mode != "disabled":
+            try:
+                validate_auth_root(payload.root_path)
+            except AuthPreviewDisabledError:
+                if principal is not None:
+                    record_auth_audit_event(
+                        service_config.auth_audit_log_file,
+                        principal=principal,
+                        request=request,
+                        event_type="authz_failure",
+                        action="campaign_auth_preview_validation",
+                        outcome="denied",
+                        reason="campaign_auth_preview_disabled",
+                    )
+                raise
+        record = registry.register_campaign(payload)
+        if principal is not None:
+            record_auth_audit_event(
+                service_config.auth_audit_log_file,
+                principal=principal,
+                request=request,
+                event_type="privileged_action",
+                action="register_campaign",
+                outcome="allowed",
+                campaign_id=record.campaign_id,
+            )
+        return record
 
     @app.get("/campaigns/{campaign_id}", response_model=CampaignRecord)
     def get_campaign(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> CampaignRecord:
-        return registry.get_campaign(campaign_id)
+        return _require_auth_enabled_record(request, principal, campaign_id)
 
     @app.get("/campaigns/{campaign_id}/detail", response_model=CampaignDetailResponse)
     def get_campaign_detail(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> CampaignDetailResponse:
-        return build_campaign_detail(registry.get_campaign(campaign_id))
+        return build_campaign_detail(_require_auth_enabled_record(request, principal, campaign_id))
 
     @app.get("/campaigns/{campaign_id}/status")
     def get_campaign_status(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return build_status_payload(registry.get_campaign_root(campaign_id))
+        return build_status_payload(_require_auth_enabled_root(request, principal, campaign_id))
 
     @app.get("/campaigns/{campaign_id}/report")
     def get_campaign_report(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return load_report_payload(registry.get_campaign_root(campaign_id))
+        return load_report_payload(_require_auth_enabled_root(request, principal, campaign_id))
 
     @app.get("/campaigns/{campaign_id}/trials")
     def get_campaign_trials(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return build_trial_summaries(registry.get_campaign_root(campaign_id))
+        return build_trial_summaries(_require_auth_enabled_root(request, principal, campaign_id))
 
     @app.get("/campaigns/{campaign_id}/trials/{trial_id}")
     def get_campaign_trial_detail(
+        request: Request,
         campaign_id: str,
         trial_id: int,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return load_trial_detail(registry.get_campaign_root(campaign_id), trial_id)
+        return load_trial_detail(
+            _require_auth_enabled_root(request, principal, campaign_id), trial_id
+        )
 
     @app.get("/campaigns/{campaign_id}/timeseries/best")
     def get_campaign_best_timeseries(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return build_best_timeseries(registry.get_campaign_root(campaign_id))
+        return build_best_timeseries(_require_auth_enabled_root(request, principal, campaign_id))
 
     @app.get("/campaigns/{campaign_id}/alerts")
     def get_campaign_alerts(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return build_alert_payload(registry.get_campaign_root(campaign_id))
+        return build_alert_payload(_require_auth_enabled_root(request, principal, campaign_id))
 
     @app.get("/campaigns/{campaign_id}/decision-trace")
     def get_campaign_decision_trace(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> dict[str, Any]:
-        return load_decision_trace_payload(registry.get_campaign_root(campaign_id))
+        return load_decision_trace_payload(
+            _require_auth_enabled_root(request, principal, campaign_id)
+        )
 
     @app.get("/campaigns/{campaign_id}/exports/report.json")
     def export_campaign_report_json(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> JSONResponse:
-        payload = load_report_payload(registry.get_campaign_root(campaign_id))
+        payload = load_report_payload(_require_auth_enabled_root(request, principal, campaign_id))
         return JSONResponse(
             content=payload,
             headers={"Content-Disposition": (f'attachment; filename="{campaign_id}-report.json"')},
@@ -249,10 +343,13 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     @app.get("/campaigns/{campaign_id}/exports/report.md")
     def export_campaign_report_markdown(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> PlainTextResponse:
-        text, _relative_path = load_report_markdown_text(registry.get_campaign_root(campaign_id))
+        text, _relative_path = load_report_markdown_text(
+            _require_auth_enabled_root(request, principal, campaign_id)
+        )
         return PlainTextResponse(
             text,
             media_type="text/markdown",
@@ -261,10 +358,13 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     @app.get("/campaigns/{campaign_id}/exports/decision-trace.jsonl")
     def export_campaign_decision_trace(
+        request: Request,
         campaign_id: str,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_viewer_principal),
     ) -> PlainTextResponse:
-        text, _relative_path = load_decision_trace_text(registry.get_campaign_root(campaign_id))
+        text, _relative_path = load_decision_trace_text(
+            _require_auth_enabled_root(request, principal, campaign_id)
+        )
         return PlainTextResponse(
             text,
             media_type="application/x-ndjson",
@@ -277,17 +377,20 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     @app.post("/campaigns/{campaign_id}/suggest", response_model=None)
     def suggest_for_campaign(
+        request: Request,
         campaign_id: str,
         payload: SuggestRequest | None = None,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_operator_principal),
     ) -> Any:
-        request = payload or SuggestRequest()
+        suggest_request = payload or SuggestRequest()
         response_payload, ndjson_output = suggest_via_runtime(
-            registry.get_campaign_root(campaign_id),
-            count=request.count,
-            output_mode=request.output_mode,
-            lock_timeout_seconds=request.lock_timeout_seconds,
-            fail_fast=request.fail_fast,
+            _require_auth_enabled_root(
+                request=request, principal=principal, campaign_id=campaign_id
+            ),
+            count=suggest_request.count,
+            output_mode=suggest_request.output_mode,
+            lock_timeout_seconds=suggest_request.lock_timeout_seconds,
+            fail_fast=suggest_request.fail_fast,
         )
         if ndjson_output is not None:
             return PlainTextResponse(ndjson_output, media_type="application/x-ndjson")
@@ -297,12 +400,13 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     @app.post("/campaigns/{campaign_id}/ingest")
     def ingest_for_campaign(
+        request: Request,
         campaign_id: str,
         payload: IngestRequest,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_operator_principal),
     ) -> dict[str, Any]:
         return ingest_via_runtime(
-            registry.get_campaign_root(campaign_id),
+            _require_auth_enabled_root(request, principal, campaign_id),
             payload=payload.payload,
             lease_token=payload.lease_token,
             lock_timeout_seconds=payload.lock_timeout_seconds,
@@ -311,30 +415,54 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     @app.post("/campaigns/{campaign_id}/reset")
     def reset_campaign(
+        request: Request,
         campaign_id: str,
         payload: ResetRequest,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> dict[str, Any]:
-        return reset_via_runtime(
-            registry.get_campaign_root(campaign_id),
+        response = reset_via_runtime(
+            _require_auth_enabled_root(request, principal, campaign_id),
             yes=payload.yes,
             archive=payload.archive,
             lock_timeout_seconds=payload.lock_timeout_seconds,
             fail_fast=payload.fail_fast,
         )
+        if principal is not None:
+            record_auth_audit_event(
+                service_config.auth_audit_log_file,
+                principal=principal,
+                request=request,
+                event_type="privileged_action",
+                action="reset_campaign",
+                outcome="allowed",
+                campaign_id=campaign_id,
+            )
+        return response
 
     @app.post("/campaigns/{campaign_id}/restore")
     def restore_campaign(
+        request: Request,
         campaign_id: str,
         payload: RestoreRequest,
-        _principal: AuthenticatedPrincipal | None = Depends(require_authenticated_principal),
+        principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> dict[str, Any]:
-        return restore_via_runtime(
-            registry.get_campaign_root(campaign_id),
+        response = restore_via_runtime(
+            _require_auth_enabled_root(request, principal, campaign_id),
             archive_id=payload.archive_id,
             yes=payload.yes,
             lock_timeout_seconds=payload.lock_timeout_seconds,
             fail_fast=payload.fail_fast,
         )
+        if principal is not None:
+            record_auth_audit_event(
+                service_config.auth_audit_log_file,
+                principal=principal,
+                request=request,
+                event_type="privileged_action",
+                action="restore_campaign",
+                outcome="allowed",
+                campaign_id=campaign_id,
+            )
+        return response
 
     return app

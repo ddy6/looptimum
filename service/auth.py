@@ -3,17 +3,26 @@ from __future__ import annotations
 import base64
 import binascii
 import hmac
-from typing import Any
+import json
+import time
+from pathlib import Path
+from typing import Any, Literal
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from service.config import ServiceAuthConfig
-from service.models import AuthenticatedPrincipal, LocalAuthUser
+from service.models import AuthAuditEvent, AuthenticatedPrincipal, LocalAuthUser, ServiceRole
+from service.registry import ServiceRegistryError
 
 _BASIC_REALM = 'Basic realm="Looptimum Service Preview"'
 _HEALTH_PATH = "/health"
+_ROLE_ORDER: dict[ServiceRole, int] = {"viewer": 0, "operator": 1, "admin": 2}
+
+
+class ServiceAuthorizationError(ServiceRegistryError):
+    pass
 
 
 def _error_payload(*, code: str, message: str) -> dict[str, Any]:
@@ -26,6 +35,13 @@ def _unauthorized_response(*, code: str, message: str) -> JSONResponse:
         content=_error_payload(code=code, message=message),
         headers={"WWW-Authenticate": _BASIC_REALM},
     )
+
+
+def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True))
+        handle.write("\n")
 
 
 def _decode_basic_authorization(header_value: str) -> tuple[str, str]:
@@ -68,6 +84,33 @@ def resolve_local_dev_principal(
     return AuthenticatedPrincipal(username=user.username, role=user.role, auth_mode="basic")
 
 
+def record_auth_audit_event(
+    audit_log_file: Path,
+    *,
+    principal: AuthenticatedPrincipal | None,
+    request: Request,
+    event_type: Literal["authz_failure", "privileged_action"],
+    action: str,
+    outcome: Literal["allowed", "denied"],
+    reason: str | None = None,
+    campaign_id: str | None = None,
+) -> None:
+    event = AuthAuditEvent(
+        event_type=event_type,
+        recorded_at=time.time(),
+        username=None if principal is None else principal.username,
+        role=None if principal is None else principal.role,
+        auth_mode=None if principal is None else principal.auth_mode,
+        method=request.method,
+        path=request.url.path,
+        action=action,
+        outcome=outcome,
+        reason=reason,
+        campaign_id=campaign_id,
+    )
+    _append_jsonl(audit_log_file, event.model_dump(mode="json"))
+
+
 class ServiceAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> JSONResponse | Any:
         request.state.service_principal = None
@@ -102,3 +145,38 @@ def require_authenticated_principal(request: Request) -> AuthenticatedPrincipal 
     if isinstance(principal, AuthenticatedPrincipal):
         return principal
     raise RuntimeError("Service auth middleware did not attach a request principal")
+
+
+def _require_role(request: Request, *, required_role: ServiceRole) -> AuthenticatedPrincipal | None:
+    principal = require_authenticated_principal(request)
+    if principal is None:
+        return None
+    if _ROLE_ORDER[principal.role] >= _ROLE_ORDER[required_role]:
+        return principal
+
+    record_auth_audit_event(
+        request.app.state.service_config.auth_audit_log_file,
+        principal=principal,
+        request=request,
+        event_type="authz_failure",
+        action="route_access",
+        outcome="denied",
+        reason=f"requires_role={required_role}",
+        campaign_id=request.path_params.get("campaign_id"),
+    )
+    raise ServiceAuthorizationError(
+        f"authenticated principal role '{principal.role}' does not satisfy required role "
+        f"'{required_role}' for {request.method} {request.url.path}"
+    )
+
+
+def require_viewer_principal(request: Request) -> AuthenticatedPrincipal | None:
+    return _require_role(request, required_role="viewer")
+
+
+def require_operator_principal(request: Request) -> AuthenticatedPrincipal | None:
+    return _require_role(request, required_role="operator")
+
+
+def require_admin_principal(request: Request) -> AuthenticatedPrincipal | None:
+    return _require_role(request, required_role="admin")

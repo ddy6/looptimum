@@ -36,6 +36,10 @@ class DashboardPreviewDisabledError(ServiceRegistryError):
     pass
 
 
+class AuthPreviewDisabledError(ServiceRegistryError):
+    pass
+
+
 class CampaignConflictError(ServiceRegistryError):
     pass
 
@@ -150,6 +154,20 @@ def validate_dashboard_root(path: str | Path) -> Path:
         disabled_message=(
             "Campaign root is not dashboard-enabled; set "
             "feature_flags.enable_dashboard_preview=true before using the preview dashboard"
+        ),
+    )
+    return root
+
+
+def validate_auth_root(path: str | Path) -> Path:
+    root = validate_campaign_root(path)
+    _validate_feature_flag(
+        root,
+        flag_name="enable_auth_preview",
+        disabled_error=AuthPreviewDisabledError,
+        disabled_message=(
+            "Campaign root is not auth-preview-enabled; set "
+            "feature_flags.enable_auth_preview=true before using auth-protected preview routes"
         ),
     )
     return root

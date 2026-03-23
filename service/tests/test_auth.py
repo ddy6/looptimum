@@ -13,7 +13,7 @@ from service.config import ServiceConfigError, build_service_auth_config, build_
 from service.models import LocalAuthUser
 
 
-def _write_campaign_root(root: Path) -> None:
+def _write_campaign_root(root: Path, *, auth_enabled: bool = True) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "run_bo.py").write_text("# preview runtime entrypoint\n", encoding="utf-8")
     (root / "parameter_space.json").write_text(
@@ -27,7 +27,15 @@ def _write_campaign_root(root: Path) -> None:
         encoding="utf-8",
     )
     (root / "bo_config.json").write_text(
-        json.dumps({"feature_flags": {"enable_service_api_preview": True}}, indent=2),
+        json.dumps(
+            {
+                "feature_flags": {
+                    "enable_service_api_preview": True,
+                    "enable_auth_preview": auth_enabled,
+                }
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
 
@@ -103,23 +111,23 @@ def test_protected_routes_accept_valid_basic_auth_and_reject_invalid_credentials
         build_service_config(
             registry_file,
             auth_mode="basic",
-            auth_users=[{"username": "operator", "password": "correct-horse", "role": "operator"}],
+            auth_users=[{"username": "admin", "password": "correct-horse", "role": "admin"}],
         )
     )
 
     with TestClient(app) as client:
         invalid_response = client.get(
             "/campaigns",
-            headers=_basic_auth_header("operator", "wrong-battery"),
+            headers=_basic_auth_header("admin", "wrong-battery"),
         )
         create_response = client.post(
             "/campaigns",
             json={"root_path": str(campaign_root)},
-            headers=_basic_auth_header("operator", "correct-horse"),
+            headers=_basic_auth_header("admin", "correct-horse"),
         )
         list_response = client.get(
             "/campaigns",
-            headers=_basic_auth_header("operator", "correct-horse"),
+            headers=_basic_auth_header("admin", "correct-horse"),
         )
 
     assert invalid_response.status_code == 401

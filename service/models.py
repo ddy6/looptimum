@@ -33,6 +33,22 @@ class AuthenticatedPrincipal(BaseModel):
     auth_mode: Literal["basic", "oidc"]
 
 
+class AuthAuditEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    event_type: Literal["authz_failure", "privileged_action"]
+    recorded_at: float
+    username: str | None = None
+    role: ServiceRole | None = None
+    auth_mode: Literal["basic", "oidc"] | None = None
+    method: str
+    path: str
+    action: str
+    outcome: Literal["allowed", "denied"]
+    reason: str | None = None
+    campaign_id: str | None = None
+
+
 class RegistrySnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
