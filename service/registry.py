@@ -40,6 +40,10 @@ class AuthPreviewDisabledError(ServiceRegistryError):
     pass
 
 
+class MultiControllerPreviewDisabledError(ServiceRegistryError):
+    pass
+
+
 class CampaignConflictError(ServiceRegistryError):
     pass
 
@@ -168,6 +172,20 @@ def validate_auth_root(path: str | Path) -> Path:
         disabled_message=(
             "Campaign root is not auth-preview-enabled; set "
             "feature_flags.enable_auth_preview=true before using auth-protected preview routes"
+        ),
+    )
+    return root
+
+
+def validate_multi_controller_root(path: str | Path) -> Path:
+    root = validate_campaign_root(path)
+    _validate_feature_flag(
+        root,
+        flag_name="enable_multi_controller_preview",
+        disabled_error=MultiControllerPreviewDisabledError,
+        disabled_message=(
+            "Campaign root is not multi-controller-preview-enabled; set "
+            "feature_flags.enable_multi_controller_preview=true before using coordinated preview routes"
         ),
     )
     return root

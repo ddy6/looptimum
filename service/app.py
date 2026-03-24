@@ -16,6 +16,7 @@ from service.auth import (
     require_viewer_principal,
 )
 from service.config import ServiceConfig, build_service_config
+from service.coordination import build_coordination_backend
 from service.dashboard import ASSETS_DIR, render_dashboard_shell
 from service.models import (
     AuthenticatedPrincipal,
@@ -36,10 +37,12 @@ from service.registry import (
     CampaignRegistry,
     DashboardPreviewDisabledError,
     InvalidCampaignRootError,
+    MultiControllerPreviewDisabledError,
     PreviewDisabledError,
     ServiceRegistryError,
     validate_auth_root,
     validate_dashboard_root,
+    validate_multi_controller_root,
 )
 from service.runtime import (
     DecisionTraceNotGeneratedError,
@@ -88,6 +91,11 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content=_error_payload(code="auth_preview_disabled", message=str(exc)),
+        )
+    if isinstance(exc, MultiControllerPreviewDisabledError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content=_error_payload(code="multi_controller_preview_disabled", message=str(exc)),
         )
     if isinstance(exc, ServiceAuthorizationError):
         return JSONResponse(
@@ -140,6 +148,7 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
 def create_app(config: ServiceConfig | None = None) -> FastAPI:
     service_config = config or build_service_config()
     registry = CampaignRegistry(service_config.registry_file)
+    coordination_backend = build_coordination_backend(service_config.coordination)
 
     app = FastAPI(
         title="Looptimum Service API Preview",
@@ -148,6 +157,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.state.service_config = service_config
+    app.state.coordination_backend = coordination_backend
     app.add_middleware(ServiceAuthMiddleware)
     app.mount("/dashboard/assets", StaticFiles(directory=ASSETS_DIR), name="dashboard-assets")
 
@@ -186,6 +196,16 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         campaign_id: str,
     ) -> Path:
         return Path(_require_auth_enabled_record(request, principal, campaign_id).root_path)
+
+    def _require_mutation_root(
+        request: Request,
+        principal: AuthenticatedPrincipal | None,
+        campaign_id: str,
+    ) -> Path:
+        root = _require_auth_enabled_root(request, principal, campaign_id)
+        if coordination_backend.requires_campaign_opt_in:
+            validate_multi_controller_root(root)
+        return root
 
     @app.get("/health", response_model=HealthResponse)
     def get_health() -> HealthResponse:
@@ -239,6 +259,8 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
                         reason="campaign_auth_preview_disabled",
                     )
                 raise
+        if coordination_backend.requires_campaign_opt_in:
+            validate_multi_controller_root(payload.root_path)
         record = registry.register_campaign(payload)
         if principal is not None:
             record_auth_audit_event(
@@ -384,9 +406,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
     ) -> Any:
         suggest_request = payload or SuggestRequest()
         response_payload, ndjson_output = suggest_via_runtime(
-            _require_auth_enabled_root(
-                request=request, principal=principal, campaign_id=campaign_id
-            ),
+            _require_mutation_root(request=request, principal=principal, campaign_id=campaign_id),
             count=suggest_request.count,
             output_mode=suggest_request.output_mode,
             lock_timeout_seconds=suggest_request.lock_timeout_seconds,
@@ -406,7 +426,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         principal: AuthenticatedPrincipal | None = Depends(require_operator_principal),
     ) -> dict[str, Any]:
         return ingest_via_runtime(
-            _require_auth_enabled_root(request, principal, campaign_id),
+            _require_mutation_root(request, principal, campaign_id),
             payload=payload.payload,
             lease_token=payload.lease_token,
             lock_timeout_seconds=payload.lock_timeout_seconds,
@@ -421,7 +441,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> dict[str, Any]:
         response = reset_via_runtime(
-            _require_auth_enabled_root(request, principal, campaign_id),
+            _require_mutation_root(request, principal, campaign_id),
             yes=payload.yes,
             archive=payload.archive,
             lock_timeout_seconds=payload.lock_timeout_seconds,
@@ -447,7 +467,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> dict[str, Any]:
         response = restore_via_runtime(
-            _require_auth_enabled_root(request, principal, campaign_id),
+            _require_mutation_root(request, principal, campaign_id),
             archive_id=payload.archive_id,
             yes=payload.yes,
             lock_timeout_seconds=payload.lock_timeout_seconds,

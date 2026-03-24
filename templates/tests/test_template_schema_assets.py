@@ -19,6 +19,7 @@ FEATURE_FLAG_KEYS = (
     "enable_service_api_preview",
     "enable_dashboard_preview",
     "enable_auth_preview",
+    "enable_multi_controller_preview",
 )
 GOVERNANCE_DEFAULT = {"allowed_statuses": ["ok", "failed", "killed", "timeout"]}
 RETENTION_DEFAULT = {
@@ -64,6 +65,7 @@ def test_template_bo_configs_share_feature_flag_shape() -> None:
         assert flags["enable_service_api_preview"] is False
         assert flags["enable_dashboard_preview"] is False
         assert flags["enable_auth_preview"] is False
+        assert flags["enable_multi_controller_preview"] is False
 
 
 def test_template_bo_configs_include_shared_schema_paths() -> None:

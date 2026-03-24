@@ -17,7 +17,8 @@
     "fallback_to_proxy_if_unavailable": true,
     "enable_service_api_preview": false,
     "enable_dashboard_preview": false,
-    "enable_auth_preview": false
+    "enable_auth_preview": false,
+    "enable_multi_controller_preview": false
   },
   "batch_size": 1,
   "max_pending_trials": null,

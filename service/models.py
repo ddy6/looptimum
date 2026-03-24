@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 REGISTRY_SCHEMA_VERSION = "0.1.0-preview"
 ServiceRole = Literal["viewer", "operator", "admin"]
+ServiceCoordinationMode = Literal["file_lock", "sqlite_lease"]
 
 
 class CampaignRecord(BaseModel):

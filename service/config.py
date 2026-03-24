@@ -7,15 +7,20 @@ from typing import Any, Literal, cast
 
 from pydantic import TypeAdapter, ValidationError
 
-from service.models import LocalAuthUser, ServiceRole
+from service.models import LocalAuthUser, ServiceCoordinationMode, ServiceRole
 
 SERVICE_REGISTRY_FILE_ENV = "LOOPTIMUM_SERVICE_REGISTRY_FILE"
 SERVICE_AUTH_MODE_ENV = "LOOPTIMUM_SERVICE_AUTH_MODE"
 SERVICE_AUTH_USERS_ENV = "LOOPTIMUM_SERVICE_AUTH_USERS"
 SERVICE_OIDC_CONFIG_ENV = "LOOPTIMUM_SERVICE_OIDC_CONFIG"
 SERVICE_AUTH_AUDIT_LOG_FILE_ENV = "LOOPTIMUM_SERVICE_AUTH_AUDIT_LOG_FILE"
+SERVICE_COORDINATION_MODE_ENV = "LOOPTIMUM_SERVICE_COORDINATION_MODE"
+SERVICE_COORDINATION_SQLITE_FILE_ENV = "LOOPTIMUM_SERVICE_COORDINATION_SQLITE_FILE"
+SERVICE_COORDINATION_LEASE_TTL_SECONDS_ENV = "LOOPTIMUM_SERVICE_COORDINATION_LEASE_TTL_SECONDS"
 DEFAULT_SERVICE_REGISTRY_FILE = "service_state/campaign_registry.json"
 DEFAULT_SERVICE_AUTH_AUDIT_LOG_FILE = "service_state/auth_audit_log.jsonl"
+DEFAULT_SERVICE_COORDINATION_SQLITE_FILE = "service_state/coordination.sqlite3"
+DEFAULT_SERVICE_COORDINATION_LEASE_TTL_SECONDS = 30.0
 ServiceAuthMode = Literal["disabled", "basic", "oidc"]
 
 
@@ -40,10 +45,18 @@ class ServiceAuthConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ServiceCoordinationConfig:
+    mode: ServiceCoordinationMode
+    sqlite_file: Path
+    lease_ttl_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
 class ServiceConfig:
     registry_file: Path
     auth_audit_log_file: Path
     auth: ServiceAuthConfig
+    coordination: ServiceCoordinationConfig
 
 
 def resolve_registry_file(path: str | Path | None = None) -> Path:
@@ -64,6 +77,25 @@ def resolve_auth_audit_log_file(registry_file: Path, path: str | Path | None = N
     return (Path.cwd() / candidate).resolve()
 
 
+def resolve_coordination_sqlite_file(registry_file: Path, path: str | Path | None = None) -> Path:
+    raw = str(path) if path is not None else os.environ.get(SERVICE_COORDINATION_SQLITE_FILE_ENV)
+    selected = raw if raw and raw.strip() else str(registry_file.parent / "coordination.sqlite3")
+    candidate = Path(selected).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (Path.cwd() / candidate).resolve()
+
+
+def _as_positive_float(value: Any, *, field_name: str) -> float:
+    try:
+        normalized = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ServiceConfigError(f"{field_name} must be a positive number") from exc
+    if normalized <= 0.0:
+        raise ServiceConfigError(f"{field_name} must be > 0")
+    return normalized
+
+
 def _normalize_auth_mode(value: str | None) -> ServiceAuthMode:
     raw = value.strip().lower() if value is not None else "disabled"
     if raw not in {"disabled", "basic", "oidc"}:
@@ -73,6 +105,17 @@ def _normalize_auth_mode(value: str | None) -> ServiceAuthMode:
     if raw == "basic":
         return "basic"
     return "oidc"
+
+
+def _normalize_coordination_mode(value: str | None) -> ServiceCoordinationMode:
+    raw = value.strip().lower() if value is not None else "file_lock"
+    if raw not in {"file_lock", "sqlite_lease"}:
+        raise ServiceConfigError(
+            "service coordination mode must be one of: file_lock, sqlite_lease"
+        )
+    if raw == "file_lock":
+        return "file_lock"
+    return "sqlite_lease"
 
 
 def _normalize_auth_users(
@@ -201,6 +244,37 @@ def build_service_auth_config(
     return ServiceAuthConfig(mode="oidc", oidc=oidc)
 
 
+def build_service_coordination_config(
+    registry_file: Path,
+    *,
+    coordination_mode: str | None = None,
+    coordination_sqlite_file: str | Path | None = None,
+    coordination_lease_ttl_seconds: float | str | None = None,
+) -> ServiceCoordinationConfig:
+    mode = _normalize_coordination_mode(
+        coordination_mode
+        if coordination_mode is not None
+        else os.environ.get(SERVICE_COORDINATION_MODE_ENV)
+    )
+    sqlite_file = resolve_coordination_sqlite_file(registry_file, coordination_sqlite_file)
+    ttl_raw: Any = (
+        coordination_lease_ttl_seconds
+        if coordination_lease_ttl_seconds is not None
+        else os.environ.get(SERVICE_COORDINATION_LEASE_TTL_SECONDS_ENV)
+    )
+    if ttl_raw is None or (isinstance(ttl_raw, str) and not ttl_raw.strip()):
+        ttl_raw = DEFAULT_SERVICE_COORDINATION_LEASE_TTL_SECONDS
+    lease_ttl_seconds = _as_positive_float(
+        ttl_raw,
+        field_name="service coordination lease ttl",
+    )
+    return ServiceCoordinationConfig(
+        mode=mode,
+        sqlite_file=sqlite_file,
+        lease_ttl_seconds=lease_ttl_seconds,
+    )
+
+
 def build_service_config(
     path: str | Path | None = None,
     *,
@@ -208,6 +282,9 @@ def build_service_config(
     auth_users: str | list[dict[str, Any]] | list[LocalAuthUser] | None = None,
     oidc_config: str | dict[str, Any] | ServiceOidcConfig | None = None,
     auth_audit_log_file: str | Path | None = None,
+    coordination_mode: str | None = None,
+    coordination_sqlite_file: str | Path | None = None,
+    coordination_lease_ttl_seconds: float | str | None = None,
 ) -> ServiceConfig:
     registry_file = resolve_registry_file(path)
     return ServiceConfig(
@@ -220,5 +297,11 @@ def build_service_config(
             auth_mode=auth_mode,
             auth_users=auth_users,
             oidc_config=oidc_config,
+        ),
+        coordination=build_service_coordination_config(
+            registry_file,
+            coordination_mode=coordination_mode,
+            coordination_sqlite_file=coordination_sqlite_file,
+            coordination_lease_ttl_seconds=coordination_lease_ttl_seconds,
         ),
     )
