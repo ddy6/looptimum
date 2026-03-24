@@ -83,7 +83,18 @@ class SQLiteLeaseCoordinationBackend:
             """
         )
 
-    def _try_acquire(self, campaign_id: str, owner_token: str, *, now: float) -> bool:
+    def _lease_duration_seconds(self, timeout_seconds: float | None) -> float:
+        effective_timeout = self.lease_ttl_seconds if timeout_seconds is None else timeout_seconds
+        return max(self.lease_ttl_seconds, effective_timeout) + self.lease_ttl_seconds
+
+    def _try_acquire(
+        self,
+        campaign_id: str,
+        owner_token: str,
+        *,
+        now: float,
+        lease_duration_seconds: float,
+    ) -> bool:
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -92,7 +103,7 @@ class SQLiteLeaseCoordinationBackend:
                 "SELECT owner_token, expires_at FROM campaign_leases WHERE campaign_id = ?",
                 (campaign_id,),
             ).fetchone()
-            expires_at = now + self.lease_ttl_seconds
+            expires_at = now + lease_duration_seconds
             if row is None:
                 connection.execute(
                     """
@@ -157,10 +168,16 @@ class SQLiteLeaseCoordinationBackend:
             if fail_fast
             else (self.lease_ttl_seconds if timeout_seconds is None else timeout_seconds)
         )
+        lease_duration_seconds = self._lease_duration_seconds(timeout_seconds)
         deadline = time.monotonic() + effective_timeout
         while True:
             now = time.time()
-            if self._try_acquire(campaign_id, owner_token, now=now):
+            if self._try_acquire(
+                campaign_id,
+                owner_token,
+                now=now,
+                lease_duration_seconds=lease_duration_seconds,
+            ):
                 break
             if time.monotonic() >= deadline:
                 raise CoordinationUnavailableError(

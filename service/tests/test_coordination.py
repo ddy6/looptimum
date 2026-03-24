@@ -6,6 +6,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -102,6 +103,48 @@ def _run_cli(project_root: Path, *args: str) -> subprocess.CompletedProcess[str]
         capture_output=True,
         check=True,
     )
+
+
+def _coordination_error_payload(campaign_id: str) -> dict[str, object]:
+    return {
+        "error": {
+            "code": "coordination_unavailable",
+            "message": f"service coordination lease unavailable for campaign {campaign_id!r}",
+        }
+    }
+
+
+def _seed_expired_campaign_lease(sqlite_file: Path, campaign_id: str) -> None:
+    sqlite_file.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(sqlite_file) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_leases (
+                campaign_id TEXT PRIMARY KEY,
+                owner_token TEXT NOT NULL,
+                acquired_at REAL NOT NULL,
+                expires_at REAL NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT OR REPLACE INTO campaign_leases (
+                campaign_id,
+                owner_token,
+                acquired_at,
+                expires_at
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                campaign_id,
+                "dead-controller",
+                time.time() - 60.0,
+                time.time() - 30.0,
+            ),
+        )
+        connection.commit()
 
 
 def test_build_service_coordination_config_defaults_to_file_lock(tmp_path: Path) -> None:
@@ -260,13 +303,7 @@ def test_sqlite_coordination_mode_fail_fast_when_controller_lease_is_held(tmp_pa
             )
 
     assert response.status_code == 409
-    assert response.json() == {
-        "error": {
-            "code": "coordination_unavailable",
-            "message": "service coordination lease unavailable for campaign "
-            "'preview-root-held-lease'",
-        }
-    }
+    assert response.json() == _coordination_error_payload("preview-root-held-lease")
 
 
 def test_sqlite_coordination_mode_serializes_parallel_suggest_requests(tmp_path: Path) -> None:
@@ -309,3 +346,142 @@ def test_sqlite_coordination_mode_serializes_parallel_suggest_requests(tmp_path:
         status_response = client.get(f"/campaigns/{campaign_id}/status")
     assert status_response.status_code == 200
     assert status_response.json()["pending"] == worker_count
+
+
+def test_sqlite_coordination_mode_reclaims_expired_lease_on_suggest(tmp_path: Path) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    project_root = _prepare_demo_campaign_root(
+        tmp_path,
+        target_name="preview-root-expired-lease",
+        multi_controller_enabled=True,
+    )
+    app = create_app(
+        build_service_config(
+            registry_file,
+            coordination_mode="sqlite_lease",
+            coordination_lease_ttl_seconds=0.5,
+        )
+    )
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+        campaign_id = created["campaign_id"]
+
+    _seed_expired_campaign_lease(registry_file.parent / "coordination.sqlite3", campaign_id)
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/campaigns/{campaign_id}/suggest",
+            json={"fail_fast": True},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["trial_id"] == 1
+
+    with sqlite3.connect(registry_file.parent / "coordination.sqlite3") as connection:
+        rows = connection.execute("SELECT campaign_id FROM campaign_leases").fetchall()
+    assert rows == []
+
+
+def test_sqlite_coordination_mode_blocks_ingest_when_controller_lease_is_held(
+    tmp_path: Path,
+) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    project_root = _prepare_demo_campaign_root(
+        tmp_path,
+        target_name="preview-root-held-ingest",
+        multi_controller_enabled=True,
+    )
+    app = create_app(build_service_config(registry_file, coordination_mode="sqlite_lease"))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+        campaign_id = created["campaign_id"]
+        suggestion = client.post(f"/campaigns/{campaign_id}/suggest").json()
+
+    result_payload = {
+        "trial_id": suggestion["trial_id"],
+        "params": suggestion["params"],
+        "status": "ok",
+        "objectives": {"objective": 0.1},
+    }
+    objective_payload = json.loads(
+        (project_root / "objective_schema.json").read_text(encoding="utf-8")
+    )
+    objective_name = objective_payload["primary_objective"]["name"]
+    result_payload["objectives"] = {objective_name: 0.1}
+
+    backend = app.state.coordination_backend
+    with backend.acquire_campaign_lease(campaign_id, timeout_seconds=1.0, fail_fast=False):
+        with TestClient(app) as client:
+            response = client.post(
+                f"/campaigns/{campaign_id}/ingest",
+                json={"payload": result_payload, "fail_fast": True},
+            )
+
+    assert response.status_code == 409
+    assert response.json() == _coordination_error_payload("preview-root-held-ingest")
+
+
+def test_sqlite_coordination_mode_blocks_reset_when_controller_lease_is_held(
+    tmp_path: Path,
+) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    project_root = _prepare_demo_campaign_root(
+        tmp_path,
+        target_name="preview-root-held-reset",
+        multi_controller_enabled=True,
+    )
+    app = create_app(build_service_config(registry_file, coordination_mode="sqlite_lease"))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+
+    backend = app.state.coordination_backend
+    with backend.acquire_campaign_lease(
+        created["campaign_id"],
+        timeout_seconds=1.0,
+        fail_fast=False,
+    ):
+        with TestClient(app) as client:
+            response = client.post(
+                f"/campaigns/{created['campaign_id']}/reset",
+                json={"yes": True, "fail_fast": True},
+            )
+
+    assert response.status_code == 409
+    assert response.json() == _coordination_error_payload("preview-root-held-reset")
+
+
+def test_sqlite_coordination_mode_blocks_restore_when_controller_lease_is_held(
+    tmp_path: Path,
+) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    project_root = _prepare_demo_campaign_root(
+        tmp_path,
+        target_name="preview-root-held-restore",
+        multi_controller_enabled=True,
+    )
+    app = create_app(build_service_config(registry_file, coordination_mode="sqlite_lease"))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+        campaign_id = created["campaign_id"]
+        reset_response = client.post(
+            f"/campaigns/{campaign_id}/reset",
+            json={"yes": True},
+        )
+
+    assert reset_response.status_code == 200
+    archive_id = reset_response.json()["archive_id"]
+
+    backend = app.state.coordination_backend
+    with backend.acquire_campaign_lease(campaign_id, timeout_seconds=1.0, fail_fast=False):
+        with TestClient(app) as client:
+            response = client.post(
+                f"/campaigns/{campaign_id}/restore",
+                json={"archive_id": archive_id, "yes": True, "fail_fast": True},
+            )
+
+    assert response.status_code == 409
+    assert response.json() == _coordination_error_payload("preview-root-held-restore")

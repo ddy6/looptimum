@@ -213,6 +213,23 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
             validate_multi_controller_root(root)
         return root
 
+    def _acquire_mutation_lease(
+        *,
+        campaign_id: str,
+        mutation_root: Path,
+        lock_timeout_seconds: float | None,
+        fail_fast: bool,
+    ) -> Any:
+        coordination_timeout_seconds = resolve_runtime_lock_timeout_seconds(
+            mutation_root,
+            lock_timeout_seconds,
+        )
+        return coordination_backend.acquire_campaign_lease(
+            campaign_id,
+            timeout_seconds=coordination_timeout_seconds,
+            fail_fast=fail_fast,
+        )
+
     @app.get("/health", response_model=HealthResponse)
     def get_health() -> HealthResponse:
         return HealthResponse(
@@ -416,13 +433,10 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
             principal=principal,
             campaign_id=campaign_id,
         )
-        coordination_timeout_seconds = resolve_runtime_lock_timeout_seconds(
-            mutation_root,
-            suggest_request.lock_timeout_seconds,
-        )
-        with coordination_backend.acquire_campaign_lease(
-            campaign_id,
-            timeout_seconds=coordination_timeout_seconds,
+        with _acquire_mutation_lease(
+            campaign_id=campaign_id,
+            mutation_root=mutation_root,
+            lock_timeout_seconds=suggest_request.lock_timeout_seconds,
             fail_fast=suggest_request.fail_fast,
         ):
             response_payload, ndjson_output = suggest_via_runtime(
@@ -445,13 +459,20 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         payload: IngestRequest,
         principal: AuthenticatedPrincipal | None = Depends(require_operator_principal),
     ) -> dict[str, Any]:
-        return ingest_via_runtime(
-            _require_mutation_root(request, principal, campaign_id),
-            payload=payload.payload,
-            lease_token=payload.lease_token,
+        mutation_root = _require_mutation_root(request, principal, campaign_id)
+        with _acquire_mutation_lease(
+            campaign_id=campaign_id,
+            mutation_root=mutation_root,
             lock_timeout_seconds=payload.lock_timeout_seconds,
             fail_fast=payload.fail_fast,
-        )
+        ):
+            return ingest_via_runtime(
+                mutation_root,
+                payload=payload.payload,
+                lease_token=payload.lease_token,
+                lock_timeout_seconds=payload.lock_timeout_seconds,
+                fail_fast=payload.fail_fast,
+            )
 
     @app.post("/campaigns/{campaign_id}/reset")
     def reset_campaign(
@@ -460,13 +481,20 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         payload: ResetRequest,
         principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> dict[str, Any]:
-        response = reset_via_runtime(
-            _require_mutation_root(request, principal, campaign_id),
-            yes=payload.yes,
-            archive=payload.archive,
+        mutation_root = _require_mutation_root(request, principal, campaign_id)
+        with _acquire_mutation_lease(
+            campaign_id=campaign_id,
+            mutation_root=mutation_root,
             lock_timeout_seconds=payload.lock_timeout_seconds,
             fail_fast=payload.fail_fast,
-        )
+        ):
+            response = reset_via_runtime(
+                mutation_root,
+                yes=payload.yes,
+                archive=payload.archive,
+                lock_timeout_seconds=payload.lock_timeout_seconds,
+                fail_fast=payload.fail_fast,
+            )
         if principal is not None:
             record_auth_audit_event(
                 service_config.auth_audit_log_file,
@@ -486,13 +514,20 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         payload: RestoreRequest,
         principal: AuthenticatedPrincipal | None = Depends(require_admin_principal),
     ) -> dict[str, Any]:
-        response = restore_via_runtime(
-            _require_mutation_root(request, principal, campaign_id),
-            archive_id=payload.archive_id,
-            yes=payload.yes,
+        mutation_root = _require_mutation_root(request, principal, campaign_id)
+        with _acquire_mutation_lease(
+            campaign_id=campaign_id,
+            mutation_root=mutation_root,
             lock_timeout_seconds=payload.lock_timeout_seconds,
             fail_fast=payload.fail_fast,
-        )
+        ):
+            response = restore_via_runtime(
+                mutation_root,
+                archive_id=payload.archive_id,
+                yes=payload.yes,
+                lock_timeout_seconds=payload.lock_timeout_seconds,
+                fail_fast=payload.fail_fast,
+            )
         if principal is not None:
             record_auth_audit_event(
                 service_config.auth_audit_log_file,
