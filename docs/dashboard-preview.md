@@ -14,7 +14,8 @@ second runtime or state authority.
   or `restore` controls
 - optional preview auth may protect dashboard routes, but the UI remains
   read-only and does not introduce cookie-session UX or a second policy layer
-- multi-controller coordination is still out of scope here
+- multi-controller coordination remains a service-mutation concern; the
+  dashboard only observes resulting status, alerts, and trial detail
 
 ## Startup
 
@@ -67,6 +68,7 @@ The dashboard shell fetches the following read-only service endpoints:
 Auth companion:
 
 - [`auth-preview.md`](./auth-preview.md)
+- [`coordination-preview.md`](./coordination-preview.md)
 
 ## Operator Workflow
 

@@ -158,6 +158,11 @@ Reference assets:
   `feature_flags.enable_auth_preview = true`, and the service writes
   `service_state/auth_audit_log.jsonl` for authz failures and privileged
   actions.
+- preview coordination is optional; when the service runs with
+  `LOOPTIMUM_SERVICE_COORDINATION_MODE=sqlite_lease`, campaign roots must also
+  set `feature_flags.enable_multi_controller_preview = true`, and coordinated
+  `suggest` / `ingest` / `reset` / `restore` acquire a service-owned
+  controller lease before entering the existing runtime file lock.
 - role matrix:
   - `viewer`: read-only API, dashboard, and exports
   - `operator`: `viewer` plus `suggest` and `ingest`
@@ -168,9 +173,11 @@ Reference assets:
 - `docs/service-api-preview.md`
 - `docs/dashboard-preview.md`
 - `docs/auth-preview.md`
+- `docs/coordination-preview.md`
 - `docs/examples/service_api_preview/README.md`
 - `docs/examples/dashboard_preview/README.md`
 - `docs/examples/auth_preview/README.md`
+- `docs/examples/coordination_preview/README.md`
 
 Dashboard companion note:
 
@@ -203,8 +210,9 @@ Dashboard companion note:
 
 ## Concurrency and Recovery
 
-- one controller/writer per state path is required; multi-controller writes to
-  the same state path are unsupported.
+- for direct CLI/file-backed operation, one controller/writer per state path is
+  required; multi-controller writes to the same state path are unsupported
+  outside the explicit preview service coordination mode.
 - mutating commands (`suggest`, `ingest`, `import-observations`, lifecycle ops,
   `report`, `reset`, `restore`, `prune-archives`, `export-observations`)
   run under exclusive file lock semantics.

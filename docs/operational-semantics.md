@@ -54,6 +54,9 @@ Service preview note:
   same runtime semantics; it does not introduce a second authoritative state
   store and it still depends on the one-controller/file-lock model per
   campaign root
+- optional service coordination preview adds a service-owned controller lease
+  ahead of the existing runtime file lock, stays disabled by default, and
+  currently uses SQLite under `service_state/coordination.sqlite3`
 - optional preview auth on that service layer remains service-scoped only:
   `GET /health` stays unauthenticated, other service/dashboard routes may
   require auth, and auth audit events are written under `service_state/`
@@ -61,6 +64,9 @@ Service preview note:
 - the preview dashboard mounted from that service layer is read-only,
   API-backed only, and uses polling rather than direct state-file reads or
   push infrastructure
+- preview controller coordination leases are distinct from per-trial worker
+  `lease_token` handoff; the service lease controls one mutating preview
+  caller at a time, while worker tokens remain trial-scoped
 
 ## Command Semantics
 

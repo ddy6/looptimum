@@ -89,12 +89,16 @@ Preview note:
   [`docs/dashboard-preview.md`](docs/dashboard-preview.md)
 - optional preview auth/RBAC/SSO guidance for that local service stack is in
   [`docs/auth-preview.md`](docs/auth-preview.md)
+- optional preview multi-controller coordination for that local service stack
+  is in [`docs/coordination-preview.md`](docs/coordination-preview.md)
 - example packs:
   [`docs/examples/service_api_preview/README.md`](docs/examples/service_api_preview/README.md)
   and
   [`docs/examples/dashboard_preview/README.md`](docs/examples/dashboard_preview/README.md)
   and
   [`docs/examples/auth_preview/README.md`](docs/examples/auth_preview/README.md)
+  and
+  [`docs/examples/coordination_preview/README.md`](docs/examples/coordination_preview/README.md)
 
 ## Common Use Cases
 
@@ -169,6 +173,8 @@ For the read-only operator shell mounted from that preview service, see
 [`docs/dashboard-preview.md`](docs/dashboard-preview.md).
 For optional preview auth and role separation on that same service stack, see
 [`docs/auth-preview.md`](docs/auth-preview.md).
+For optional preview multi-controller coordination on that same service stack,
+see [`docs/coordination-preview.md`](docs/coordination-preview.md).
 For the dedicated tiny end-to-end objective walkthrough, see
 `examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
 

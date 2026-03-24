@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "coordination_unavailable",
+    "message": "service coordination lease unavailable for campaign 'bo_client_demo'"
+  }
+}

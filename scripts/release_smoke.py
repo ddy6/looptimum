@@ -94,13 +94,14 @@ def _prepare_temp_templates(temp_root: Path) -> Path:
     return temp_templates
 
 
-def _enable_service_preview(project_root: Path) -> None:
+def _enable_service_preview(project_root: Path, *, enable_multi_controller: bool = False) -> None:
     cfg_path = project_root / "bo_config.json"
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     feature_flags = dict(cfg.get("feature_flags", {}))
     feature_flags["enable_service_api_preview"] = True
     feature_flags["enable_dashboard_preview"] = True
     feature_flags["enable_auth_preview"] = True
+    feature_flags["enable_multi_controller_preview"] = enable_multi_controller
     cfg["feature_flags"] = feature_flags
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
@@ -530,6 +531,66 @@ def _smoke_service_preview(temp_root: Path, project_root: Path) -> None:
     print("[smoke] service preview passed")
 
 
+def _smoke_service_coordination_preview(temp_root: Path, project_root: Path) -> None:
+    print("[smoke] service coordination preview")
+    _clean_state(project_root)
+    _enable_service_preview(project_root, enable_multi_controller=True)
+
+    registry_file = temp_root / "service_state" / "coordination_campaign_registry.json"
+    app = create_app(
+        build_service_config(
+            registry_file,
+            coordination_mode="sqlite_lease",
+            coordination_lease_ttl_seconds=5.0,
+        )
+    )
+
+    with TestClient(app) as client:
+        create_response = client.post(
+            "/campaigns",
+            json={"root_path": str(project_root), "label": "Release Smoke Coordination Preview"},
+        )
+        if create_response.status_code != 201:
+            raise RuntimeError(
+                f"service coordination preview registration failed: {create_response.text}"
+            )
+        campaign_id = str(create_response.json()["campaign_id"])
+
+        suggest_response = client.post(f"/campaigns/{campaign_id}/suggest", json={})
+        if suggest_response.status_code != 200:
+            raise RuntimeError(
+                f"service coordination preview suggest failed: {suggest_response.text}"
+            )
+        suggestion = suggest_response.json()
+        if int(suggestion["trial_id"]) != 1:
+            raise RuntimeError(
+                "service coordination preview expected first coordinated trial_id=1, "
+                f"got {suggestion['trial_id']}"
+            )
+
+        with app.state.coordination_backend.acquire_campaign_lease(
+            campaign_id,
+            timeout_seconds=1.0,
+            fail_fast=False,
+        ):
+            contention_response = client.post(
+                f"/campaigns/{campaign_id}/suggest",
+                json={"fail_fast": True},
+            )
+        if contention_response.status_code != 409:
+            raise RuntimeError(
+                "service coordination preview expected fail-fast contention to return 409, "
+                f"got {contention_response.status_code}: {contention_response.text}"
+            )
+        payload = contention_response.json()
+        if payload.get("error", {}).get("code") != "coordination_unavailable":
+            raise RuntimeError(
+                "service coordination preview expected coordination_unavailable payload, "
+                f"got {payload}"
+            )
+    print("[smoke] service coordination preview passed")
+
+
 def main() -> None:
     args = _parse_args()
     if args.demo_steps < 1:
@@ -550,6 +611,7 @@ def main() -> None:
             )
         _smoke_tiny_loop(args.tiny_loop_steps)
         _smoke_service_preview(temp_root, temp_templates / "bo_client_demo")
+        _smoke_service_coordination_preview(temp_root, temp_templates / "bo_client_demo")
     finally:
         if args.keep_temp_dir:
             print(f"[smoke] kept temp root: {temp_root}")

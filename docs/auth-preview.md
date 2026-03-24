@@ -146,13 +146,15 @@ Production recommendation:
 - the dashboard remains read-only even when preview auth is enabled
 - the dashboard does not introduce its own session store or a second policy
   layer; it inherits the preview service route policy
-- authenticated service usage does not bypass campaign file locks, lease-token
-  rules, or explicit `report` generation semantics
+- authenticated service usage does not bypass campaign file locks, preview
+  coordination leases, worker `lease_token` rules, or explicit `report`
+  generation semantics
 
 Companion docs:
 
 - [`service-api-preview.md`](./service-api-preview.md)
 - [`dashboard-preview.md`](./dashboard-preview.md)
+- [`coordination-preview.md`](./coordination-preview.md)
 
 ## Example Pack
 

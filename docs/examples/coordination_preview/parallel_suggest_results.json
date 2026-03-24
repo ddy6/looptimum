@@ -1,0 +1,34 @@
+{
+  "coordination_mode": "sqlite_lease",
+  "campaign_id": "bo_client_demo",
+  "trial_ids": [1, 2, 3],
+  "suggestions": [
+    {
+      "schema_version": "0.3.0",
+      "trial_id": 1,
+      "params": {
+        "x1": 0.18126486333322134,
+        "x2": 0.6614305484952444
+      },
+      "suggested_at": 1774311111.101
+    },
+    {
+      "schema_version": "0.3.0",
+      "trial_id": 2,
+      "params": {
+        "x1": 0.6771258268002703,
+        "x2": 0.7849113560871108
+      },
+      "suggested_at": 1774311111.202
+    },
+    {
+      "schema_version": "0.3.0",
+      "trial_id": 3,
+      "params": {
+        "x1": 0.5204661572030815,
+        "x2": 0.5114917024932601
+      },
+      "suggested_at": 1774311111.303
+    }
+  ]
+}

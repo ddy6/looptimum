@@ -1,0 +1,4 @@
+LOOPTIMUM_SERVICE_REGISTRY_FILE=service_state/campaign_registry.json
+LOOPTIMUM_SERVICE_COORDINATION_MODE=sqlite_lease
+LOOPTIMUM_SERVICE_COORDINATION_LEASE_TTL_SECONDS=30
+python -m uvicorn service.app:create_app --factory

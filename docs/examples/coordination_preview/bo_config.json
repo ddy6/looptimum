@@ -1,0 +1,9 @@
+{
+  "feature_flags": {
+    "enable_service_api_preview": true,
+    "enable_dashboard_preview": false,
+    "enable_auth_preview": false,
+    "enable_multi_controller_preview": true
+  },
+  "lock_timeout_seconds": 45.0
+}

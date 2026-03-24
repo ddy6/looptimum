@@ -18,6 +18,9 @@ Included files:
   local service stack, with route scope, flag posture, and operator workflow
 - `auth-preview.md`: preview-only auth/RBAC/SSO posture for the local service
   and dashboard stack, including local-dev auth mode and OIDC caveats
+- `coordination-preview.md`: preview-only multi-controller coordination posture
+  for the local service stack, including SQLite lease startup, reclaim
+  behavior, and controller-vs-worker lease boundaries
 - `integration-starter-kit.md`: optional scheduler, webhook-sidecar, and
   tracker-adapter deployment guidance for the starter-kit helpers
 - `aws-batch-integration.md`: optional AWS Batch evaluator path, config, sidecar
@@ -58,6 +61,7 @@ Reference artifacts:
 - `examples/service_api_preview/README.md`
 - `examples/dashboard_preview/README.md`
 - `examples/auth_preview/README.md`
+- `examples/coordination_preview/README.md`
 - `examples/multi_objective/README.md`
 - `examples/warm_start/README.md`
 - `examples/starterkit/README.md`

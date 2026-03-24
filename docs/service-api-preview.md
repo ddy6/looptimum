@@ -44,6 +44,14 @@ Optional service-auth preview:
 - when service auth preview is enabled, campaign roots must also set
   `feature_flags.enable_auth_preview = true`
 
+Optional coordination preview:
+
+- use [`coordination-preview.md`](./coordination-preview.md) when you want the
+  preview service to serialize mutating routes with a service-owned SQLite
+  controller lease before the existing runtime file lock
+- coordinated preview additionally requires
+  `feature_flags.enable_multi_controller_preview = true`
+
 ## Campaign Registration
 
 Register a file-backed campaign root with the preview service:
@@ -92,6 +100,8 @@ Important parity rules:
 - `ingest` preserves duplicate replay and lease-token enforcement
 - `reset` and `restore` preserve `--yes`-style confirmation requirements and
   archive-id flows
+- when service coordination preview is enabled, registration plus mutating
+  routes also enforce `feature_flags.enable_multi_controller_preview = true`
 - `report` stays read-only at the API layer and reads existing
   `state/report.json`
 - campaign-bound dashboard routes additionally require
@@ -118,6 +128,25 @@ Reference doc:
 
 - [`auth-preview.md`](./auth-preview.md)
 
+## Coordination Preview
+
+Preview coordination is optional and disabled by default.
+
+When enabled:
+
+- the service uses `LOOPTIMUM_SERVICE_COORDINATION_MODE=sqlite_lease`
+- campaign roots must opt in with
+  `feature_flags.enable_multi_controller_preview = true`
+- coordinated `suggest`, `ingest`, `reset`, and `restore` acquire a
+  service-owned controller lease before entering the existing runtime file lock
+- dead controller leases can be reclaimed conservatively on the next request
+- controller coordination leases remain distinct from per-trial worker
+  `lease_token` values
+
+Reference doc:
+
+- [`coordination-preview.md`](./coordination-preview.md)
+
 ## Dashboard Companion
 
 The preview service now also mounts a read-only operator shell under
@@ -135,8 +164,8 @@ Reference docs:
 - mutating endpoints fail whole-command, matching CLI/runtime boundaries
 - the registry is only a lookup table for registered roots; deleting it does
   not delete campaign state
-- preview auth is still preview-scoped and local-first; multi-controller work
-  remains out of scope for this service layer
+- preview auth and preview coordination are still preview-scoped and
+  local-first; the service is not a hosted control plane
 
 ## Example Pack
 
@@ -145,6 +174,7 @@ Reference request/response artifacts:
 - [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
 - [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
 - [`examples/auth_preview/README.md`](./examples/auth_preview/README.md)
+- [`examples/coordination_preview/README.md`](./examples/coordination_preview/README.md)
 
 That pack includes sample payloads for campaign create/read, `suggest`,
 `ingest`, and `report`, captured from the preview service against a temp

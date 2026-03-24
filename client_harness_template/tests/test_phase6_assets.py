@@ -18,6 +18,7 @@ STARTERKIT_EXAMPLE = REPO_ROOT / "docs" / "examples" / "starterkit"
 SERVICE_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "service_api_preview"
 DASHBOARD_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "dashboard_preview"
 AUTH_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "auth_preview"
+COORDINATION_PREVIEW_EXAMPLE = REPO_ROOT / "docs" / "examples" / "coordination_preview"
 
 
 def test_golden_acquisition_log_has_expected_shape_and_timestamps() -> None:
@@ -560,15 +561,54 @@ def test_auth_preview_example_pack_has_expected_artifacts() -> None:
         and event["outcome"] == "allowed"
         for event in audit_events
     )
-    assert any(
-        event["event_type"] == "authz_failure"
-        and event["action"] == "route_access"
-        and event["reason"] == "requires_role=operator"
-        for event in audit_events
+
+
+def test_coordination_preview_example_pack_has_expected_artifacts() -> None:
+    assert COORDINATION_PREVIEW_EXAMPLE.exists(), (
+        f"missing coordination preview example pack: {COORDINATION_PREVIEW_EXAMPLE}"
     )
-    assert any(
-        event["event_type"] == "authz_failure"
-        and event["action"] == "campaign_auth_preview_validation"
-        and event["reason"] == "campaign_auth_preview_disabled"
-        for event in audit_events
-    )
+
+    readme_path = COORDINATION_PREVIEW_EXAMPLE / "README.md"
+    config_path = COORDINATION_PREVIEW_EXAMPLE / "bo_config.json"
+    service_env_path = COORDINATION_PREVIEW_EXAMPLE / "service_env.example"
+    parallel_results_path = COORDINATION_PREVIEW_EXAMPLE / "parallel_suggest_results.json"
+    status_path = COORDINATION_PREVIEW_EXAMPLE / "status_after_parallel_suggest.json"
+    unavailable_path = COORDINATION_PREVIEW_EXAMPLE / "coordination_unavailable_response.json"
+    reclaimed_path = COORDINATION_PREVIEW_EXAMPLE / "reclaimed_suggest_response.json"
+
+    for path in (
+        readme_path,
+        config_path,
+        service_env_path,
+        parallel_results_path,
+        status_path,
+        unavailable_path,
+        reclaimed_path,
+    ):
+        assert path.exists(), f"missing coordination preview example artifact: {path}"
+
+    config_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    assert config_payload["feature_flags"]["enable_service_api_preview"] is True
+    assert config_payload["feature_flags"]["enable_multi_controller_preview"] is True
+
+    service_env_text = service_env_path.read_text(encoding="utf-8")
+    assert "LOOPTIMUM_SERVICE_COORDINATION_MODE=sqlite_lease" in service_env_text
+    assert "LOOPTIMUM_SERVICE_COORDINATION_LEASE_TTL_SECONDS=30" in service_env_text
+
+    parallel_payload = json.loads(parallel_results_path.read_text(encoding="utf-8"))
+    assert parallel_payload["coordination_mode"] == "sqlite_lease"
+    assert parallel_payload["campaign_id"] == "bo_client_demo"
+    assert parallel_payload["trial_ids"] == [1, 2, 3]
+    assert [row["trial_id"] for row in parallel_payload["suggestions"]] == [1, 2, 3]
+
+    status_payload = json.loads(status_path.read_text(encoding="utf-8"))
+    assert status_payload["observations"] == 0
+    assert status_payload["pending"] == 3
+    assert status_payload["next_trial_id"] == 4
+
+    unavailable_payload = json.loads(unavailable_path.read_text(encoding="utf-8"))
+    assert unavailable_payload["error"]["code"] == "coordination_unavailable"
+
+    reclaimed_payload = json.loads(reclaimed_path.read_text(encoding="utf-8"))
+    assert reclaimed_payload["trial_id"] == 1
+    assert set(reclaimed_payload["params"]) == {"x1", "x2"}

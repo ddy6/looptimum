@@ -46,6 +46,8 @@ The loop does not need raw data or internal model internals. It just needs:
   same file-backed runtime
 - `docs/dashboard-preview.md`: preview-only read-only operator UI mounted from
   the local service layer
+- `docs/coordination-preview.md`: preview-only multi-controller coordination
+  guidance for the local service layer
 - `docs/aws-batch-integration.md`: optional AWS Batch executor path and recovery
   sidecar design
 - `examples/toy-objectives/`: reference integration patterns
@@ -250,6 +252,9 @@ Boundary rules:
 - it is local-first and file-backed, not a second optimizer authority
 - campaign roots must opt in with
   `feature_flags.enable_service_api_preview = true`
+- coordinated preview additionally requires
+  `feature_flags.enable_multi_controller_preview = true` and explicit
+  `sqlite_lease` service config
 - the registry stores only campaign metadata; state remains inside each
   registered campaign root
 - `report` is still explicit; the preview reads `state/report.json` but does
@@ -260,8 +265,10 @@ Detailed startup, registration, and endpoint guidance:
 - [`service-api-preview.md`](./service-api-preview.md)
 - [`auth-preview.md`](./auth-preview.md)
 - [`dashboard-preview.md`](./dashboard-preview.md)
+- [`coordination-preview.md`](./coordination-preview.md)
 - [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
 - [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
+- [`examples/coordination_preview/README.md`](./examples/coordination_preview/README.md)
 
 ## Starter-Kit Sidecars and Safe Topology
 

@@ -19,6 +19,9 @@ Included:
 - `auth_preview/`: local-dev auth config, authorization failure payloads,
   OIDC config reference, and service-owned auth audit-log examples for the
   preview service/dashboard stack
+- `coordination_preview/`: SQLite coordination startup config, concurrent
+  preview suggest outcomes, held-lease failure payloads, and reclaim examples
+  for the preview service coordination layer
 - `multi_objective/`: generated weighted-sum / lexicographic example pack with
   `status`, `report`, and trial-manifest outputs
 - `warm_start/`: permissive warm-start import report plus JSONL/CSV observation
