@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -230,3 +233,79 @@ def test_sqlite_coordination_mode_preserves_mutation_behavior_when_opted_in(tmp_
     cli_payload = json.loads(_run_cli(cli_project_root, "suggest", "--json-only").stdout)
     assert service_payload["trial_id"] == cli_payload["trial_id"]
     assert service_payload["params"] == cli_payload["params"]
+
+
+def test_sqlite_coordination_mode_fail_fast_when_controller_lease_is_held(tmp_path: Path) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    project_root = _prepare_demo_campaign_root(
+        tmp_path,
+        target_name="preview-root-held-lease",
+        multi_controller_enabled=True,
+    )
+    app = create_app(build_service_config(registry_file, coordination_mode="sqlite_lease"))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+
+    backend = app.state.coordination_backend
+    with backend.acquire_campaign_lease(
+        created["campaign_id"],
+        timeout_seconds=1.0,
+        fail_fast=False,
+    ):
+        with TestClient(app) as client:
+            response = client.post(
+                f"/campaigns/{created['campaign_id']}/suggest",
+                json={"fail_fast": True},
+            )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "error": {
+            "code": "coordination_unavailable",
+            "message": "service coordination lease unavailable for campaign "
+            "'preview-root-held-lease'",
+        }
+    }
+
+
+def test_sqlite_coordination_mode_serializes_parallel_suggest_requests(tmp_path: Path) -> None:
+    registry_file = tmp_path / "service_state" / "campaign_registry.json"
+    project_root = _prepare_demo_campaign_root(
+        tmp_path,
+        target_name="preview-root-concurrent",
+        multi_controller_enabled=True,
+    )
+    app = create_app(build_service_config(registry_file, coordination_mode="sqlite_lease"))
+
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project_root)}).json()
+    campaign_id = created["campaign_id"]
+
+    worker_count = 3
+    start_barrier = threading.Barrier(worker_count)
+
+    def _issue_suggest() -> dict[str, object]:
+        start_barrier.wait(timeout=5.0)
+        with TestClient(app) as client:
+            response = client.post(
+                f"/campaigns/{campaign_id}/suggest",
+                json={"lock_timeout_seconds": 5.0},
+            )
+        assert response.status_code == 200
+        return response.json()
+
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        payloads = list(executor.map(lambda _index: _issue_suggest(), range(worker_count)))
+
+    trial_ids = sorted(int(payload["trial_id"]) for payload in payloads)
+    assert trial_ids == [1, 2, 3]
+
+    with sqlite3.connect(registry_file.parent / "coordination.sqlite3") as connection:
+        rows = connection.execute("SELECT campaign_id FROM campaign_leases").fetchall()
+    assert rows == []
+
+    with TestClient(app) as client:
+        status_response = client.get(f"/campaigns/{campaign_id}/status")
+    assert status_response.status_code == 200
+    assert status_response.json()["pending"] == worker_count

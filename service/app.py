@@ -16,7 +16,7 @@ from service.auth import (
     require_viewer_principal,
 )
 from service.config import ServiceConfig, build_service_config
-from service.coordination import build_coordination_backend
+from service.coordination import CoordinationUnavailableError, build_coordination_backend
 from service.dashboard import ASSETS_DIR, render_dashboard_shell
 from service.models import (
     AuthenticatedPrincipal,
@@ -62,6 +62,7 @@ from service.runtime import (
     load_report_payload,
     load_trial_detail,
     reset_via_runtime,
+    resolve_runtime_lock_timeout_seconds,
     restore_via_runtime,
     suggest_via_runtime,
 )
@@ -101,6 +102,11 @@ def _error_response(exc: ServiceRegistryError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content=_error_payload(code="insufficient_role", message=str(exc)),
+        )
+    if isinstance(exc, CoordinationUnavailableError):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=_error_payload(code="coordination_unavailable", message=str(exc)),
         )
     if isinstance(exc, CampaignConflictError):
         return JSONResponse(
@@ -405,13 +411,27 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
         principal: AuthenticatedPrincipal | None = Depends(require_operator_principal),
     ) -> Any:
         suggest_request = payload or SuggestRequest()
-        response_payload, ndjson_output = suggest_via_runtime(
-            _require_mutation_root(request=request, principal=principal, campaign_id=campaign_id),
-            count=suggest_request.count,
-            output_mode=suggest_request.output_mode,
-            lock_timeout_seconds=suggest_request.lock_timeout_seconds,
-            fail_fast=suggest_request.fail_fast,
+        mutation_root = _require_mutation_root(
+            request=request,
+            principal=principal,
+            campaign_id=campaign_id,
         )
+        coordination_timeout_seconds = resolve_runtime_lock_timeout_seconds(
+            mutation_root,
+            suggest_request.lock_timeout_seconds,
+        )
+        with coordination_backend.acquire_campaign_lease(
+            campaign_id,
+            timeout_seconds=coordination_timeout_seconds,
+            fail_fast=suggest_request.fail_fast,
+        ):
+            response_payload, ndjson_output = suggest_via_runtime(
+                mutation_root,
+                count=suggest_request.count,
+                output_mode=suggest_request.output_mode,
+                lock_timeout_seconds=suggest_request.lock_timeout_seconds,
+                fail_fast=suggest_request.fail_fast,
+            )
         if ndjson_output is not None:
             return PlainTextResponse(ndjson_output, media_type="application/x-ndjson")
         if response_payload is None:

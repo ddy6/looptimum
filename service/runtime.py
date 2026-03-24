@@ -102,6 +102,13 @@ def _load_runtime_cfg(root: Path, runtime_module: ModuleType) -> tuple[JSONDict,
     return cast(JSONDict, cfg_doc), cast(dict[str, Path], paths)
 
 
+def resolve_runtime_lock_timeout_seconds(root: Path, cli_override: float | None = None) -> float:
+    validated_root, runtime_module = _load_campaign_runtime(root)
+    runtime_any = cast(Any, runtime_module)
+    cfg, _paths = _load_runtime_cfg(validated_root, runtime_module)
+    return float(runtime_any.resolve_lock_timeout_seconds(cfg, cli_override))
+
+
 def _load_campaign_context(
     root: Path,
 ) -> tuple[Path, ModuleType, Any, JSONDict, dict[str, Path], JSONDict, JSONDict]:
