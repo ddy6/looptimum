@@ -45,7 +45,7 @@ For full command sequences and resume behavior:
 - [FAQ](./faq.md)
 - [Security and Data Handling](./security-data-handling.md)
 - [Use Cases and Fit](./use-cases.md)
-- [Pricing and Service Options](./pricing-tiers.md)
+- [Packages and Engagement Tiers](./packages.md)
 
 ## Integration Assets
 

@@ -48,8 +48,7 @@ Included files:
   alignment for pilot runs
 - `faq.md`: common technical and operational questions
 - `security-data-handling.md`: detailed local/offline and data-minimization guidance
-- `pricing-tiers.md`: public service posture and scoped pilot engagement entry
-  points
+- `packages.md`: package tiers and service offers for pilot engagement
 - `use-cases.md`: fit guidance for engineering/simulation, biotech/lab
   pipelines, ML HPO teams, and large-model outer-loop tuning
 
