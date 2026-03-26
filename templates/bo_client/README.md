@@ -3,6 +3,16 @@
 Minimal single-stage optimization harness with explicit config, a swappable
 surrogate backend, and restartable JSON state.
 
+## Path Guidance
+
+- Running this template directly means you are on the repo path.
+- Optional preview service/dashboard/auth/coordination layers sit on top of the
+  same file-backed runtime and are not required for this template.
+- High-level path overview:
+  `../../docs/packages.md`
+- Public compatibility posture:
+  `../../docs/stability-guarantees.md`
+
 ## Files
 
 - `run_bo.py`: driver for `suggest`, `ingest`, `import-observations`,

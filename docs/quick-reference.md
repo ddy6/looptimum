@@ -3,7 +3,7 @@
 Use this page as the spec-style contract summary for day-to-day integration,
 automation wiring, and runbook checks.
 
-## Public Command Surface (`v0.3.x`)
+## Public Command Surface (`v0.4.x`)
 
 Stable command names and required flag posture are documented in
 [`stability-guarantees.md`](./stability-guarantees.md).
@@ -143,7 +143,7 @@ Reference assets:
 ## Preview Service API
 
 - `service/` is a preview-only local FastAPI wrapper over the same file-backed
-  runtime and is not part of the stable `v0.3.x` compatibility surface.
+  runtime and is not part of the stable `v0.4.x` compatibility surface.
 - campaign registration requires
   `feature_flags.enable_service_api_preview = true` inside the target
   campaign's `bo_config.json`.
@@ -241,7 +241,9 @@ Constraint pointers:
 
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) is upgraded
   in-memory and persisted on the next mutating command.
-- earlier `v0.3.x` state is required to load transparently in `v0.3.x`.
+- current `v0.4.x` state artifacts still persist `schema_version: "0.3.0"`
+  because the on-disk state-file series did not change in this line.
+- earlier `v0.3.x` state is required to load transparently in `v0.4.x`.
 - deprecation and compatibility policy:
   [`stability-guarantees.md`](./stability-guarantees.md).
 

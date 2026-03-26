@@ -1,8 +1,8 @@
 # Stability Guarantees
 
-This document defines what is stable in the `v0.3.x` line, what may change,
+This document defines what is stable in the `v0.4.x` line, what may change,
 and how breaking changes are introduced.
-Current patch tag in this line: `v0.3.5`.
+Current tag in this line: `v0.4.0`.
 
 ## Scope
 
@@ -14,9 +14,26 @@ integration consumers:
 - Payload schemas and ingest status vocabulary
 - Core state-file compatibility for resumable file-backed runs
 
-## `v0.3.x` Stability Promise
+## Repo Path Vs Preview Path
 
-Within `v0.3.x`:
+The stable `v0.4.x` promise applies to the repo-first template path described
+through the public templates and their file-backed runtime.
+
+Public docs may also describe optional preview-only surfaces under the local
+service stack:
+
+- `docs/service-api-preview.md`
+- `docs/dashboard-preview.md`
+- `docs/auth-preview.md`
+- `docs/coordination-preview.md`
+
+Those preview surfaces are still self-run and file-backed, but they are not
+part of the stable `v0.4.x` compatibility surface. The public compatibility
+promise remains anchored to the template path above.
+
+## `v0.4.x` Stability Promise
+
+Within `v0.4.x`:
 
 1. No breaking changes to command names and required flags for:
    `suggest`, `ingest`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
@@ -27,13 +44,15 @@ Within `v0.3.x`:
    `state/bo_state.json`, `state/observations.csv`,
    `state/acquisition_log.jsonl`, `state/event_log.jsonl`.
 
-## `v0.3.x` State Compatibility Policy
+## `v0.4.x` State Compatibility Policy
 
-This policy is active for the `v0.3.x` line:
+This policy is active for the `v0.4.x` line:
 
 1. `state/bo_state.json` includes required `schema_version` with semver string
-   format (`<major>.<minor>.<patch>`), for example `"0.3.0"`.
-2. Any earlier `v0.3.x` state must load transparently in `v0.3.x`.
+   format (`<major>.<minor>.<patch>`). The current runtime still persists
+   `"0.3.0"` because the on-disk state-file series did not change in
+   `v0.4.0`.
+2. Any earlier `v0.3.x` state must load transparently in `v0.4.x`.
 3. Warn-only deprecations are allowed, but load failures are not allowed for
    earlier `v0.3.x` state versions.
 4. Legacy `v0.2.x` states (or missing `schema_version`) are upgraded in-memory
@@ -43,8 +62,8 @@ This policy is active for the `v0.3.x` line:
 
 ## Breaking-Change Policy
 
-Breaking changes are allowed only on `0.x` major-line increments
-(for example `0.3` -> `0.4`), and each such change must include:
+Breaking changes are allowed only on `0.x` line increments
+(for example `0.4` -> `0.5`), and each such change must include:
 
 1. Explicit migration notes in `CHANGELOG.md`.
 2. Documentation updates in integration and operational docs.
@@ -54,7 +73,7 @@ No breaking changes are allowed within a `0.x` minor line.
 
 ## Deprecation Policy
 
-When behavior is deprecated in `v0.3.x`:
+When behavior is deprecated in `v0.4.x`:
 
 1. The compatibility path remains functional through the line.
 2. A warning is emitted where practical.
@@ -66,7 +85,7 @@ Current deprecations:
 
 ## What May Change Without a Breaking Bump
 
-The following may evolve in `v0.3.x` without being treated as breaking:
+The following may evolve in `v0.4.x` without being treated as breaking:
 
 - Internal surrogate/proxy implementation details and tuning heuristics.
 - Additional optional fields in status/report/log payloads.

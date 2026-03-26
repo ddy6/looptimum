@@ -6,7 +6,7 @@ second runtime or state authority.
 
 ## Scope Boundary
 
-- preview only: this UI is not part of the stable `v0.3.x` compatibility
+- preview only: this UI is not part of the stable `v0.4.x` compatibility
   guarantee
 - API-backed only: the dashboard reads through the preview service endpoints
   and does not read campaign state files directly

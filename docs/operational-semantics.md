@@ -34,9 +34,11 @@ State schema versioning rule:
 
 - `state.schema_version` is required for `v0.3.0` state artifacts and follows
   semver string format.
+- current `v0.4.x` runtime artifacts still persist `schema_version: "0.3.0"`
+  because the on-disk state-file series did not change in this line.
 - legacy `v0.2.x` (or missing-version) state is upgraded in-memory and persisted
   on the next mutating command, with a loud warning and migration pointer.
-- earlier `v0.3.x` state versions load transparently in `v0.3.x`.
+- earlier `v0.3.x` state versions load transparently in `v0.4.x`.
 
 ## Supported Topology
 

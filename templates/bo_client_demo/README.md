@@ -2,6 +2,16 @@
 
 Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration and restartable state.
 
+## Path Guidance
+
+- Running this template directly means you are on the repo path.
+- Optional preview service/dashboard/auth/coordination layers sit on top of the
+  same file-backed runtime and are not required for this template.
+- High-level path overview:
+  `../../docs/packages.md`
+- Public compatibility posture:
+  `../../docs/stability-guarantees.md`
+
 ## Files
 
 - `run_bo.py`: `suggest`, `ingest`, `import-observations`,

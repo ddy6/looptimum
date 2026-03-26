@@ -5,7 +5,7 @@ It is an optional HTTP layer over the same file-backed runtime used by the CLI.
 
 ## Scope Boundary
 
-- preview only: this surface is not part of the stable `v0.3.x`
+- preview only: this surface is not part of the stable `v0.4.x`
   compatibility guarantee
 - local-first: campaign roots remain local directories and stay authoritative
 - registry metadata only: the service registry stores campaign id, label, root

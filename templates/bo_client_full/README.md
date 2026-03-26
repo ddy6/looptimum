@@ -2,6 +2,16 @@
 
 Single-stage optimization harness with an optional BoTorch GP backend behind a feature flag.
 
+## Path Guidance
+
+- Running this template directly means you are on the repo path.
+- Optional preview service/dashboard/auth/coordination layers sit on top of the
+  same file-backed runtime and are not required for this template.
+- High-level path overview:
+  `../../docs/packages.md`
+- Public compatibility posture:
+  `../../docs/stability-guarantees.md`
+
 ## Backends
 
 - `rbf_proxy`: always available, no extra dependencies

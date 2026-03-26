@@ -37,6 +37,23 @@ Typical flow:
 3. your system writes a result JSON
 4. `ingest` updates local state
 
+## What is the repo path versus the preview path?
+
+The default path is still the repo path: run one of the templates directly and
+keep the loop file-backed under local `state/`.
+
+The preview path is optional and adds a self-run service layer around the same
+underlying runtime:
+
+- `docs/service-api-preview.md`
+- `docs/dashboard-preview.md`
+- `docs/auth-preview.md`
+- `docs/coordination-preview.md`
+
+Those preview surfaces are useful when you want a cleaner operator surface, but
+they are not required to use Looptimum. For the high-level orientation, see
+`docs/packages.md`.
+
 ## Where is the algorithm behavior documented clearly?
 
 Use `docs/how-it-works.md` as the primary reference for:

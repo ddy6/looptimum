@@ -9,7 +9,7 @@ Looptimum is a file-backed loop for optimum parameter targeting when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and objective schema; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable release: `v0.3.5`.
+Current stable release: `v0.4.0`.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -26,6 +26,8 @@ For a spec-style contract summary, use
 - Private contact: [contact@looptimum.com](mailto:contact@looptimum.com)
 - Start here: [`PILOT.md`](PILOT.md), [`intake.md`](intake.md),
   [`docs/pilot-checklist.md`](docs/pilot-checklist.md)
+- Repo path vs preview surfaces:
+  [`docs/packages.md`](docs/packages.md)
 - Best initial fit: bounded parameter spaces, one scalar objective or explicit
   scalarization rule, and expensive evaluations in client-controlled
   environments
@@ -84,7 +86,7 @@ Preview note:
 
 - the optional Service API preview under `service/` is explicitly preview-scoped,
   keeps campaign roots file-backed and authoritative, and is not part of the
-  stable `v0.3.x` compatibility surface
+  stable `v0.4.x` compatibility surface
 - see [`docs/service-api-preview.md`](docs/service-api-preview.md) and
   [`docs/dashboard-preview.md`](docs/dashboard-preview.md)
 - optional preview auth/RBAC/SSO guidance for that local service stack is in
@@ -331,16 +333,18 @@ Best ranking rule:
   `terminal_reason` as `status=<status>`.
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
   to `0.3.0` and persists on next mutating command.
-- Earlier `v0.3.x` state versions load transparently in `v0.3.x`.
+- Current `v0.4.x` state artifacts still persist `schema_version: "0.3.0"`
+  because the on-disk state-file series did not change in this line.
+- Earlier `v0.3.x` state versions load transparently in `v0.4.x`.
 
-### Stability Promise (`v0.3.x`)
+### Stability Promise (`v0.4.x`)
 
-- No breaking changes within the `v0.3.x` line for CLI command names/required
+- No breaking changes within the `v0.4.x` line for CLI command names/required
   flags, ingest required fields/status vocabulary, and core state-file
   compatibility.
 - Breaking changes are allowed only on `0.x` major-line increments (for
-  example `0.3 -> 0.4`) and require explicit compatibility notes.
-- Current patch tag in this line: `v0.3.5` (see `CHANGELOG.md`).
+  example `0.4 -> 0.5`) and require explicit compatibility notes.
+- Current tag in this line: `v0.4.0` (see `CHANGELOG.md`).
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior

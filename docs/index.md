@@ -45,7 +45,7 @@ For full command sequences and resume behavior:
 - [FAQ](./faq.md)
 - [Security and Data Handling](./security-data-handling.md)
 - [Use Cases and Fit](./use-cases.md)
-- [Packages and Engagement Tiers](./packages.md)
+- [Working with Looptimum](./packages.md)
 
 ## Integration Assets
 

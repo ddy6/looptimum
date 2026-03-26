@@ -11,7 +11,7 @@ These files are generated reference artifacts showing a minimal run lifecycle fo
    success vs non-`ok` ingest outcomes
 
 The timeout snapshot includes `terminal_reason` (`status=timeout`) and
-`penalty_objective` to show canonical non-`ok` payload normalization in `v0.3.x`.
+`penalty_objective` to show canonical non-`ok` payload normalization in `v0.4.x`.
 
 The acquisition-log snapshots are unconstrained examples, so their
 `constraint_status.enabled` field is `false`.

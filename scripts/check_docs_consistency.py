@@ -10,6 +10,7 @@ REQUIRED_FILES = (
     "README.md",
     "docs/index.md",
     "docs/README.md",
+    "docs/packages.md",
     "docs/service-api-preview.md",
     "docs/dashboard-preview.md",
     "docs/auth-preview.md",
@@ -26,6 +27,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "img.shields.io/github/v/release/",
         "## Trust Anchors",
         "(docs/quick-reference.md)",
+        "(docs/packages.md)",
         "(quickstart/etl-pipeline-knob-tuning.md)",
         "docs/integration-starter-kit.md",
         "docs/service-api-preview.md",
@@ -43,6 +45,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     "docs/index.md": (
         "(./quick-reference.md)",
         "(./integration-starter-kit.md)",
+        "(./packages.md)",
         "(./service-api-preview.md)",
         "(./dashboard-preview.md)",
         "(./auth-preview.md)",
@@ -60,6 +63,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
     "docs/README.md": (
         "`quick-reference.md`",
         "`integration-starter-kit.md`",
+        "`packages.md`",
         "`service-api-preview.md`",
         "`dashboard-preview.md`",
         "`auth-preview.md`",
@@ -108,10 +112,16 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "## Example Pack",
     ),
     "docs/quick-reference.md": (
-        "## Public Command Surface (`v0.3.x`)",
+        "## Public Command Surface (`v0.4.x`)",
         "## Optional Starter-Kit Sidecars",
         "## State and Artifact Definitions",
         "## Compatibility",
+    ),
+    "docs/packages.md": (
+        "# Working with Looptimum",
+        "## Start with the repo",
+        "## When a pilot needs a clearer operating surface",
+        "## A practical rule of thumb",
     ),
     "quickstart/README.md": ("(./etl-pipeline-knob-tuning.md)",),
     "quickstart/etl-pipeline-knob-tuning.md": (

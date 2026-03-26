@@ -35,8 +35,8 @@ Included files:
 - `ci-knob-tuning.md`: platform-agnostic CI runbook (with GitHub examples) for
   state persistence, contamination controls, safe parallelism, and robust-best policy
 - `stability-guarantees.md`: public compatibility guarantees, deprecation
-  policy, and breaking-change rules for `v0.3.x` (current patch:
-  `v0.3.5`)
+  policy, and breaking-change rules for `v0.4.x` (current tag:
+  `v0.4.0`)
 - `feedback-loop.md`: post-release feedback intake, issue-triage workflow,
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and
@@ -48,7 +48,7 @@ Included files:
   alignment for pilot runs
 - `faq.md`: common technical and operational questions
 - `security-data-handling.md`: detailed local/offline and data-minimization guidance
-- `packages.md`: package tiers and service offers for pilot engagement
+- `packages.md`: repo path, preview surfaces, and pilot-support entry points
 - `use-cases.md`: fit guidance for engineering/simulation, biotech/lab
   pipelines, ML HPO teams, and large-model outer-loop tuning
 

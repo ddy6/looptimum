@@ -5,6 +5,86 @@ All notable changes to this repository are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository's
 `0.x` compatibility policy.
 
+## [0.4.0] - 2026-03-26
+
+Roadmap-complete release that expands the repo-first Looptimum workflow across
+search-space expressiveness, batch/async operation, recovery, warm-starting,
+governance, starter-kit integrations, and preview service surfaces.
+
+### Added
+
+- Mixed-type search spaces with native `bool`, `categorical`, and numeric
+  `scale` support.
+- Conditional parameter activation via `when` rules.
+- Optional `constraints.json` plus hard-feasibility filtering in `suggest`.
+- Multi-objective objective-schema support with scalarization policies,
+  objective-vector persistence, and Pareto summaries in reports.
+- Batch suggestion flows with `--count`, JSON bundle/JSONL worker handoff,
+  pending caps, and optional worker `lease_token` enforcement.
+- Archive-management surface across `list-archives`, `restore`, and
+  `prune-archives`.
+- Warm-start `import-observations` / `export-observations` flows with strict
+  and permissive modes plus import provenance.
+- Read-only `health` and `metrics` commands plus warn-first retention and
+  governance checks.
+- Starter-kit helpers for queue-worker, Airflow, and Slurm topologies, webhook
+  sidecars, and optional MLflow / W&B adapters.
+- Preview-only local service, dashboard, auth/RBAC/OIDC, and multi-controller
+  coordination surfaces under `service/`.
+
+### Changed
+
+- Public compatibility docs now anchor the stable release line at `v0.4.x`.
+- Package metadata now targets `0.4.0`.
+- Public packaging and pilot-path docs now point to the softened
+  `docs/packages.md` path and the shipped `v0.4.0` surface.
+
+### Compatibility Notes
+
+- Preview service, dashboard, auth, and coordination surfaces are public in
+  `v0.4.0`, but they remain preview-only and are outside the stable `v0.4.x`
+  compatibility guarantee.
+- The runtime continues to persist `state.schema_version: "0.3.0"` because
+  the on-disk state-file series did not change in this line.
+- Earlier `v0.3.x` state continues to load transparently in `v0.4.x`.
+
+## [0.3.5] - 2026-03-21
+
+Patch release for the `v0.3.x` line focused on conditional-parameter support
+and omission-aware ingest/report behavior.
+
+### Added
+
+- `when` rules for conditionally active parameters.
+- Omission-aware `suggest`, duplicate replay, and ingest matching.
+- Conditional-param handling in manifests, CSV exports, and reports.
+
+### Changed
+
+- Shared search-space normalization now preserves raw user-facing params while
+  omitting inactive branches from authoritative payloads.
+- Public and private docs now treat `v0.3.5` as the patch-line closeout before
+  the final `v0.4.0` cut.
+
+## [0.3.4] - 2026-03-21
+
+Patch release for the `v0.3.x` line focused on the final compatibility cleanup
+runway and shared search-space groundwork for `v0.4.0`.
+
+### Removed
+
+- YAML compatibility mode from the shared contract/runtime path.
+- Deprecated `paths.result_schema_file` and `result_payload.schema.json`
+  compatibility aliases.
+- Sentinel non-`ok` primary-objective compatibility normalization.
+
+### Changed
+
+- Shared numeric search-space helpers now centralize sampling/normalization
+  behavior across template variants.
+- Template config scaffolding now carries shared `feature_flags` across all
+  public variants.
+
 ## [0.3.3] - 2026-03-20
 
 Patch release for the `v0.3.x` line focused on an optional `boto3`-backed AWS

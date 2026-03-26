@@ -11,17 +11,17 @@ Private contact for pilot fit and scope:
 
 Looptimum is the strongest near-term fit when the pilot looks like:
 
-- bounded numeric parameters
-- one scalar objective
+- bounded parameter spaces with explicit types and dependencies
+- one scalar objective, or an explicit scalarization rule
 - expensive evaluations where each run matters
 - a clear one-evaluation interface
 - client-controlled, offline-friendly, or restricted execution
 
-Current public baseline: `v0.3.2`
+Current public baseline: `v0.4.0`
 
-If your problem requires heavier categorical search, strong conditional
-parameter logic, native multi-objective support, or a hosted control plane,
-that may be a roadmap discussion rather than the best first pilot.
+If your problem requires a hosted control plane, hard SLA commitments, or
+enterprise packaging beyond the current preview/path guidance, that may be a
+follow-on discussion rather than the best first pilot.
 
 ## Public Offers
 

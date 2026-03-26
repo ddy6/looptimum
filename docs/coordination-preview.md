@@ -9,7 +9,7 @@ place beneath the preview coordination lease.
 
 ## Scope Boundary
 
-- preview only: this surface is not part of the stable `v0.3.x`
+- preview only: this surface is not part of the stable `v0.4.x`
   compatibility guarantee
 - service-scoped only: direct CLI/runtime usage inside a campaign root remains
   unchanged and uncoordinated by this preview layer
