@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from starterkit_models import (
     StarterKitConfig,
@@ -14,6 +14,10 @@ from starterkit_models import (
 
 STARTERKIT_CONFIG_ENV = "LOOPTIMUM_STARTER_KIT_CONFIG"
 DEFAULT_WEBHOOK_TIMEOUT_SECONDS = 10.0
+
+
+def _is_starter_topic(value: str, *, allowed: set[StarterTopic]) -> TypeGuard[StarterTopic]:
+    return value in allowed
 
 
 def _require_object(value: Any, *, field_name: str) -> dict[str, Any]:
@@ -67,12 +71,12 @@ def _normalize_webhook_topics(value: Any) -> tuple[StarterTopic, ...]:
         if not isinstance(raw, str):
             raise ValueError(f"webhook.topics[{index}] must be a string")
         normalized = raw.strip().lower()
-        if normalized not in allowed:
+        if not _is_starter_topic(normalized, allowed=allowed):
             raise ValueError(f"webhook.topics must stay within {list(valid_starter_topics())}")
         if normalized in seen:
             raise ValueError("webhook.topics must not contain duplicates")
         seen.add(normalized)
-        topics.append(normalized)  # type: ignore[arg-type]
+        topics.append(normalized)
     return tuple(topics)
 
 
