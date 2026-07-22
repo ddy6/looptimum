@@ -36,6 +36,19 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 - `examples/`: sample success/failure result payloads and run script
 - `tests/`: `pytest` suite for CLI/state behavior
 
+## Portable Campaign Copy
+
+From the Looptimum source checkout, create a campaign-local controller bundle
+with:
+
+```bash
+python3 templates/_shared/vendor_copy.py templates/bo_client_full /path/to/campaign/controller
+```
+
+The output loads shared runtime modules and schemas from its own
+`vendor/looptimum_shared/` directory, so it does not depend on a sibling
+`templates/_shared` directory from the source checkout.
+
 ## Enable BoTorch GP
 
 ```bash

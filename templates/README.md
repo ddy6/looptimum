@@ -39,8 +39,13 @@ scaffold:
 - reserved no-op preview flag:
   `enable_auth_preview`
 
-To vendor shared contract helpers/schemas into a standalone template copy:
+To create a self-contained portable copy of the full controller template:
 
 ```bash
-python3 templates/_shared/vendor_copy.py templates/bo_client_demo --rewrite-config-paths
+python3 templates/_shared/vendor_copy.py templates/bo_client_full /tmp/looptimum-controller
 ```
+
+The portable copy places every runtime helper and schema under
+`vendor/looptimum_shared/`, rewrites `run_bo.py` to load those local modules,
+and rewrites all schema paths in `bo_config.json`. The destination must be
+empty and contains no local controller state or generated demo result.
