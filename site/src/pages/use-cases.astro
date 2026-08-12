@@ -28,6 +28,9 @@ import { repoLinks, useCases } from "../data/site";
           <p class="eyebrow">Use case</p>
           <h3>{item.title}</h3>
           <p>{item.body}</p>
+          {item.href && item.linkLabel && (
+            <a class="inline-link" href={item.href}>{item.linkLabel} <span aria-hidden="true">→</span></a>
+          )}
         </article>
       ))}
     </section>

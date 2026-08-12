@@ -1,0 +1,129 @@
+---
+import ActionPanel from "../../components/ActionPanel.astro";
+import MetricCard from "../../components/MetricCard.astro";
+import PageHero from "../../components/PageHero.astro";
+import PlotCard from "../../components/PlotCard.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { caseStudies, repoLinks } from "../../data/site";
+
+const campaign = caseStudies.find((item) => item.slug === "gpt-training");
+if (!campaign) {
+  throw new Error("Missing anonymized GPT case-study data");
+}
+---
+
+<BaseLayout
+  title="Anonymized GPT Training Campaign | Looptimum"
+  description="An anonymized bounded GPT training-recipe campaign using guided hyperparameter targeting and a normalized held-out loss index."
+  currentPath="/evidence/gpt-training/"
+>
+  <PageHero
+    eyebrow="Anonymized ML campaign"
+    title="Guided GPT training-recipe search in ten bounded evaluations."
+    dek="Four deterministic initialization evaluations established coverage, followed by six guided evaluations through a client-owned training workflow."
+    primaryHref="/pilot/"
+    primaryLabel="Assess a similar pilot"
+    secondaryHref={repoLinks.gptCaseStudy}
+    secondaryLabel="Inspect the public evidence package"
+  />
+
+  <div class="stack-lg">
+    <section class="metric-grid metric-grid-three" aria-label="Observed campaign results">
+      <h2 class="sr-only">Observed campaign results</h2>
+      {campaign.metrics.map((metric) => (
+        <MetricCard {...metric} />
+      ))}
+    </section>
+
+    <section class="proof-banner reveal" aria-labelledby="result-boundary-heading">
+      <p class="eyebrow">Result boundary</p>
+      <h2 id="result-boundary-heading">A useful observed result, presented at its actual scale.</h2>
+      <p>
+        The selected candidate recorded a held-out loss index of 98.98 against
+        the fixed baseline at 100.00—1.02% lower—while its normalized parameter
+        index was 75.4 against 100.0. This was a single-seed, small-budget
+        campaign, not a claim of statistical significance or global optimality.
+      </p>
+    </section>
+
+    <section class="two-column" aria-label="Campaign method">
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Campaign method</p>
+        <h2>Bound the recipe, then learn from every completed evaluation.</h2>
+        <p>
+          The search exposed four generic controls: learning rate, microbatch
+          size, gradient accumulation, and model depth. Four deterministic
+          initialization evaluations were followed by six guided evaluations.
+          All ten completed successfully.
+        </p>
+        <div class="pill-row" aria-label="Bounded recipe controls">
+          <span class="pill">Learning rate</span>
+          <span class="pill">Microbatch size</span>
+          <span class="pill">Gradient accumulation</span>
+          <span class="pill">Model depth</span>
+        </div>
+      </div>
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Evaluation boundary</p>
+        <h2>The evaluator stayed external and client-owned.</h2>
+        <p>
+          Looptimum proposed a bounded candidate, the training workflow returned
+          one finite locked held-out loss index, and Looptimum ingested the
+          terminal observation. The controller did not need to own or embed the
+          application-specific training environment.
+        </p>
+      </div>
+    </section>
+
+    <section class="plot-grid" aria-label="Normalized campaign figures">
+      <h2 class="sr-only">Normalized campaign figures</h2>
+      {campaign.proofAssets.map((asset) => (
+        <PlotCard {...asset} />
+      ))}
+    </section>
+
+    <section class="two-column" aria-label="Campaign interpretation">
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Observed trajectory</p>
+        <h2>Guidance found the two strongest observed candidates.</h2>
+        <ul>
+          <li>Lower held-out loss index is better; the fixed baseline is 100.00.</li>
+          <li>The best observed index improved to 99.10, then 98.98.</li>
+          <li>Later evaluations explored the bounded space without improving that result.</li>
+          <li>This sequence is evidence from this campaign, not a general guided-versus-random claim.</li>
+        </ul>
+      </div>
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Looptimum lifecycle</p>
+        <h2>Suggest, evaluate externally, ingest, repeat.</h2>
+        <ul>
+          <li>Suggest one candidate from the current bounded campaign state.</li>
+          <li>Evaluate it in the existing training workflow.</li>
+          <li>Ingest one terminal scalar observation into a file-backed history.</li>
+          <li>Resume from that auditable state for the next decision.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="proof-banner reveal" aria-labelledby="limitations-heading">
+      <p class="eyebrow">Limitations</p>
+      <h2 id="limitations-heading">What this campaign does not establish.</h2>
+      <ul>
+        <li>It used one seed and a small evaluation budget.</li>
+        <li>The selected candidate is the best observed candidate, not a proven global optimum.</li>
+        <li>It does not establish statistical significance or a causal effect from any one control.</li>
+        <li>It does not claim transfer to another workflow, broader quality, or production readiness.</li>
+        <li>Approximately 25% fewer parameters is not presented as 25% faster or cheaper.</li>
+      </ul>
+    </section>
+
+    <ActionPanel
+      title="Bring a bounded, expensive evaluation loop."
+      body="We can assess whether a client-owned evaluator and a small auditable campaign are a good fit for Looptimum."
+      primaryHref={campaign.cta.href}
+      primaryLabel={campaign.cta.label}
+      secondaryHref={repoLinks.gptCaseStudy}
+      secondaryLabel="Review the public package"
+    />
+  </div>
+</BaseLayout>

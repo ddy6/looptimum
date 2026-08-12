@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="580" viewBox="0 0 960 580" role="img" aria-labelledby="chart-title chart-description">
+<title id="chart-title">Baseline and selected candidate indexed comparison</title>
+<desc id="chart-description">Both charts begin at zero. Held-out loss index is 100.00 for the fixed baseline and 98.98 for the selected candidate. Parameter index is 100.0 and 75.4.</desc>
+<style>
+text { font-family: Avenir Next, Segoe UI, Helvetica, Arial, sans-serif; fill: #18251f; }
+.title { font-size: 24px; font-weight: 700; }
+.subtitle { font-size: 14px; fill: #45544d; }
+.axis-label { font-size: 13px; font-weight: 600; }
+.tick { font-size: 12px; fill: #45544d; }
+.legend { font-size: 12px; }
+.value { font-size: 13px; font-weight: 700; }
+.grid { stroke: #d8e1ea; stroke-width: 1; }
+.axis { stroke: #45544d; stroke-width: 1.4; }
+</style>
+<rect width="960" height="580" rx="18" fill="#ffffff"/>
+<text class="title" x="40" y="42">Baseline versus selected candidate</text>
+<text class="subtitle" x="40" y="67">Separate indexed comparisons; both axes start at zero</text>
+<text class="axis-label" x="145" y="96">Held-out loss index</text>
+<line class="grid" x1="145" y1="456.0" x2="475" y2="456.0"/>
+<text class="tick" x="111" y="460.0">0</text>
+<line class="grid" x1="145" y1="378.7" x2="475" y2="378.7"/>
+<text class="tick" x="111" y="382.7">25</text>
+<line class="grid" x1="145" y1="301.5" x2="475" y2="301.5"/>
+<text class="tick" x="111" y="305.5">50</text>
+<line class="grid" x1="145" y1="224.2" x2="475" y2="224.2"/>
+<text class="tick" x="111" y="228.2">75</text>
+<line class="grid" x1="145" y1="146.9" x2="475" y2="146.9"/>
+<text class="tick" x="111" y="150.9">100</text>
+<line class="axis" x1="145" y1="116" x2="145" y2="456"/>
+<line class="axis" x1="145" y1="456" x2="475" y2="456"/>
+<rect x="200" y="146.9" width="86" height="309.1" fill="#65717e" rx="4"/>
+<text class="value" x="218" y="137.9">100.00</text>
+<text class="tick" x="192" y="480">Fixed baseline</text>
+<rect x="335" y="150.1" width="86" height="305.9" fill="#0072b2" rx="4"/>
+<text class="value" x="353" y="141.1">98.98</text>
+<text class="tick" x="327" y="480">Selected candidate</text>
+<text class="axis-label" x="565" y="96">Normalized parameter index</text>
+<line class="grid" x1="565" y1="456.0" x2="895" y2="456.0"/>
+<text class="tick" x="531" y="460.0">0</text>
+<line class="grid" x1="565" y1="378.7" x2="895" y2="378.7"/>
+<text class="tick" x="531" y="382.7">25</text>
+<line class="grid" x1="565" y1="301.5" x2="895" y2="301.5"/>
+<text class="tick" x="531" y="305.5">50</text>
+<line class="grid" x1="565" y1="224.2" x2="895" y2="224.2"/>
+<text class="tick" x="531" y="228.2">75</text>
+<line class="grid" x1="565" y1="146.9" x2="895" y2="146.9"/>
+<text class="tick" x="531" y="150.9">100</text>
+<line class="axis" x1="565" y1="116" x2="565" y2="456"/>
+<line class="axis" x1="565" y1="456" x2="895" y2="456"/>
+<rect x="620" y="146.9" width="86" height="309.1" fill="#65717e" rx="4"/>
+<text class="value" x="638" y="137.9">100.0</text>
+<text class="tick" x="612" y="480">Fixed baseline</text>
+<rect x="755" y="222.9" width="86" height="233.1" fill="#0072b2" rx="4"/>
+<text class="value" x="773" y="213.9">75.4</text>
+<text class="tick" x="747" y="480">Selected candidate</text>
+<text class="subtitle" x="145" y="528">Loss index: 1.02% lower</text>
+<text class="subtitle" x="565" y="528">Parameter index: about 25% lower</text>
+<text class="tick" x="145" y="554">Observed single-seed result from a small campaign; selected does not mean globally optimal.</text>
+</svg>

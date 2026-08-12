@@ -1,0 +1,11 @@
+evaluation,phase,loss_index,best_so_far_loss_index
+1,initialization,103.93,100.00
+2,initialization,99.65,99.65
+3,initialization,100.65,99.65
+4,initialization,107.16,99.65
+5,guided,99.10,99.10
+6,guided,98.98,98.98
+7,guided,103.49,98.98
+8,guided,105.61,98.98
+9,guided,103.14,98.98
+10,guided,104.67,98.98

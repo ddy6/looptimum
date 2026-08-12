@@ -41,7 +41,14 @@ export const workflowSteps = [
   },
 ];
 
-export const useCases = [
+interface UseCase {
+  title: string;
+  body: string;
+  href?: string;
+  linkLabel?: string;
+}
+
+export const useCases: UseCase[] = [
   {
     title: "Simulation and engineering",
     body:
@@ -56,11 +63,98 @@ export const useCases = [
     title: "ML and evaluation loops",
     body:
       "Training recipe knobs, evaluation thresholds, batch sizes, and runtime controls when experiments are slow and failures are expensive.",
+    href: "/evidence/gpt-training/",
+    linkLabel: "See the anonymized GPT example",
   },
   {
     title: "Operational process tuning",
     body:
       "Lab workflows, ETL processes, and production runbooks where throughput, quality, and cost need to be balanced under guardrails.",
+  },
+];
+
+export interface CaseStudyMetric {
+  value: string;
+  label: string;
+  detail: string;
+}
+
+export interface CaseStudyProofAsset {
+  title: string;
+  src: string;
+  alt: string;
+  summary: string;
+}
+
+export interface CaseStudy {
+  slug: string;
+  href: string;
+  eyebrow: string;
+  title: string;
+  summary: string;
+  metrics: CaseStudyMetric[];
+  proofAssets: CaseStudyProofAsset[];
+  limitations: string[];
+  cta: { href: string; label: string };
+}
+
+export const caseStudies: CaseStudy[] = [
+  {
+    slug: "engineering-mesh",
+    href: "/evidence/#engineering-evidence",
+    eyebrow: "Validated engineering campaign",
+    title: "Fine-to-coarse simulation mesh search",
+    summary:
+      "A bounded engineering campaign paired its selected candidate with downstream solver and mesh-independence validation.",
+    metrics: [
+      { value: "72.9%", label: "Fewer cells", detail: "Selected coarse candidate" },
+      { value: "91.0%", label: "Lower wall clock", detail: "Validated solver pass" },
+      { value: "11.1x", label: "Speedup", detail: "Against the fine reference" },
+    ],
+    proofAssets: [
+      {
+        title: "Solver wall-clock comparison",
+        src: "/proof/fine_vs_coarse_solver_runtime.svg",
+        alt: "Bar chart comparing solver wall clock for the fine reference and validated coarse mesh",
+        summary: "The selected coarse case reduced solver wall clock by 91.0%.",
+      },
+    ],
+    limitations: ["Domain-specific acceptance required a separate downstream solver pass."],
+    cta: { href: "/evidence/#engineering-evidence", label: "Review engineering evidence" },
+  },
+  {
+    slug: "gpt-training",
+    href: "/evidence/gpt-training/",
+    eyebrow: "Anonymized ML campaign",
+    title: "Guided GPT training-recipe search",
+    summary:
+      "Ten bounded evaluations tested four generic recipe controls while the training evaluator remained externally owned.",
+    metrics: [
+      { value: "10/10", label: "Successful evaluations", detail: "4 initialization + 6 guided" },
+      { value: "1.02%", label: "Lower held-out loss", detail: "Selected versus fixed baseline" },
+      { value: "~25%", label: "Fewer parameters", detail: "Selected versus fixed baseline" },
+    ],
+    proofAssets: [
+      {
+        title: "Normalized objective progression",
+        src: "/proof/gpt_campaign_objective_progression.svg",
+        alt: "Normalized held-out loss across ten evaluations in an anonymized GPT training campaign",
+        summary:
+          "The guided phase produced the two strongest observed candidates; lower indexed loss is better.",
+      },
+      {
+        title: "Baseline versus selected candidate",
+        src: "/proof/gpt_baseline_vs_selected.svg",
+        alt: "Zero-based indexed comparisons of held-out loss and parameter count for a fixed baseline and selected candidate",
+        summary:
+          "The selected candidate combined a modest loss improvement with a separate reduction in model parameters.",
+      },
+    ],
+    limitations: [
+      "Single-seed, small-budget campaign.",
+      "Observed result only; no statistical-significance or global-optimum claim.",
+    ],
+    cta: { href: "/pilot/", label: "Assess a similar pilot" },
   },
 ];
 
@@ -90,6 +184,8 @@ export const repoLinks = {
   repo: "https://github.com/ddy6/looptimum",
   caseStudy:
     "https://github.com/ddy6/looptimum/tree/main/docs/examples/snappyhexmesh_campaign",
+  gptCaseStudy:
+    "https://github.com/ddy6/looptimum/tree/main/docs/examples/gpt_training_campaign",
   pilot: "https://github.com/ddy6/looptimum/blob/main/PILOT.md",
   intake: "https://github.com/ddy6/looptimum/blob/main/intake.md",
 };

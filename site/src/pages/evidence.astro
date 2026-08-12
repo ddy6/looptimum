@@ -5,6 +5,7 @@ import PageHero from "../components/PageHero.astro";
 import PlotCard from "../components/PlotCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import {
+  caseStudies,
   heroMetrics,
   repoLinks,
   validationChecks,
@@ -18,7 +19,7 @@ import {
 >
   <PageHero
     eyebrow="Evidence"
-    title="An acceptible optimum must survive validation, not just score improvement."
+    title="An acceptable optimum must survive validation, not just score improvement."
     dek="The example pairs a bounded snappyHexMesh campaign with a post-hoc solver pass against a fine reference case."
     primaryHref={repoLinks.caseStudy}
     primaryLabel="Read the full repo case study"
@@ -27,7 +28,35 @@ import {
   />
 
   <div class="stack-lg">
-    <section class="metric-grid">
+    <section class="stack-md" aria-labelledby="case-study-heading">
+      <div class="section-head reveal">
+        <p class="eyebrow">Case-study library</p>
+        <h2 id="case-study-heading">Two applications, with distinct evidence boundaries.</h2>
+        <p>
+          The engineering example includes downstream physical validation. The
+          anonymized ML example demonstrates a compact guided training-recipe
+          campaign and is presented with its small-budget limitations.
+        </p>
+      </div>
+      <div class="case-study-grid">
+        {caseStudies.map((caseStudy) => (
+          <article class="case-study-card reveal">
+            <p class="eyebrow">{caseStudy.eyebrow}</p>
+            <h3>{caseStudy.title}</h3>
+            <p>{caseStudy.summary}</p>
+            <div class="case-study-metrics" aria-label={`${caseStudy.title} highlights`}>
+              {caseStudy.metrics.map((metric) => (
+                <span><strong>{metric.value}</strong> {metric.label}</span>
+              ))}
+            </div>
+            <p class="case-study-note">{caseStudy.limitations[0]}</p>
+            <a class="inline-link" href={caseStudy.href}>Open case study <span aria-hidden="true">→</span></a>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section id="engineering-evidence" class="metric-grid">
       {heroMetrics.map((metric) => (
         <MetricCard {...metric} />
       ))}

@@ -11,6 +11,8 @@ interface Props {
 const { title, description, currentPath = "/" } = Astro.props;
 const canonicalUrl = new URL(currentPath, siteConfig.siteUrl).toString();
 const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString();
+const isActiveNavItem = (href: string) =>
+  href === "/" ? currentPath === "/" : currentPath.startsWith(href);
 ---
 
 <!doctype html>
@@ -55,7 +57,8 @@ const ogImageUrl = new URL(siteConfig.ogImagePath, siteConfig.siteUrl).toString(
             {navItems.map((item) => (
               <li>
                 <a
-                  class={item.href === currentPath ? "nav-link is-active" : "nav-link"}
+                  class={isActiveNavItem(item.href) ? "nav-link is-active" : "nav-link"}
+                  aria-current={isActiveNavItem(item.href) ? "page" : undefined}
                   href={item.href}
                 >
                   {item.label}

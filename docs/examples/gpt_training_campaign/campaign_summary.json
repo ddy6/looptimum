@@ -1,0 +1,23 @@
+{
+  "campaign": {
+    "evaluations": 10,
+    "guided_evaluations": 6,
+    "initialization_evaluations": 4,
+    "successful_evaluations": 10,
+    "tunable_control_count": 4
+  },
+  "limitations": [
+    "single_seed",
+    "small_budget",
+    "observed_result_not_global_optimum"
+  ],
+  "schema_version": "anonymized-gpt-campaign-v1",
+  "selected_result": {
+    "baseline_loss_index": 100.0,
+    "baseline_parameter_index": 100.0,
+    "held_out_loss_improvement_percent": 1.02,
+    "parameter_reduction_percent_approx": 25,
+    "selected_loss_index": 98.98,
+    "selected_parameter_index": 75.4
+  }
+}

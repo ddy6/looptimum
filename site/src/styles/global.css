@@ -61,6 +61,18 @@ img {
   max-width: 100%;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 main {
   width: min(calc(100% - 2rem), var(--width));
   margin: 0 auto;
@@ -339,7 +351,8 @@ ul {
 .use-case-grid,
 .question-grid,
 .criteria-grid,
-.plot-grid {
+.plot-grid,
+.case-study-grid {
   display: grid;
   gap: 1rem;
 }
@@ -347,6 +360,10 @@ ul {
 .metric-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 1.5rem 0 4rem;
+}
+
+.metric-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .metric-card,
@@ -409,8 +426,52 @@ ul {
 .step-grid,
 .use-case-grid,
 .question-grid,
-.criteria-grid {
+.criteria-grid,
+.case-study-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.case-study-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 252, 247, 0.76);
+  border: 1px solid rgba(24, 37, 31, 0.1);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.case-study-card > p:not(.eyebrow),
+.case-study-note {
+  color: var(--ink-soft);
+}
+
+.case-study-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.case-study-metrics span {
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(42, 111, 232, 0.08);
+  color: var(--forest-deep);
+  font-size: 0.9rem;
+}
+
+.inline-link {
+  width: fit-content;
+  color: var(--forest-deep);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(42, 111, 232, 0.35);
+  text-underline-offset: 0.24em;
+}
+
+.inline-link:hover {
+  text-decoration-color: currentColor;
 }
 
 .step-card h3,
@@ -489,6 +550,12 @@ ul {
   color: var(--forest);
 }
 
+a:focus-visible {
+  outline: 3px solid var(--copper);
+  outline-offset: 3px;
+  border-radius: 5px;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(10px);
@@ -556,6 +623,10 @@ ul {
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .metric-grid-three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -579,6 +650,7 @@ ul {
   }
 
   .metric-grid,
+  .metric-grid-three,
   .step-grid,
   .use-case-grid,
   .question-grid,
@@ -607,5 +679,22 @@ ul {
 
   h2 {
     font-size: clamp(1.85rem, 10vw, 2.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .button,
+  .nav-link {
+    transition: none;
   }
 }

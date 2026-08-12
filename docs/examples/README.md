@@ -38,5 +38,7 @@ Included:
   rule family plus a combined sample contract
 - `snappyhexmesh_campaign/`: sanitized domain-specific case study with
   archived BO state, validation summaries, and derived plots
+- `gpt_training_campaign/`: anonymized training-recipe campaign with a frozen
+  normalized public summary and deterministic SVG evidence
 - `../../examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny
   end-to-end objective loop used to generate the golden decision trace
