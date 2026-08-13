@@ -7,11 +7,11 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
 
 <BaseLayout
   title="Pilot Intake | Looptimum"
-  description="Start a Looptimum fit review with the minimum information needed to evaluate a bounded pilot for optimum trial targeting."
+  description="Start a fit review for a bounded black-box optimization pilot with a client-controlled evaluator."
   currentPath="/pilot/"
 >
   <PageHero
-    eyebrow="Pilot intake"
+    eyebrow="Black-box optimization pilot"
     title="Start with the loop that is already expensive enough to deserve attention."
     dek="A useful first conversation is short: what is being optimized, how expensive is one run, where does it execute, and what constraints cannot be violated."
     spacedBelow={true}
@@ -89,10 +89,10 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
 
     <ActionPanel
       title="Check whether Looptimum fits your project."
-      body="Explore the technical details, review the validated case study, or get in touch."
+      body="Explore the technical details, review the case-study library, or get in touch."
       primaryHref="/evidence/"
-      primaryLabel="Review case study"
-      secondaryHref={repoLinks.caseStudy}
+      primaryLabel="Review case studies"
+      secondaryHref={repoLinks.repo}
       secondaryLabel="GitHub"
     />
   </div>

@@ -280,10 +280,22 @@ ul {
   border-radius: var(--radius-xl);
 }
 
+.hero-grid-focused {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.hero-grid-focused .hero-copy {
+  max-width: 58rem;
+}
+
 .hero-copy,
 .hero-panel {
   display: grid;
   gap: 1.15rem;
+}
+
+.hero-panel h2 {
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
 }
 
 .hero-panel {
@@ -356,6 +368,10 @@ ul {
 .case-study-grid {
   display: grid;
   gap: 1rem;
+}
+
+.decision-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .larc-method-grid {
@@ -482,6 +498,49 @@ ul {
   border: 1px solid rgba(24, 37, 31, 0.1);
   box-shadow: var(--shadow);
   backdrop-filter: blur(12px);
+}
+
+.homepage-evidence-preview {
+  width: 100%;
+}
+
+.evidence-preview-grid {
+  width: min(100%, 64rem);
+  margin-inline: auto;
+  gap: 1.25rem;
+}
+
+.evidence-preview-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.65rem;
+  border-color: rgba(42, 111, 232, 0.28);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(230, 241, 255, 0.9));
+  box-shadow:
+    0 28px 72px rgba(24, 63, 151, 0.16),
+    0 8px 24px rgba(19, 33, 29, 0.08);
+}
+
+.evidence-preview-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--forest-deep), var(--gold));
+}
+
+.evidence-preview-card .eyebrow {
+  justify-self: start;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgba(42, 111, 232, 0.18);
+  border-radius: 999px;
+  background: rgba(42, 111, 232, 0.08);
+}
+
+.evidence-preview-card .inline-link {
+  justify-self: start;
+  font-weight: 700;
 }
 
 .case-study-card > p:not(.eyebrow),
@@ -680,6 +739,10 @@ a:focus-visible {
 
   .metric-grid-three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .decision-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -1,30 +1,24 @@
 ---
 import ActionPanel from "../components/ActionPanel.astro";
-import MetricCard from "../components/MetricCard.astro";
 import PageHero from "../components/PageHero.astro";
-import PlotCard from "../components/PlotCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import {
-  caseStudies,
-  heroMetrics,
-  repoLinks,
-  validationChecks,
-} from "../data/site";
+import { caseStudies } from "../data/site";
 ---
 
 <BaseLayout
   title="Evidence | Looptimum"
-  description="Validated evidence showing efficiency gains and downstream solver parity from a bounded campaign."
+  description="Evidence from bounded black-box optimization campaigns, with downstream validation and explicit limitations."
   currentPath="/evidence/"
 >
   <PageHero
-    eyebrow="Evidence"
-    title="An acceptable optimum must survive validation, not just score improvement."
-    dek="The example pairs a bounded snappyHexMesh campaign with a post-hoc solver pass against a fine reference case."
-    primaryHref={repoLinks.caseStudy}
-    primaryLabel="Read the full repo case study"
+    eyebrow="Evidence library"
+    title="Results are only useful when their evidence boundary is clear."
+    dek="Explore documented engineering and model-training campaigns. Each case separates the observed outcome, the validation performed, and the limits on what the result establishes."
+    spacedBelow={true}
+    primaryHref="#case-study-heading"
+    primaryLabel="Browse case studies"
     secondaryHref="/pilot/"
-    secondaryLabel="Discuss a similar pilot"
+    secondaryLabel="Assess pilot fit"
   />
 
   <div class="stack-lg">
@@ -56,100 +50,13 @@ import {
       </div>
     </section>
 
-    <section id="engineering-evidence" class="metric-grid">
-      {heroMetrics.map((metric) => (
-        <MetricCard {...metric} />
-      ))}
-    </section>
-
-    <section class="proof-banner reveal">
-      <p class="eyebrow">Campaign objectives</p>
-      <h2>Start from a trusted fine mesh. Find a validated coarse mesh that is actually usable.</h2>
-      <ul>
-        <li>The starting point is a known-stable fine-refined mesh that delivers accurate pressure and flow results but takes weeks to solve.</li>
-        <li>That becomes untenable when the same geometry must be solved repeatedly under different boundary-condition settings.</li>
-        <li>The goal is a coarser mesh that maintains pressure and flow fidelity while materially reducing total cell count and solver time.</li>
-        <li>With snappyHexMesh, finding a numerically stable coarse mesh by hand can be difficult or effectively impossible because the parameter space is large and sensitive.</li>
-        <li>Looptimum makes that search intentional, data-driven, and auditable while pushing trial selection toward low-loss, high-reward tests.</li>
-      </ul>
-    </section>
-
-    <section class="two-column">
-      <div class="evidence-list reveal">
-        <p class="eyebrow">Campaign summary</p>
-        <h2>Validated fine-to-coarse mesh campaign with Looptimum</h2>
-        <ul>
-          <li>216-point bounded search space</li>
-          <li>21 executed trials</li>
-          <li>8 random starts, then 13 surrogate-guided suggestions</li>
-          <li>Archived objective loss for the selected candidate: 9.0</li>
-          <li>One archived failed checkMesh check, documented rather than hidden</li>
-          <li>Accepted on solver stability and fine-vs-coarse mesh-independence evidence</li>
-        </ul>
-      </div>
-      <div class="evidence-list reveal">
-        <p class="eyebrow">Validation thresholds</p>
-        <h2>Optimal mesh acceptance criteria</h2>
-        <ul>
-          {validationChecks.map((item) => (
-            <li>{item}</li>
-          ))}
-        </ul>
-      </div>
-    </section>
-
-    <section class="plot-grid">
-      <PlotCard
-        title="Solver wall-clock comparison"
-        src="/proof/fine_vs_coarse_solver_runtime.svg"
-        alt="Bar chart showing a large runtime drop between the fine reference and the coarse validated mesh"
-        summary="The selected coarse case reduced solver wall clock by 91.0%, which is the most direct operational proof for a client-facing pitch."
-      />
-      <PlotCard
-        title="Mesh cell-count comparison"
-        src="/proof/fine_vs_coarse_cell_count.svg"
-        alt="Bar chart showing cell-count reduction from the fine reference mesh to the coarse validated mesh"
-        summary="Cell-count reduction establishes that the solver gain came from a materially lighter mesh rather than a cosmetic parameter change."
-      />
-      <PlotCard
-        title="Objective progression"
-        src="/proof/campaign_objective_progression.svg"
-        alt="Line and point chart showing loss reduction over the campaign"
-        summary="The campaign explored less than 10% of the bounded search space and still found a repeatable low-loss basin."
-      />
-      <PlotCard
-        title="Validation drift"
-        src="/proof/outlet_flow_relative_drift.svg"
-        alt="Chart showing outlet-flow drift staying below the 1% threshold"
-        summary="Downstream validation stayed inside the stated outlet-flow threshold."
-      />
-      <PlotCard
-        title="Aggregate pressure parity"
-        src="/proof/aggregate_pressure_drift.svg"
-        alt="Chart showing aggregate pressure drift staying within the 0.5 mmHg threshold"
-        summary="Aggregate MAP and PP remained inside the 0.5 mmHg acceptance band, indicating mesh-independence of the results."
-      />
-    </section>
-
-    <section class="proof-banner reveal">
-      <p class="eyebrow">Results</p>
-      <h2>Exit criteria achieved with notable improvements.</h2>
-      <ul>
-        <li>72.9% fewer mesh cells</li>
-        <li>91.0% lower solver wall clock</li>
-        <li>11.1x solver speedup</li>
-        <li>All major outlet flows within 1%</li>
-        <li>Aggregate MAP and PP within 0.5 mmHg</li>
-      </ul>
-    </section>
-
     <ActionPanel
-      title="Explore Looptimum on GitHub or request a project assessment."
-      body="Review the validated example, inspect the supporting evidence, and decide whether the same approach fits your own expensive evaluation loop."
-      primaryHref={repoLinks.caseStudy}
-      primaryLabel="Explore GitHub"
-      secondaryHref="/pilot/"
-      secondaryLabel="Request assessment"
+      title="Have an expensive evaluator of your own?"
+      body="Review how the controller works, then decide whether a bounded and auditable campaign fits your workflow."
+      primaryHref="/pilot/"
+      primaryLabel="Assess pilot fit"
+      secondaryHref="/how-it-works/"
+      secondaryLabel="Review the workflow"
     />
   </div>
 </BaseLayout>

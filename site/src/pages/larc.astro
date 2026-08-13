@@ -14,6 +14,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
     eyebrow="Looptimum Advanced Research Consortium"
     title="Optimization architecture for ambitious systems."
     dek="LARC coordinates early, project-specific technical work where efficiency, optimization, or computational feasibility may determine whether an ambitious system can move forward."
+    spacedBelow={true}
     primaryHref={siteConfig.larcContactHref}
     primaryLabel="Discuss a project"
     secondaryHref="/#core-looptimum"
@@ -36,10 +37,11 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
         <p class="eyebrow">Where core Looptimum begins</p>
         <h2>When an expensive loop already exists.</h2>
         <p>
-          Core Looptimum is designed for a bounded evaluator that can already
-          run candidate configurations and return a scalar objective or an
-          explicit failure. It uses accumulated observations to choose useful
-          next trials while execution remains in the client's environment.
+          Core Looptimum is a lightweight black-box optimization controller for
+          a bounded evaluator that can already run candidate configurations and
+          return a scalar objective or an explicit failure. It uses accumulated
+          observations to choose useful next trials while execution remains in
+          the client's environment.
         </p>
       </div>
     </section>

@@ -1,109 +1,48 @@
 ---
 import ActionPanel from "../components/ActionPanel.astro";
-import MetricCard from "../components/MetricCard.astro";
-import PlotCard from "../components/PlotCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import {
-  evidenceHighlights,
-  heroMetrics,
+  caseStudies,
   repoLinks,
-  siteConfig,
   useCases,
   workflowSteps,
 } from "../data/site";
 ---
 
 <BaseLayout
-  title="Looptimum | Reduce Expensive Evaluation Loops"
-  description="Looptimum is a file-backed loop for optimum trial targeting in expensive black-box evaluations and client-controlled environments."
+  title="Looptimum | Black-Box Optimization for Expensive Evaluations"
+  description="Looptimum is a lightweight black-box optimization controller that uses previous results to choose which expensive evaluation to run next."
   currentPath="/"
 >
   <section id="core-looptimum" class="page-hero">
-    <div class="hero-grid reveal">
+    <div class="hero-grid hero-grid-focused reveal">
       <div class="hero-copy">
-        <p class="eyebrow">Bounded trial targeting for expensive evaluations</p>
-        <h1>Reduce expensive evaluation loops without giving up control.</h1>
+        <p class="eyebrow">Black-box optimization for expensive evaluations</p>
+        <h1>Run fewer expensive trials. Keep the evaluator in your environment.</h1>
         <p class="dek">
-          Looptimum helps teams replace fragile sweeps and manual tuning with a
-          bounded, resumable loop for optimum trial targeting that stays compatible with
-          client-controlled environments.
+          Looptimum is a lightweight controller that uses previous results to
+          select the next bounded trial, replacing broad sweeps and manual
+          tuning with a sequential, resumable optimization loop.
         </p>
         <div class="hero-actions">
           <a class="button button-primary" href="/pilot/">Request Fit Review</a>
-          <a class="button button-secondary" href="/evidence/">See Validated Case Study</a>
+          <a class="button button-secondary" href="/evidence/">Explore the Evidence</a>
         </div>
       </div>
-      <aside class="hero-panel">
-        <span class="hero-brand-banner-frame">
-          <img
-            class="hero-brand-banner"
-            src={siteConfig.brandBannerPath}
-            alt="Looptimum banner"
-          />
-        </span>
-        <p class="eyebrow">Featured proof</p>
-        <h3>Validated coarse-mesh outcome</h3>
-        <p>
-          A bounded 216-point search was reduced to 21 executed trials. The
-          selected coarse candidate preserved flow and pressure behavior while
-          materially cutting mesh size and solver runtime.
-        </p>
-        <div class="pill-row">
-          {evidenceHighlights.map((item) => (
-            <span class="pill">{item}</span>
-          ))}
-        </div>
-      </aside>
-    </div>
-    <div class="metric-grid">
-      {heroMetrics.map((metric) => (
-        <MetricCard {...metric} />
-      ))}
     </div>
   </section>
 
   <div class="stack-lg">
-    <section class="two-column">
-      <div class="feature-panel reveal">
-        <p class="eyebrow">What the example shows</p>
-        <h2>Efficiency gains with downstream validation.</h2>
-        <p>
-          The example case study does not stop at an archived objective score.
-          It follows the selected candidate through solver validation and
-          highlights the evidence that mattered: runtime, cell count, outlet
-          flow drift, and aggregate pressure drift.
-        </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href={repoLinks.caseStudy}>Read the repo case study</a>
-          <a class="button button-secondary" href="/evidence/">See site summary</a>
-        </div>
-      </div>
-      <div class="plot-grid">
-        <PlotCard
-          title="Solver runtime reduction"
-          src="/proof/fine_vs_coarse_solver_runtime.svg"
-          alt="Bar chart comparing fine and coarse solver runtime"
-          summary="The selected validated coarse case cut solver wall clock by 91.0%, from 1.806 million seconds to 162,928 seconds."
-        />
-        <PlotCard
-          title="Mesh cell-count reduction"
-          src="/proof/fine_vs_coarse_cell_count.svg"
-          alt="Bar chart comparing fine and coarse mesh cell counts"
-          summary="The accepted coarse mesh reduced total cells by 72.9%, from 658,647 to 178,473."
-        />
-      </div>
-    </section>
-
     <section class="stack-md">
       <section class="two-column">
         <div class="section-head reveal">
-          <p class="eyebrow">How it fits</p>
-          <h2>Keep the trial-targeting loop thin. Keep the execution where it belongs.</h2>
+          <p class="eyebrow">Operating model</p>
+          <h2>Looptimum chooses a candidate. Your environment evaluates it.</h2>
           <p>
-            Good pilots start where each run is expensive enough to matter. The
-            strongest early deployments have bounded knobs, one scalar
-            objective, and a team that can already execute the evaluation
-            inside its own environment.
+            The controller maintains the optimization state and suggests what
+            to try next. Your existing script, cluster, solver, experiment, or
+            workflow executes the trial and returns a result or declared
+            failure.
           </p>
         </div>
         <div class="step-grid">
@@ -116,6 +55,23 @@ import {
           ))}
         </div>
       </section>
+
+      <section class="homepage-evidence-preview" aria-labelledby="evidence-preview-heading">
+        <h2 id="evidence-preview-heading" class="sr-only">Campaign evidence examples</h2>
+        <div class="case-study-grid evidence-preview-grid">
+          {caseStudies.map((caseStudy) => (
+            <article class="case-study-card evidence-preview-card reveal">
+              <p class="eyebrow">{caseStudy.eyebrow}</p>
+              <h3>{caseStudy.title}</h3>
+              <p>{caseStudy.summary}</p>
+              <a class="inline-link" href={caseStudy.href}>
+                View case study <span aria-hidden="true">→</span>
+              </a>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <div class="section-head reveal">
         <p class="eyebrow">Use cases</p>
         <h2>Where the loop delivers the clearest operational gain.</h2>

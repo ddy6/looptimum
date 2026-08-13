@@ -7,22 +7,23 @@ import { repoLinks, useCases } from "../data/site";
 
 <BaseLayout
   title="Use Cases | Looptimum"
-  description="Representative client scenarios where a bounded, resumable loop for optimum trial targeting can reduce wasted runs."
+  description="Representative scenarios where sequential black-box optimization can reduce wasted runs while the evaluator stays client-controlled."
   currentPath="/use-cases/"
 >
   <PageHero
-    eyebrow="Applications"
+    eyebrow="Black-box optimization use cases"
     title="Use Looptimum where each evaluation is expensive enough that sample efficiency changes the project."
     dek="For situations where broad sweeps, repeated failures, and untracked tuning decisions waste meaningful time or money."
     spacedBelow={true}
     primaryHref="/pilot/"
     primaryLabel="Assess pilot fit"
     secondaryHref="/evidence/"
-    secondaryLabel="See the proof"
+    secondaryLabel="View evidence"
   />
 
   <div class="stack-lg">
-    <section class="use-case-grid">
+    <section class="use-case-grid" aria-labelledby="use-case-list-heading">
+      <h2 id="use-case-list-heading" class="sr-only">Representative use cases</h2>
       {useCases.map((item) => (
         <article class="use-case-card reveal">
           <p class="eyebrow">Use case</p>
@@ -77,10 +78,10 @@ import { repoLinks, useCases } from "../data/site";
     </section>
 
     <ActionPanel
-      title="Explore the validated case study."
-      body="Review a clear example of how Looptimum converts fewer evaluations into downstream savings."
+      title="See how the approach translates across applications."
+      body="Review examples from simulation-mesh and model-training workflows, each presented with the context and limitations needed to interpret the result."
       primaryHref="/evidence/"
-      primaryLabel="Open evidence"
+      primaryLabel="Explore the evidence"
       secondaryHref={repoLinks.pilot}
       secondaryLabel="Read pilot scope notes"
     />

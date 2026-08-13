@@ -38,7 +38,7 @@
     <circle cx="22" cy="22" r="22" fill="url(#accent)" />
     <text x="22" y="30" text-anchor="middle" font-family="Avenir Next, Segoe UI, sans-serif" font-size="26" font-weight="700" fill="#fffaf3">L</text>
     <text x="62" y="22" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="34" font-weight="700" fill="#18251f">Looptimum</text>
-    <text x="62" y="54" font-family="Avenir Next, Segoe UI, sans-serif" font-size="18" fill="#45544d">Optimization for expensive evaluation loops</text>
+    <text x="62" y="54" font-family="Avenir Next, Segoe UI, sans-serif" font-size="18" fill="#45544d">Black-box optimization for expensive evaluations</text>
 
     <text x="0" y="126" font-family="Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif" font-size="76" font-weight="700" fill="#18251f">
       Validated efficiency gains,

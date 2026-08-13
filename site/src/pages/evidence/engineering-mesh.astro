@@ -1,0 +1,125 @@
+---
+import ActionPanel from "../../components/ActionPanel.astro";
+import MetricCard from "../../components/MetricCard.astro";
+import PageHero from "../../components/PageHero.astro";
+import PlotCard from "../../components/PlotCard.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { caseStudies, heroMetrics, repoLinks, validationChecks } from "../../data/site";
+
+const campaign = caseStudies.find((item) => item.slug === "engineering-mesh");
+if (!campaign) {
+  throw new Error("Missing engineering mesh case-study data");
+}
+---
+
+<BaseLayout
+  title="Validated Engineering Mesh Campaign | Looptimum"
+  description="A bounded simulation-mesh campaign with downstream solver and mesh-independence validation against a trusted fine reference."
+  currentPath="/evidence/engineering-mesh/"
+>
+  <PageHero
+    eyebrow="Validated engineering campaign"
+    title="Fine-to-coarse simulation mesh search with downstream validation."
+    dek="Looptimum explored a bounded 216-point mesh-control space in 21 evaluations, then the selected coarse candidate was checked against a trusted fine reference in a separate solver pass."
+    primaryHref="/pilot/"
+    primaryLabel="Assess a similar pilot"
+    secondaryHref={repoLinks.caseStudy}
+    secondaryLabel="Inspect the public evidence package"
+  />
+
+  <div class="stack-lg">
+    <section class="metric-grid" aria-label="Validated campaign results">
+      <h2 class="sr-only">Validated campaign results</h2>
+      {heroMetrics.map((metric) => (
+        <MetricCard {...metric} />
+      ))}
+    </section>
+
+    <section class="proof-banner reveal" aria-labelledby="engineering-result-boundary-heading">
+      <p class="eyebrow">Result boundary</p>
+      <h2 id="engineering-result-boundary-heading">An observed optimum accepted through domain-specific validation.</h2>
+      <p>
+        The selected coarse candidate materially reduced mesh size and solver
+        wall clock while meeting the campaign's stated flow, pressure, and
+        solver-completion checks. These results belong to the archived geometry,
+        workflow, reference case, and acceptance thresholds; they are not a
+        general performance guarantee or a claim of global optimality.
+      </p>
+    </section>
+
+    <section class="two-column" aria-label="Campaign method">
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Campaign objective</p>
+        <h2>Replace an impractical fine mesh without giving up trusted behavior.</h2>
+        <p>
+          The fine-refined starting point produced reliable pressure and flow
+          results but required weeks of solver time. The campaign searched for
+          a numerically stable coarse mesh that could preserve those behaviors
+          while reducing the cost of repeated solves.
+        </p>
+      </div>
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Evaluation boundary</p>
+        <h2>The meshing and solver workflows stayed external.</h2>
+        <p>
+          Looptimum proposed bounded mesh-control configurations and recorded
+          their outcomes. Existing meshing, checkMesh, and solver workflows
+          performed the application-specific evaluation and downstream
+          validation outside the controller.
+        </p>
+      </div>
+    </section>
+
+    <section class="plot-grid" aria-label="Engineering campaign figures">
+      <h2 class="sr-only">Engineering campaign figures</h2>
+      {campaign.proofAssets.map((asset) => (
+        <PlotCard {...asset} />
+      ))}
+    </section>
+
+    <section class="two-column" aria-label="Campaign record and validation">
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Campaign record</p>
+        <h2>Bounded search with an auditable decision history.</h2>
+        <ul>
+          <li>216-point bounded search space</li>
+          <li>21 executed trials</li>
+          <li>8 random starts, then 13 surrogate-guided suggestions</li>
+          <li>Archived objective loss for the selected candidate: 9.0</li>
+          <li>One failed checkMesh outcome preserved in the campaign record</li>
+          <li>Final acceptance based on solver and mesh-independence evidence</li>
+        </ul>
+      </div>
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Validation thresholds</p>
+        <h2>Acceptance required more than the optimization score.</h2>
+        <ul>
+          {validationChecks.map((item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <section class="proof-banner reveal" aria-labelledby="engineering-limitations-heading">
+      <p class="eyebrow">Limitations</p>
+      <h2 id="engineering-limitations-heading">What this campaign does not establish.</h2>
+      <ul>
+        <li>The selected candidate is an accepted observed result, not a proven global optimum.</li>
+        <li>The reported savings are relative to this campaign's fine reference and workflow.</li>
+        <li>Exploring fewer than 10% of this search space does not guarantee the same efficiency elsewhere.</li>
+        <li>Objective loss alone did not establish physical acceptability; a separate solver pass was required.</li>
+        <li>Transfer to another geometry, solver configuration, or acceptance regime requires new validation.</li>
+      </ul>
+    </section>
+
+    <ActionPanel
+      title="Bring a bounded, expensive evaluation loop."
+      body="We can assess whether a client-owned evaluator and a validation-aware campaign are a good fit for Looptimum."
+      primaryHref={campaign.cta.href}
+      primaryLabel={campaign.cta.label}
+      secondaryHref={repoLinks.caseStudy}
+      secondaryLabel="Review the public package"
+    />
+  </div>
+</BaseLayout>

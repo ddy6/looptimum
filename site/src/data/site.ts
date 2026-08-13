@@ -75,7 +75,7 @@ export const workflowSteps = [
   {
     title: "Suggest",
     body:
-      "Looptimum proposes the next bounded trial using the current observation set instead of broad sweep scheduling.",
+      "Looptimum uses the campaign's completed results to select the next bounded candidate instead of scheduling a broad sweep.",
   },
   {
     title: "Evaluate",
@@ -85,7 +85,7 @@ export const workflowSteps = [
   {
     title: "Ingest",
     body:
-      "Results are recorded into local files so the loop resumes cleanly after interruptions and leaves an auditable trail.",
+      "The result—or a declared failure—is recorded in local files so the campaign can resume after interruptions and preserve an auditable decision trail.",
   },
 ];
 
@@ -149,7 +149,7 @@ export interface CaseStudy {
 export const caseStudies: CaseStudy[] = [
   {
     slug: "engineering-mesh",
-    href: "/evidence/#engineering-evidence",
+    href: "/evidence/engineering-mesh/",
     eyebrow: "Validated engineering campaign",
     title: "Fine-to-coarse simulation mesh search",
     summary:
@@ -166,9 +166,37 @@ export const caseStudies: CaseStudy[] = [
         alt: "Bar chart comparing solver wall clock for the fine reference and validated coarse mesh",
         summary: "The selected coarse case reduced solver wall clock by 91.0%.",
       },
+      {
+        title: "Mesh cell-count comparison",
+        src: "/proof/fine_vs_coarse_cell_count.svg",
+        alt: "Bar chart comparing the cell counts of the fine reference and selected coarse mesh",
+        summary:
+          "The selected coarse mesh contained 72.9% fewer cells than the fine reference.",
+      },
+      {
+        title: "Objective progression",
+        src: "/proof/campaign_objective_progression.svg",
+        alt: "Line and point chart showing objective loss across the engineering campaign",
+        summary:
+          "The campaign explored fewer than 10% of the bounded search space and identified a repeatable low-loss basin.",
+      },
+      {
+        title: "Outlet-flow validation",
+        src: "/proof/outlet_flow_relative_drift.svg",
+        alt: "Chart showing outlet-flow drift for the selected coarse mesh against the fine reference",
+        summary:
+          "All major outlet flows remained within the stated 1% validation threshold.",
+      },
+      {
+        title: "Aggregate pressure validation",
+        src: "/proof/aggregate_pressure_drift.svg",
+        alt: "Chart showing aggregate pressure drift for the selected coarse mesh against the fine reference",
+        summary:
+          "Aggregate MAP and pulse-pressure drift remained within the 0.5 mmHg acceptance band.",
+      },
     ],
     limitations: ["Domain-specific acceptance required a separate downstream solver pass."],
-    cta: { href: "/evidence/#engineering-evidence", label: "Review engineering evidence" },
+    cta: { href: "/pilot/", label: "Assess a similar pilot" },
   },
   {
     slug: "gpt-training",
@@ -204,13 +232,6 @@ export const caseStudies: CaseStudy[] = [
     ],
     cta: { href: "/pilot/", label: "Assess a similar pilot" },
   },
-];
-
-export const evidenceHighlights = [
-  "216-point bounded search space",
-  "21 trials executed",
-  "8 random starts, 13 surrogate-guided trials",
-  "Validated coarse-mesh candidate selected from campaign trial 15",
 ];
 
 export const validationChecks = [
