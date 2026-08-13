@@ -3,6 +3,7 @@ export const navItems = [
   { href: "/how-it-works/", label: "How It Works" },
   { href: "/use-cases/", label: "Use Cases" },
   { href: "/evidence/", label: "Evidence" },
+  { href: "/larc/", label: "LARC" },
   { href: "/pilot/", label: "Pilot" },
 ];
 
@@ -10,10 +11,57 @@ export const siteConfig = {
   siteUrl: "https://looptimum.io",
   contactEmail: "contact@looptimum.com",
   contactHref: "mailto:contact@looptimum.com?subject=Looptimum%20pilot%20fit%20review",
+  larcContactHref: "mailto:contact@looptimum.com?subject=Discuss%20a%20LARC%20project",
   ogImagePath: "/og-card.svg",
   headerLogoPath: "/brand/looptimum-header.png",
   brandBannerPath: "/brand/looptimum-hero.png",
 };
+
+export const larcProjectArchetypes = [
+  {
+    title: "Integrated technical systems",
+    body:
+      "Projects combining software, hardware, models, data, or human workflows where performance depends on how the pieces are designed together.",
+  },
+  {
+    title: "Compute-limited concepts",
+    body:
+      "Architectures whose simulation, inference, training, or orchestration costs may prevent a credible implementation path.",
+  },
+  {
+    title: "Scarce physical evaluation",
+    body:
+      "Experimental or laboratory systems where each measurement is slow, costly, constrained, or difficult to repeat.",
+  },
+  {
+    title: "Unresolved development paths",
+    body:
+      "Technically plausible ideas that need their bottlenecks, evidence sequence, and feasibility milestones made explicit.",
+  },
+];
+
+export const larcMethodSteps = [
+  {
+    title: "Scope",
+    body: "Turn the broad concept into systems, dependencies, decisions, constraints, and open technical questions.",
+  },
+  {
+    title: "Identify bottlenecks",
+    body: "Determine which costs, resources, measurements, or architectural choices are most likely to control feasibility.",
+  },
+  {
+    title: "Define optimization architecture",
+    body: "Decide what should be optimized, at what level, and whether the problem should be staged, constrained, or decomposed.",
+  },
+  {
+    title: "Design the evidence pathway",
+    body: "Sequence models, benchmarks, experiments, or prototypes so each step reduces a meaningful uncertainty.",
+  },
+  {
+    title: "Support implementation",
+    body: "Translate favorable evidence into a credible technical roadmap, validation criteria, and the next build decision.",
+  },
+];
 
 export const heroMetrics = [
   { value: "72.9%", label: "Fewer mesh cells", detail: "658,647 to 178,473" },

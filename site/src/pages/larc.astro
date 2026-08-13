@@ -1,0 +1,133 @@
+---
+import ActionPanel from "../components/ActionPanel.astro";
+import PageHero from "../components/PageHero.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site";
+---
+
+<BaseLayout
+  title="LARC | Looptimum Advanced Research Consortium"
+  description="LARC is a Looptimum initiative for early technical work on ambitious systems where optimization, efficiency, or computational feasibility shapes the path to implementation."
+  currentPath="/larc/"
+>
+  <PageHero
+    eyebrow="Looptimum Advanced Research Consortium"
+    title="Optimization architecture for ambitious systems."
+    dek="LARC coordinates early, project-specific technical work where efficiency, optimization, or computational feasibility may determine whether an ambitious system can move forward."
+    primaryHref={siteConfig.larcContactHref}
+    primaryLabel="Discuss a project"
+    secondaryHref="/#core-looptimum"
+    secondaryLabel="Explore core Looptimum"
+  />
+
+  <div class="stack-lg">
+    <section class="two-column" aria-label="LARC and core Looptimum">
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Where LARC begins</p>
+        <h2>Before the evaluation loop is settled.</h2>
+        <p>
+          LARC helps turn broad technical uncertainty into explicit questions:
+          which constraints are binding, what evidence matters first, where
+          optimization belongs, and which development sequence can establish
+          feasibility without wasting the project's early resources.
+        </p>
+      </div>
+      <div class="feature-panel reveal">
+        <p class="eyebrow">Where core Looptimum begins</p>
+        <h2>When an expensive loop already exists.</h2>
+        <p>
+          Core Looptimum is designed for a bounded evaluator that can already
+          run candidate configurations and return a scalar objective or an
+          explicit failure. It uses accumulated observations to choose useful
+          next trials while execution remains in the client's environment.
+        </p>
+      </div>
+    </section>
+
+    <section class="stack-md" aria-labelledby="larc-projects-heading">
+      <div class="section-head reveal">
+        <p class="eyebrow">Illustrative project character</p>
+        <h2 id="larc-projects-heading">Problems where architecture and efficiency are inseparable.</h2>
+        <p>
+          These are examples of the questions LARC is interested in, not a
+          catalog of standing programs or a claim that every project is a fit.
+        </p>
+      </div>
+      <div class="use-case-grid">
+        {larcProjectArchetypes.map((item) => (
+          <article class="use-case-card reveal">
+            <p class="eyebrow">Example</p>
+            <h3>{item.title}</h3>
+            <p>{item.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="stack-md" aria-labelledby="larc-method-heading">
+      <div class="section-head reveal">
+        <p class="eyebrow">Working method</p>
+        <h2 id="larc-method-heading">Move from a promising concept to a testable development pathway.</h2>
+        <p>
+          The exact work is project-specific. The common thread is reducing the
+          right uncertainty in the right order before committing to an
+          inefficient architecture or an unnecessarily expensive build.
+        </p>
+      </div>
+      <div class="larc-method-grid">
+        {larcMethodSteps.map((step, index) => (
+          <article class="step-card reveal">
+            <p class="eyebrow">Step {index + 1}</p>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="two-column">
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Possible outputs</p>
+        <h2>Concrete technical structure, not a generic recommendation.</h2>
+        <ul>
+          <li>System decomposition and bottleneck analysis</li>
+          <li>Optimization, constraint, and evaluation architecture</li>
+          <li>Models, benchmarks, or prototype sequences</li>
+          <li>Validation criteria and measurable technical milestones</li>
+          <li>A project-specific path from uncertainty toward implementation</li>
+        </ul>
+      </div>
+      <div class="evidence-list reveal">
+        <p class="eyebrow">Phase 0</p>
+        <h2>An exploratory initiative built around real projects.</h2>
+        <p>
+          LARC is beginning with a small number of project-specific
+          conversations and technical collaborations. It is not presented as a
+          standing membership organization, a formal project portfolio, or a
+          standardized service package. Its structure will grow only when real
+          work requires it.
+        </p>
+      </div>
+    </section>
+
+    <section class="proof-banner reveal">
+      <p class="eyebrow">Why Looptimum</p>
+      <h2>Treat optimization and efficiency as architectural questions.</h2>
+      <p>
+        Looptimum was built around a simple principle: when evaluations are
+        expensive, the way a system chooses what to evaluate matters. LARC
+        applies that principle earlier—before the evaluation loop,
+        architecture, or development sequence is fully defined.
+      </p>
+    </section>
+
+    <ActionPanel
+      title="Bring an ambitious technical question."
+      body="If optimization, efficiency, or computational feasibility may decide whether the project can move forward, start with a focused exploratory conversation."
+      primaryHref={siteConfig.larcContactHref}
+      primaryLabel="Discuss a project"
+      secondaryHref="/"
+      secondaryLabel="Return to Looptimum"
+    />
+  </div>
+</BaseLayout>
