@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" role="img" aria-labelledby="title desc">
+<title id="title">Engineering campaign objective progression</title>
+<desc id="desc">Objective loss across 21 trials, with trials 1 through 8 in the random phase and trials 9 through 21 in the surrogate-guided phase.</desc>
 <style>
 text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
 .title { font-size: 18px; font-weight: 700; }

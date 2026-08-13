@@ -1,12 +1,10 @@
 # Looptimum Site
 
-This directory contains the first-pass static Astro site for `looptimum.io`.
+This directory contains the static Astro site for `looptimum.io`.
 
 ## Local Development
 
-Prerequisite: Node.js and npm must be installed locally. They are not available
-in the current coding environment, so the site scaffold was created but not
-built here.
+Prerequisite: Node.js and npm must be installed locally.
 
 From this directory:
 
@@ -66,12 +64,13 @@ Those domain redirects are not handled inside the Astro site itself.
 ## Content Sources
 
 The proof points and charts in the site are derived from the sanitized public
-case-study package in:
+case-study packages in:
 
 - `docs/examples/snappyhexmesh_campaign/`
+- `docs/examples/gpt_training_campaign/`
 
-The current site mirrors selected public-safe SVG charts into `public/proof/`
-so the marketing site can ship independently of the docs tree.
+The site mirrors selected public-safe SVG charts from those packages into
+`public/proof/` so the static build can ship independently of the docs tree.
 
 ## Next Implementation Step
 

@@ -93,7 +93,7 @@ The figures are generated only from the normalized files in this directory:
 
 ```bash
 python docs/examples/gpt_training_campaign/generate_assets.py
-python -m unittest discover \
+PYTHONDONTWRITEBYTECODE=1 python -m unittest discover \
   -s docs/examples/gpt_training_campaign/tests \
   -p 'test*.py' -v
 ```

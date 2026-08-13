@@ -38,6 +38,7 @@ const isActiveNavItem = (href: string) =>
     <link rel="canonical" href={canonicalUrl} />
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="site-shell">
       <header class="site-header">
         <a class="brand" href="/">
@@ -69,7 +70,7 @@ const isActiveNavItem = (href: string) =>
         </nav>
         <a class="button button-primary header-cta" href="/pilot/">Request Fit Review</a>
       </header>
-      <main>
+      <main id="main-content" tabindex="-1">
         <slot />
       </main>
       <footer class="site-footer">

@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420">
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-labelledby="title desc">
+<title id="title">Aggregate pressure drift</title>
+<desc id="desc">Bar chart showing aggregate mean arterial pressure and pulse-pressure drift within the 0.5 millimeter of mercury acceptance threshold.</desc>
 <style>
 text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
 .title { font-size: 18px; font-weight: 700; }

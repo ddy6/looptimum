@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="700" height="420" viewBox="0 0 700 420">
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="420" viewBox="0 0 700 420" role="img" aria-labelledby="title desc">
+<title id="title">Fine versus coarse mesh cell count</title>
+<desc id="desc">Bar chart comparing 658,647 cells in the fine reference with 178,473 cells in the validated coarse mesh, a 72.9 percent reduction.</desc>
 <style>
 text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
 .title { font-size: 18px; font-weight: 700; }

@@ -97,6 +97,14 @@ jobs:
       - name: Run test suite
         run: python -m pytest -q templates client_harness_template/tests service/tests
 
+      - name: Validate public GPT evidence package
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: >-
+          python -m unittest discover
+          -s docs/examples/gpt_training_campaign/tests
+          -p 'test*.py' -v
+
   typecheck:
     name: Type Check (mypy, py3.12)
     needs: quality

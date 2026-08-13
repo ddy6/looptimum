@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="700" height="420" viewBox="0 0 700 420">
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="420" viewBox="0 0 700 420" role="img" aria-labelledby="title desc">
+<title id="title">Fine versus coarse solver wall clock</title>
+<desc id="desc">Bar chart comparing 1,806,450 seconds for the fine reference with 162,928 seconds for the validated coarse mesh, a 91.0 percent reduction.</desc>
 <style>
 text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }
 .title { font-size: 18px; font-weight: 700; }

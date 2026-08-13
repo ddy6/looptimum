@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import struct
 import subprocess
 import sys
 import tempfile
@@ -12,11 +13,61 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SITE_PROOF = REPO_ROOT / "site" / "public" / "proof"
+SITE_BRAND = REPO_ROOT / "site" / "public" / "brand"
 SITE_PAGE = REPO_ROOT / "site" / "src" / "pages" / "evidence" / "gpt-training.astro"
 
 
 class PublicCampaignAssetTests(unittest.TestCase):
     maxDiff = None
+
+    def test_tracked_public_package_excludes_cache_artifacts(self) -> None:
+        tracked = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "-z",
+                "--",
+                "docs/examples/gpt_training_campaign",
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout.split(b"\0")
+        tracked = [entry for entry in tracked if entry]
+        self.assertTrue(tracked)
+        for relative_bytes in tracked:
+            relative = Path(relative_bytes.decode("utf-8"))
+            self.assertNotIn("__pycache__", relative.parts)
+            self.assertNotEqual(relative.suffix, ".pyc")
+        for path in PACKAGE_ROOT.rglob("*"):
+            self.assertNotIn("__pycache__", path.parts)
+            self.assertNotEqual(path.suffix, ".pyc")
+
+    def test_site_proof_assets_are_intrinsically_accessible(self) -> None:
+        for path in SITE_PROOF.glob("*.svg"):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn('role="img"', text)
+            self.assertIn("<title", text)
+            self.assertIn("<desc", text)
+            self.assertIn('viewBox="', text)
+
+    def test_site_brand_pngs_contain_only_approved_chunks(self) -> None:
+        allowed_chunks = {b"IHDR", b"sRGB", b"eXIf", b"IDAT", b"IEND"}
+        for path in SITE_BRAND.glob("*.png"):
+            payload = path.read_bytes()
+            self.assertEqual(payload[:8], b"\x89PNG\r\n\x1a\n")
+            offset = 8
+            chunks: list[bytes] = []
+            while offset < len(payload):
+                length = struct.unpack(">I", payload[offset : offset + 4])[0]
+                chunk_type = payload[offset + 4 : offset + 8]
+                chunks.append(chunk_type)
+                offset += length + 12
+                if chunk_type == b"IEND":
+                    break
+            self.assertTrue(chunks)
+            self.assertEqual(chunks[-1], b"IEND")
+            self.assertTrue(set(chunks) <= allowed_chunks)
 
     def test_summary_has_exact_schema_and_values(self) -> None:
         summary = json.loads((PACKAGE_ROOT / "campaign_summary.json").read_text(encoding="utf-8"))

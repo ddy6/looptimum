@@ -30,10 +30,12 @@ def _load_major_metrics() -> list[dict[str, str]]:
         return list(csv.DictReader(fh))
 
 
-def _svg_header(width: int, height: int) -> list[str]:
+def _svg_header(width: int, height: int, *, title: str, description: str) -> list[str]:
     return [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-        f'viewBox="0 0 {width} {height}">',
+        f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
+        f'<title id="title">{title}</title>',
+        f'<desc id="desc">{description}</desc>',
         "<style>",
         "text { font-family: Helvetica, Arial, sans-serif; fill: #1f1f1f; }",
         ".title { font-size: 18px; font-weight: 700; }",
@@ -73,7 +75,15 @@ def _plot_objective_progression() -> None:
         scaled = (math.log10(loss) - min_log) / (max_log - min_log)
         return margin_top + plot_h - scaled * plot_h
 
-    lines = _svg_header(width, height)
+    lines = _svg_header(
+        width,
+        height,
+        title="Engineering campaign objective progression",
+        description=(
+            "Objective loss across 21 trials, with trials 1 through 8 in the random phase "
+            "and trials 9 through 21 in the surrogate-guided phase."
+        ),
+    )
     random_end_x = x_pos(8)
     lines.append(
         f'<rect x="{margin_left}" y="{margin_top}" width="{random_end_x - margin_left}" '
@@ -139,7 +149,15 @@ def _plot_cell_count() -> None:
     def bar_height(value: float) -> float:
         return (value / max_value) * plot_h
 
-    lines = _svg_header(width, height)
+    lines = _svg_header(
+        width,
+        height,
+        title="Fine versus coarse mesh cell count",
+        description=(
+            "Bar chart comparing 658,647 cells in the fine reference with 178,473 cells "
+            "in the validated coarse mesh, a 72.9 percent reduction."
+        ),
+    )
     lines.append(
         f'<line class="axis" x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{height - margin_bottom}"/>'
     )
@@ -186,7 +204,15 @@ def _plot_solver_runtime() -> None:
     def bar_height(value: float) -> float:
         return (value / max_value) * plot_h
 
-    lines = _svg_header(width, height)
+    lines = _svg_header(
+        width,
+        height,
+        title="Fine versus coarse solver wall clock",
+        description=(
+            "Bar chart comparing 1,806,450 seconds for the fine reference with 162,928 "
+            "seconds for the validated coarse mesh, a 91.0 percent reduction."
+        ),
+    )
     lines.append(
         f'<line class="axis" x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{height - margin_bottom}"/>'
     )
@@ -226,7 +252,15 @@ def _plot_outlet_flow_drift() -> None:
     plot_h = height - margin_top - margin_bottom
     max_value = 1.1
 
-    lines = _svg_header(width, height)
+    lines = _svg_header(
+        width,
+        height,
+        title="Major outlet-flow relative drift",
+        description=(
+            "Bar chart showing that every anonymized major outlet remained within the "
+            "one percent relative-drift validation threshold."
+        ),
+    )
     lines.append(
         f'<line class="axis" x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{height - margin_bottom}"/>'
     )
@@ -272,7 +306,15 @@ def _plot_aggregate_pressure_drift() -> None:
     plot_h = height - margin_top - margin_bottom
     max_value = 0.55
 
-    lines = _svg_header(width, height)
+    lines = _svg_header(
+        width,
+        height,
+        title="Aggregate pressure drift",
+        description=(
+            "Bar chart showing aggregate mean arterial pressure and pulse-pressure drift "
+            "within the 0.5 millimeter of mercury acceptance threshold."
+        ),
+    )
     lines.append(
         f'<line class="axis" x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{height - margin_bottom}"/>'
     )

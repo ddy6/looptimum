@@ -5,7 +5,7 @@
   --ink-soft: #45544d;
   --forest: #2a6fe8;
   --forest-deep: #183f97;
-  --copper: #4f7fe0;
+  --copper: #2b55ad;
   --gold: #a8cdff;
   --line: rgba(24, 37, 31, 0.12);
   --shadow: 0 24px 70px rgba(19, 33, 29, 0.12);
@@ -54,6 +54,23 @@ body::before {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  color: #fffaf2;
+  background: var(--forest-deep);
+  transform: translateY(-160%);
+  transition: transform 120ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
 }
 
 img {
@@ -219,7 +236,7 @@ ul {
 
 .button-primary {
   color: #fffaf2;
-  background: linear-gradient(135deg, var(--forest-deep) 0%, var(--forest) 100%);
+  background: linear-gradient(135deg, var(--forest-deep) 0%, #2462cf 100%);
 }
 
 .button-secondary {
@@ -716,10 +733,14 @@ a:focus-visible {
 
   .hero-grid,
   .two-column,
-  .action-panel,
   .plot-grid,
   .larc-callout {
     grid-template-columns: 1fr;
+  }
+
+  .action-panel {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .larc-method-grid {
