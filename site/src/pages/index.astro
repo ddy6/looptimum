@@ -15,7 +15,7 @@ import {
   currentPath="/"
 >
   <section id="core-looptimum" class="page-hero">
-    <div class="hero-grid hero-grid-focused reveal">
+    <div class="hero-grid hero-grid-focused">
       <div class="hero-copy">
         <p class="eyebrow">Black-box optimization for expensive evaluations</p>
         <h1>Run fewer expensive trials. Keep the evaluator in your environment.</h1>
@@ -25,8 +25,16 @@ import {
           tuning with a sequential, resumable optimization loop.
         </p>
         <div class="hero-actions">
-          <a class="button button-primary" href="/pilot/">Request Fit Review</a>
-          <a class="button button-secondary" href="/evidence/">Explore the Evidence</a>
+          <a class="button button-primary" href="/pilot/">Discuss a pilot</a>
+          <a class="button button-secondary" href="/evidence/">Read the case studies</a>
+        </div>
+        <div class="loop-notation" aria-label="Looptimum workflow: suggest, evaluate, ingest, repeat">
+          <span>suggest</span>
+          <span aria-hidden="true">→</span>
+          <span>evaluate</span>
+          <span aria-hidden="true">→</span>
+          <span>ingest</span>
+          <span aria-hidden="true">↺</span>
         </div>
       </div>
     </div>
@@ -35,9 +43,9 @@ import {
   <div class="stack-lg">
     <section class="stack-md">
       <section class="two-column">
-        <div class="section-head reveal">
-          <p class="eyebrow">Operating model</p>
-          <h2>Looptimum chooses a candidate. Your environment evaluates it.</h2>
+        <div class="section-head">
+          <p class="eyebrow">How the loop runs</p>
+          <h2>Looptimum chooses the next candidate. You run it.</h2>
           <p>
             The controller maintains the optimization state and suggests what
             to try next. Your existing script, cluster, solver, experiment, or
@@ -45,36 +53,47 @@ import {
             failure.
           </p>
         </div>
-        <div class="step-grid">
-          {workflowSteps.map((step) => (
-            <article class="step-card reveal">
-              <p class="eyebrow">Step</p>
-              <h3>{step.title}</h3>
-              <p>{step.body}</p>
-            </article>
+        <ol class="workflow-list">
+          {workflowSteps.map((step, index) => (
+            <li class="workflow-item">
+              <span class="workflow-number">0{index + 1}</span>
+              <div>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </div>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
       <section class="homepage-evidence-preview" aria-labelledby="evidence-preview-heading">
         <h2 id="evidence-preview-heading" class="sr-only">Campaign evidence examples</h2>
         <div class="case-study-grid evidence-preview-grid">
           {caseStudies.map((caseStudy) => (
-            <article class="case-study-card evidence-preview-card reveal">
-              <p class="eyebrow">{caseStudy.eyebrow}</p>
-              <h3>{caseStudy.title}</h3>
-              <p>{caseStudy.summary}</p>
-              <a class="inline-link" href={caseStudy.href}>
-                View case study <span aria-hidden="true">→</span>
-              </a>
+            <article class="case-study-card evidence-preview-card">
+              <div class="case-study-card-media">
+                <img
+                  src={caseStudy.proofAssets[0].src}
+                  alt={caseStudy.proofAssets[0].alt}
+                  loading="lazy"
+                />
+              </div>
+              <div class="case-study-card-copy">
+                <p class="eyebrow">{caseStudy.eyebrow}</p>
+                <h3>{caseStudy.title}</h3>
+                <p>{caseStudy.summary}</p>
+                <a class="inline-link" href={caseStudy.href}>
+                  Read the case study <span aria-hidden="true">→</span>
+                </a>
+              </div>
             </article>
           ))}
         </div>
       </section>
 
-      <div class="section-head reveal">
+      <div class="section-head">
         <p class="eyebrow">Use cases</p>
-        <h2>Where the loop delivers the clearest operational gain.</h2>
+        <h2>When Looptimum is useful.</h2>
         <p>
           The best early engagements have a real evaluation bottleneck, a
           bounded set of decision variables, and a team that can already run
@@ -83,7 +102,7 @@ import {
       </div>
       <div class="use-case-grid">
         {useCases.map((item) => (
-          <article class="use-case-card reveal">
+          <article class="use-case-card">
             <h3>{item.title}</h3>
             <p>{item.body}</p>
           </article>
@@ -91,9 +110,9 @@ import {
       </div>
     </section>
 
-    <section class="larc-callout reveal" aria-labelledby="larc-callout-heading">
+    <section class="larc-callout" aria-labelledby="larc-callout-heading">
       <div>
-        <p class="eyebrow">Advanced research</p>
+        <p class="eyebrow">Earlier-stage work</p>
         <h2 id="larc-callout-heading">Some optimization problems begin before there is a stable loop.</h2>
         <p>
           The Looptimum Advanced Research Consortium works with ambitious,
@@ -108,17 +127,17 @@ import {
           If the system and its evidence pathway are still being designed,
           explore LARC.
         </p>
-        <a class="button button-secondary" href="/larc/">Explore LARC</a>
+        <a class="inline-link" href="/larc/">Read about LARC <span aria-hidden="true">→</span></a>
       </div>
     </section>
 
     <ActionPanel
-      title="Start with a fit review."
-      body="The first question is whether your evaluation profile is expensive enough and structured enough for Looptimum to change the economics of the loop."
+      title="Is this a fit?"
+      body="Start with the cost of one evaluation, the knobs you can bound, and the result you need to improve."
       primaryHref="/pilot/"
-      primaryLabel="Open pilot intake"
+      primaryLabel="Discuss a pilot"
       secondaryHref={repoLinks.repo}
-      secondaryLabel="Browse the repo"
+      secondaryLabel="Read the code"
     />
   </div>
 </BaseLayout>

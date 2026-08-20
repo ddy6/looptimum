@@ -11,20 +11,20 @@ import { caseStudies } from "../data/site";
   currentPath="/evidence/"
 >
   <PageHero
-    eyebrow="Evidence library"
+    eyebrow="Case studies"
     title="Results are only useful when their evidence boundary is clear."
     dek="Explore documented engineering and model-training campaigns. Each case separates the observed outcome, the validation performed, and the limits on what the result establishes."
     spacedBelow={true}
     primaryHref="#case-study-heading"
-    primaryLabel="Browse case studies"
+    primaryLabel="Read the case studies"
     secondaryHref="/pilot/"
-    secondaryLabel="Assess pilot fit"
+    secondaryLabel="Discuss a pilot"
   />
 
   <div class="stack-lg">
     <section class="stack-md" aria-labelledby="case-study-heading">
-      <div class="section-head reveal">
-        <p class="eyebrow">Case-study library</p>
+      <div class="section-head">
+        <p class="eyebrow">Two campaign records</p>
         <h2 id="case-study-heading">Two applications, with distinct evidence boundaries.</h2>
         <p>
           The engineering example includes downstream physical validation. The
@@ -34,17 +34,26 @@ import { caseStudies } from "../data/site";
       </div>
       <div class="case-study-grid">
         {caseStudies.map((caseStudy) => (
-          <article class="case-study-card reveal">
-            <p class="eyebrow">{caseStudy.eyebrow}</p>
-            <h3>{caseStudy.title}</h3>
-            <p>{caseStudy.summary}</p>
-            <div class="case-study-metrics" aria-label={`${caseStudy.title} highlights`}>
-              {caseStudy.metrics.map((metric) => (
-                <span><strong>{metric.value}</strong> {metric.label}</span>
-              ))}
+          <article class="case-study-card">
+            <div class="case-study-card-media">
+              <img
+                src={caseStudy.proofAssets[0].src}
+                alt={caseStudy.proofAssets[0].alt}
+                loading="lazy"
+              />
             </div>
-            <p class="case-study-note">{caseStudy.limitations[0]}</p>
-            <a class="inline-link" href={caseStudy.href}>Open case study <span aria-hidden="true">→</span></a>
+            <div class="case-study-card-copy">
+              <p class="eyebrow">{caseStudy.eyebrow}</p>
+              <h3>{caseStudy.title}</h3>
+              <p>{caseStudy.summary}</p>
+              <div class="case-study-metrics" aria-label={`${caseStudy.title} highlights`}>
+                {caseStudy.metrics.map((metric) => (
+                  <span><strong>{metric.value}</strong> {metric.label}</span>
+                ))}
+              </div>
+              <p class="case-study-note">{caseStudy.limitations[0]}</p>
+              <a class="inline-link" href={caseStudy.href}>Read the case study <span aria-hidden="true">→</span></a>
+            </div>
           </article>
         ))}
       </div>
@@ -54,9 +63,9 @@ import { caseStudies } from "../data/site";
       title="Have an expensive evaluator of your own?"
       body="Review how the controller works, then decide whether a bounded and auditable campaign fits your workflow."
       primaryHref="/pilot/"
-      primaryLabel="Assess pilot fit"
+      primaryLabel="Discuss a pilot"
       secondaryHref="/how-it-works/"
-      secondaryLabel="Review the workflow"
+      secondaryLabel="See how the loop runs"
     />
   </div>
 </BaseLayout>

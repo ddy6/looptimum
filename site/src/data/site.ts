@@ -1,7 +1,7 @@
 export const navItems = [
   { href: "/", label: "Home" },
-  { href: "/how-it-works/", label: "How It Works" },
-  { href: "/use-cases/", label: "Use Cases" },
+  { href: "/how-it-works/", label: "How it works" },
+  { href: "/use-cases/", label: "Use cases" },
   { href: "/evidence/", label: "Evidence" },
   { href: "/larc/", label: "LARC" },
   { href: "/pilot/", label: "Pilot" },
@@ -13,8 +13,6 @@ export const siteConfig = {
   contactHref: "mailto:contact@looptimum.com?subject=Looptimum%20pilot%20fit%20review",
   larcContactHref: "mailto:contact@looptimum.com?subject=Discuss%20a%20LARC%20project",
   ogImagePath: "/og-card.svg",
-  headerLogoPath: "/brand/looptimum-header.png",
-  brandBannerPath: "/brand/looptimum-hero.png",
 };
 
 export const larcProjectArchetypes = [

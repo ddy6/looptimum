@@ -22,7 +22,7 @@ const {
 } = Astro.props;
 ---
 
-<section class={spacedBelow ? "page-hero page-hero-card page-hero-spaced reveal" : "page-hero page-hero-card reveal"}>
+<section class={spacedBelow ? "page-hero page-hero-spaced" : "page-hero"}>
   <div class="page-hero-inner">
     {eyebrow && <p class="eyebrow">{eyebrow}</p>}
     <h1>{title}</h1>

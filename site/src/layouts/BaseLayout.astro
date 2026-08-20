@@ -42,16 +42,8 @@ const isActiveNavItem = (href: string) =>
     <div class="site-shell">
       <header class="site-header">
         <a class="brand" href="/">
-          <span>
-            <span class="brand-banner-frame">
-              <img
-                class="brand-banner-image"
-                src={siteConfig.headerLogoPath}
-                alt="Looptimum"
-              />
-            </span>
-            <small>Black-box optimization for expensive evaluations</small>
-          </span>
+          <span class="brand-wordmark">looptimum</span>
+          <span class="brand-tagline">Black-box optimization for expensive evaluations</span>
         </a>
         <nav aria-label="Primary">
           <ul class="nav-list">
@@ -68,7 +60,7 @@ const isActiveNavItem = (href: string) =>
             ))}
           </ul>
         </nav>
-        <a class="button button-primary header-cta" href="/pilot/">Request Fit Review</a>
+        <a class="header-cta" href="/pilot/">Discuss a pilot <span aria-hidden="true">→</span></a>
       </header>
       <main id="main-content" tabindex="-1">
         <slot />
@@ -77,11 +69,11 @@ const isActiveNavItem = (href: string) =>
         <div>
           <p class="footer-mark">Looptimum</p>
           <p class="footer-copy">
-            Lightweight black-box optimization for client-controlled evaluators.
+            A small, open technical project for expensive evaluation loops.
           </p>
         </div>
         <div class="footer-links">
-          <a href="/evidence/">Validated case study</a>
+          <a href="/evidence/">Case studies</a>
           <a href="/how-it-works/">How it works</a>
           <a href="/larc/">LARC</a>
           <a href="/pilot/">Pilot intake</a>

@@ -11,19 +11,19 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
   currentPath="/pilot/"
 >
   <PageHero
-    eyebrow="Black-box optimization pilot"
+    eyebrow="Discuss a pilot"
     title="Start with the loop that is already expensive enough to deserve attention."
     dek="A useful first conversation is short: what is being optimized, how expensive is one run, where does it execute, and what constraints cannot be violated."
     spacedBelow={true}
     primaryHref={siteConfig.contactHref}
-    primaryLabel="Email fit review"
+    primaryLabel="Email Looptimum"
     secondaryHref={repoLinks.intake}
-    secondaryLabel="Read technical intake notes"
+    secondaryLabel="Read the intake notes"
   />
 
   <div class="stack-lg">
     <section class="two-column">
-      <div class="feature-panel reveal">
+      <div class="feature-panel">
         <p class="eyebrow">What to send</p>
         <h2>These answers are usually enough to decide whether a pilot is worth scoping.</h2>
         <p>
@@ -40,8 +40,7 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
       </div>
       <div class="question-grid">
         {intakeQuestions.map((question) => (
-          <article class="question-card reveal">
-            <p class="eyebrow">Intake prompt</p>
+          <article class="question-card">
             <h3>{question}</h3>
           </article>
         ))}
@@ -49,27 +48,27 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
     </section>
 
     <section class="stack-md">
-      <div class="section-head reveal">
+      <div class="section-head">
         <p class="eyebrow">Fit signals</p>
         <h2>What a strong first Looptimum project looks like.</h2>
         <p>These are the characteristics that usually indicate a good early fit.</p>
       </div>
 
       <section class="criteria-grid">
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>Best early pilot</h3>
           <p>
             One loop, one scalar objective, bounded knobs.
           </p>
         </article>
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>Security posture</h3>
           <p>
             Looptimum is strongest where execution must stay in a client-owned or
             restricted environment instead of moving to a hosted service.
           </p>
         </article>
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>What the example demonstrates</h3>
           <p>
             The example case outlines an end-to-end validated
@@ -77,7 +76,7 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
             behavior.
           </p>
         </article>
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>What happens next</h3>
           <p>
             If Looptimum might fit your project, the next step is to get in
@@ -91,9 +90,9 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
       title="Check whether Looptimum fits your project."
       body="Explore the technical details, review the case-study library, or get in touch."
       primaryHref="/evidence/"
-      primaryLabel="Review case studies"
+      primaryLabel="Read the case studies"
       secondaryHref={repoLinks.repo}
-      secondaryLabel="GitHub"
+      secondaryLabel="Read the code"
     />
   </div>
 </BaseLayout>

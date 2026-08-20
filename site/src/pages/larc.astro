@@ -18,7 +18,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
     primaryHref={siteConfig.larcContactHref}
     primaryLabel="Discuss a project"
     secondaryHref="/#core-looptimum"
-    secondaryLabel="Explore core Looptimum"
+    secondaryLabel="See core Looptimum"
   />
 
   <div class="stack-lg">
@@ -47,7 +47,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
     </section>
 
     <section class="stack-md" aria-labelledby="larc-projects-heading">
-      <div class="section-head reveal">
+      <div class="section-head">
         <p class="eyebrow">Illustrative project character</p>
         <h2 id="larc-projects-heading">Problems where architecture and efficiency are inseparable.</h2>
         <p>
@@ -57,8 +57,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
       </div>
       <div class="use-case-grid">
         {larcProjectArchetypes.map((item) => (
-          <article class="use-case-card reveal">
-            <p class="eyebrow">Example</p>
+          <article class="use-case-card">
             <h3>{item.title}</h3>
             <p>{item.body}</p>
           </article>
@@ -67,7 +66,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
     </section>
 
     <section class="stack-md" aria-labelledby="larc-method-heading">
-      <div class="section-head reveal">
+      <div class="section-head">
         <p class="eyebrow">Working method</p>
         <h2 id="larc-method-heading">Move from a promising concept to a testable development pathway.</h2>
         <p>
@@ -78,7 +77,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
       </div>
       <div class="larc-method-grid">
         {larcMethodSteps.map((step, index) => (
-          <article class="step-card reveal">
+          <article class="step-card">
             <p class="eyebrow">Step {index + 1}</p>
             <h3>{step.title}</h3>
             <p>{step.body}</p>
@@ -112,7 +111,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
       </div>
     </section>
 
-    <section class="proof-banner reveal">
+    <section class="proof-banner">
       <p class="eyebrow">Why Looptimum</p>
       <h2>Treat optimization and efficiency as architectural questions.</h2>
       <p>
@@ -129,7 +128,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
       primaryHref={siteConfig.larcContactHref}
       primaryLabel="Discuss a project"
       secondaryHref="/"
-      secondaryLabel="Return to Looptimum"
+      secondaryLabel="See core Looptimum"
     />
   </div>
 </BaseLayout>

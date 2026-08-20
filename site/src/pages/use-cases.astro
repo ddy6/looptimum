@@ -11,22 +11,21 @@ import { repoLinks, useCases } from "../data/site";
   currentPath="/use-cases/"
 >
   <PageHero
-    eyebrow="Black-box optimization use cases"
+    eyebrow="When Looptimum is useful"
     title="Use Looptimum where each evaluation is expensive enough that sample efficiency changes the project."
     dek="For situations where broad sweeps, repeated failures, and untracked tuning decisions waste meaningful time or money."
     spacedBelow={true}
     primaryHref="/pilot/"
-    primaryLabel="Assess pilot fit"
+    primaryLabel="Discuss a pilot"
     secondaryHref="/evidence/"
-    secondaryLabel="View evidence"
+    secondaryLabel="Read the case studies"
   />
 
   <div class="stack-lg">
     <section class="use-case-grid" aria-labelledby="use-case-list-heading">
       <h2 id="use-case-list-heading" class="sr-only">Representative use cases</h2>
       {useCases.map((item) => (
-        <article class="use-case-card reveal">
-          <p class="eyebrow">Use case</p>
+        <article class="use-case-card">
           <h3>{item.title}</h3>
           <p>{item.body}</p>
           {item.href && item.linkLabel && (
@@ -37,8 +36,8 @@ import { repoLinks, useCases } from "../data/site";
     </section>
 
     <section class="two-column">
-      <div class="feature-panel reveal">
-        <p class="eyebrow">Ideal pilot profile</p>
+      <div class="feature-panel">
+        <p class="eyebrow">A good first project</p>
         <h2>Start with a loop that already exists and hurts enough.</h2>
         <p>
           The fastest pilots are the ones where the evaluator already runs in a
@@ -47,26 +46,26 @@ import { repoLinks, useCases } from "../data/site";
         </p>
       </div>
       <div class="criteria-grid">
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>Bounded knobs</h3>
           <p>A manageable set of numeric or discrete controls with real operational consequences.</p>
         </article>
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>Expensive evaluations</h3>
           <p>Runs that are slow enough or costly enough that fewer wasted trials matter.</p>
         </article>
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>Stable execution path</h3>
           <p>An existing script, solver, workflow, or runner that can execute one candidate configuration.</p>
         </article>
-        <article class="criteria-card reveal">
+        <article class="criteria-card">
           <h3>Decision accountability</h3>
           <p>A team that benefits from resuming interrupted work and preserving an auditable search history.</p>
         </article>
       </div>
     </section>
 
-    <section class="proof-banner reveal">
+    <section class="proof-banner">
       <p class="eyebrow">Not the best fit</p>
       <h2>Looptimum is probably unnecessary if</h2>
       <ul>
@@ -78,10 +77,10 @@ import { repoLinks, useCases } from "../data/site";
     </section>
 
     <ActionPanel
-      title="See how the approach translates across applications."
+      title="See the same loop in two applications."
       body="Review examples from simulation-mesh and model-training workflows, each presented with the context and limitations needed to interpret the result."
       primaryHref="/evidence/"
-      primaryLabel="Explore the evidence"
+      primaryLabel="Read the case studies"
       secondaryHref={repoLinks.pilot}
       secondaryLabel="Read pilot scope notes"
     />
