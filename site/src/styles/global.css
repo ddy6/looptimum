@@ -520,6 +520,47 @@ ul {
   margin-inline: auto;
 }
 
+.people-section {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.58fr) minmax(0, 1.42fr);
+  gap: clamp(2.5rem, 6vw, 5.5rem);
+  align-items: start;
+  padding: 2.25rem 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  scroll-margin-top: 1.5rem;
+}
+
+.person-portrait {
+  width: 100%;
+  max-width: 21rem;
+}
+
+.person-portrait img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+}
+
+.person-profile {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+}
+
+.person-role {
+  color: var(--ochre);
+  font-weight: 600;
+}
+
+.person-biography {
+  max-width: 48rem;
+  color: var(--ink-soft);
+}
+
 .case-study-card {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -836,13 +877,13 @@ a:focus-visible {
 
   .nav-list {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.45rem 1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem 0.65rem;
     width: 100%;
   }
 
   .nav-link {
-    font-size: 0.86rem;
+    font-size: 0.82rem;
   }
 
   .header-cta {
@@ -871,6 +912,15 @@ a:focus-visible {
 
   .two-column {
     gap: 2.75rem;
+  }
+
+  .people-section {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+
+  .person-portrait {
+    max-width: 18rem;
   }
 
   .metric-grid,

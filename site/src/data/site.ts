@@ -5,6 +5,7 @@ export const navItems = [
   { href: "/evidence/", label: "Evidence" },
   { href: "/larc/", label: "LARC" },
   { href: "/pilot/", label: "Pilot" },
+  { href: "/#people", label: "People" },
 ];
 
 export const siteConfig = {
@@ -249,6 +250,7 @@ export const intakeQuestions = [
 
 export const repoLinks = {
   repo: "https://github.com/ddy6/looptimum",
+  maintainer: "https://github.com/ddy6",
   caseStudy:
     "https://github.com/ddy6/looptimum/tree/main/docs/examples/snappyhexmesh_campaign",
   gptCaseStudy:

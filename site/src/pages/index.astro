@@ -139,5 +139,42 @@ import {
       secondaryHref={repoLinks.repo}
       secondaryLabel="Read the code"
     />
+
+    <section id="people" class="people-section" aria-labelledby="people-heading">
+      <figure class="person-portrait">
+        <img
+          src="/people/david-y.jpg"
+          alt="Portrait of David Y."
+          width="720"
+          height="720"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+      <article class="person-profile">
+        <p class="eyebrow">Meet the team</p>
+        <h2 id="people-heading">David Y.</h2>
+        <p class="person-role">Founder, Developer</p>
+        <p class="person-biography">
+          David Y. is the founder and lead developer of Looptimum, where he
+          works at the intersection of optimization, machine learning,
+          scientific computing, and complex systems engineering. His
+          technical work spans computational hemodynamics and medical-device
+          research, physics- and data-informed modeling, Bayesian
+          optimization, custom machine-learning pipelines, and applied
+          language-model development. He has built and maintained research
+          software for simulation, statistical analysis, model calibration,
+          and experimental workflows, with a particular focus on problems
+          where computational efficiency, model fidelity, and practical
+          implementation are tightly coupled. Through Looptimum, he develops
+          optimization-driven tools and research workflows intended to turn
+          technically difficult, computationally constrained problems into
+          tractable engineering and scientific systems.
+        </p>
+        <a class="inline-link" href={repoLinks.maintainer}>
+          View GitHub profile <span aria-hidden="true">→</span>
+        </a>
+      </article>
+    </section>
   </div>
 </BaseLayout>
