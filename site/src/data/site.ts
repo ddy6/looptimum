@@ -10,9 +10,9 @@ export const navItems = [
 
 export const siteConfig = {
   siteUrl: "https://looptimum.io",
-  contactEmail: "contact@looptimum.com",
-  contactHref: "mailto:contact@looptimum.com?subject=Looptimum%20pilot%20fit%20review",
-  larcContactHref: "mailto:contact@looptimum.com?subject=Discuss%20a%20LARC%20project",
+  contactEmail: "contact@looptimum.io",
+  contactHref: "mailto:contact@looptimum.io?subject=Looptimum%20pilot%20fit%20review",
+  larcContactHref: "mailto:contact@looptimum.io?subject=Discuss%20a%20LARC%20project",
   ogImagePath: "/og-card.svg",
 };
 
