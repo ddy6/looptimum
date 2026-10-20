@@ -7,18 +7,13 @@ import { repoLinks, useCases } from "../data/site";
 
 <BaseLayout
   title="Use Cases | Looptimum"
-  description="Representative scenarios where sequential black-box optimization can reduce wasted runs while the evaluator stays client-controlled."
+  description="Use Looptimum to tune simulations, infrastructure, training runs, and operational processes when each evaluation is expensive."
   currentPath="/use-cases/"
 >
   <PageHero
-    eyebrow="When Looptimum is useful"
-    title="Use Looptimum where each evaluation is expensive enough that sample efficiency changes the project."
-    dek="For situations where broad sweeps, repeated failures, and untracked tuning decisions waste meaningful time or money."
+    title="Where Looptimum helps"
+    dek="When each evaluation takes hours, ties up equipment, or costs significant compute, choosing the next trial carefully can make a difference."
     spacedBelow={true}
-    primaryHref="/pilot/"
-    primaryLabel="Discuss a pilot"
-    secondaryHref="/evidence/"
-    secondaryLabel="Read the case studies"
   />
 
   <div class="stack-lg">
@@ -37,52 +32,49 @@ import { repoLinks, useCases } from "../data/site";
 
     <section class="two-column">
       <div class="feature-panel">
-        <p class="eyebrow">A good first project</p>
-        <h2>Start with a loop that already exists and hurts enough.</h2>
+        <h2>A good first project</h2>
         <p>
-          The fastest pilots are the ones where the evaluator already runs in a
-          client-owned environment and the team can name the knobs, the scalar
-          objective, and the cost of one run.
+          Start with an evaluator your team already runs. Identify the
+          parameters you can change, the score you want to improve, and the
+          cost of one evaluation.
         </p>
+        <a class="inline-link" href={repoLinks.pilot}>Read the pilot scope notes <span aria-hidden="true">→</span></a>
       </div>
       <div class="criteria-grid">
         <article class="criteria-card">
-          <h3>Bounded knobs</h3>
-          <p>A manageable set of numeric or discrete controls with real operational consequences.</p>
+          <h3>Defined parameters</h3>
+          <p>A manageable set of numeric or discrete controls with clear limits.</p>
         </article>
         <article class="criteria-card">
           <h3>Expensive evaluations</h3>
-          <p>Runs that are slow enough or costly enough that fewer wasted trials matter.</p>
+          <p>Runs where saving time, compute, or materials would matter to the project.</p>
         </article>
         <article class="criteria-card">
-          <h3>Stable execution path</h3>
-          <p>An existing script, solver, workflow, or runner that can execute one candidate configuration.</p>
+          <h3>Repeatable execution</h3>
+          <p>A script, solver, or workflow that can run a candidate and report its result.</p>
         </article>
         <article class="criteria-card">
-          <h3>Decision accountability</h3>
-          <p>A team that benefits from resuming interrupted work and preserving an auditable search history.</p>
+          <h3>A useful record</h3>
+          <p>A reason to keep the search history, review decisions, or resume interrupted work.</p>
         </article>
       </div>
     </section>
 
     <section class="proof-banner">
-      <p class="eyebrow">Not the best fit</p>
-      <h2>Looptimum is probably unnecessary if</h2>
+      <h2>When another approach is simpler</h2>
       <ul>
-        <li>The objective is cheap enough that random or grid search is already sufficient.</li>
-        <li>You have reliable gradients and can use direct gradient-based optimization.</li>
-        <li>You cannot define one scalar objective or acceptable scoring rule.</li>
-        <li>The problem is so high-dimensional that bounded search is not a credible first move.</li>
+        <li>Evaluations are cheap enough for random or grid search.</li>
+        <li>Reliable gradients make direct gradient-based optimization practical.</li>
+        <li>You cannot yet define a score that measures a useful result.</li>
+        <li>There are too many variables for a bounded search to be practical.</li>
       </ul>
     </section>
 
     <ActionPanel
-      title="See the same loop in two applications."
-      body="Review examples from simulation-mesh and model-training workflows, each presented with the context and limitations needed to interpret the result."
+      title="Examples in practice"
+      body="Read how Looptimum was used in simulation-mesh and model-training searches."
       primaryHref="/evidence/"
       primaryLabel="Read the case studies"
-      secondaryHref={repoLinks.pilot}
-      secondaryLabel="Read pilot scope notes"
     />
   </div>
 </BaseLayout>

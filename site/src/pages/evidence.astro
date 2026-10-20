@@ -7,31 +7,18 @@ import { caseStudies } from "../data/site";
 
 <BaseLayout
   title="Evidence | Looptimum"
-  description="Evidence from bounded black-box optimization campaigns, with downstream validation and explicit limitations."
+  description="Engineering and GPT training case studies with recorded results, validation checks, and the limits of each campaign."
   currentPath="/evidence/"
 >
   <PageHero
-    eyebrow="Case studies"
-    title="Results are only useful when their evidence boundary is clear."
-    dek="Explore documented engineering and model-training campaigns. Each case separates the observed outcome, the validation performed, and the limits on what the result establishes."
+    title="Case studies"
+    dek="Two documented searches: a smaller simulation mesh checked against a fine reference, and an anonymized GPT training campaign with ten evaluations."
     spacedBelow={true}
-    primaryHref="#case-study-heading"
-    primaryLabel="Read the case studies"
-    secondaryHref="/pilot/"
-    secondaryLabel="Discuss a pilot"
   />
 
   <div class="stack-lg">
     <section class="stack-md" aria-labelledby="case-study-heading">
-      <div class="section-head">
-        <p class="eyebrow">Two campaign records</p>
-        <h2 id="case-study-heading">Two applications, with distinct evidence boundaries.</h2>
-        <p>
-          The engineering example includes downstream physical validation. The
-          anonymized ML example demonstrates a compact guided training-recipe
-          campaign and is presented with its small-budget limitations.
-        </p>
-      </div>
+      <h2 id="case-study-heading" class="sr-only">Engineering and model-training campaigns</h2>
       <div class="case-study-grid">
         {caseStudies.map((caseStudy) => (
           <article class="case-study-card">
@@ -43,7 +30,6 @@ import { caseStudies } from "../data/site";
               />
             </div>
             <div class="case-study-card-copy">
-              <p class="eyebrow">{caseStudy.eyebrow}</p>
               <h3>{caseStudy.title}</h3>
               <p>{caseStudy.summary}</p>
               <div class="case-study-metrics" aria-label={`${caseStudy.title} highlights`}>
@@ -60,12 +46,10 @@ import { caseStudies } from "../data/site";
     </section>
 
     <ActionPanel
-      title="Have an expensive evaluator of your own?"
-      body="Review how the controller works, then decide whether a bounded and auditable campaign fits your workflow."
+      title="Plan a pilot"
+      body="Start with one evaluation loop, a measurable objective, and a small set of parameters."
       primaryHref="/pilot/"
       primaryLabel="Discuss a pilot"
-      secondaryHref="/how-it-works/"
-      secondaryLabel="See how the loop runs"
     />
   </div>
 </BaseLayout>

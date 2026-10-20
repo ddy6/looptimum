@@ -7,52 +7,42 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
 <BaseLayout
   title="LARC | Looptimum Advanced Research Collective"
-  description="LARC is a Looptimum initiative for early technical work on ambitious systems where optimization, efficiency, or computational feasibility shapes the path to implementation."
+  description="LARC helps early technical projects work through system design, computing limits, and the experiments needed before implementation."
   currentPath="/larc/"
 >
   <PageHero
-    eyebrow="Optimization architecture for ambitious systems."
     title="Looptimum Advanced Research Collective"
-    dek="LARC coordinates early, project-specific technical work where efficiency, optimization, or computational feasibility may determine whether an ambitious system can move forward."
+    dek="LARC works with early technical projects where system design, computing costs, or the experiments needed to establish feasibility are still open questions."
     spacedBelow={true}
-    primaryHref={siteConfig.larcContactHref}
-    primaryLabel="Discuss a project"
-    secondaryHref="/#core-looptimum"
-    secondaryLabel="See core Looptimum"
   />
 
   <div class="stack-lg">
     <section class="two-column" aria-label="LARC and core Looptimum">
       <div class="feature-panel reveal">
-        <p class="eyebrow">Where LARC begins</p>
-        <h2>Before the evaluation loop is settled.</h2>
+        <h2>Early technical questions</h2>
         <p>
-          LARC helps turn broad technical uncertainty into explicit questions:
-          which constraints are binding, what evidence matters first, where
-          optimization belongs, and which development sequence can establish
-          feasibility without wasting the project's early resources.
+          LARC helps identify the constraints, design choices, and tests that
+          matter most before committing to a build. The work starts by asking
+          what needs to be learned and which experiment would be worth doing
+          first.
         </p>
       </div>
       <div class="feature-panel reveal">
-        <p class="eyebrow">Where core Looptimum begins</p>
-        <h2>When an expensive loop already exists.</h2>
+        <h2>Existing evaluation loops</h2>
         <p>
-          Core Looptimum is a lightweight black-box optimization controller for
-          a bounded evaluator that can already run candidate configurations and
-          return a scalar objective or an explicit failure. It uses accumulated
-          observations to choose useful next trials while execution remains in
-          the client's environment.
+          If you already have an evaluator that accepts parameters and returns
+          a score, core Looptimum can choose what to try next while your team
+          continues to run the evaluations.
         </p>
+        <a class="inline-link" href="/#core-looptimum">See core Looptimum <span aria-hidden="true">→</span></a>
       </div>
     </section>
 
     <section class="stack-md" aria-labelledby="larc-projects-heading">
       <div class="section-head">
-        <p class="eyebrow">Illustrative project character</p>
-        <h2 id="larc-projects-heading">Problems where architecture and efficiency are inseparable.</h2>
+        <h2 id="larc-projects-heading">Projects LARC can help explore</h2>
         <p>
-          These are examples of the questions LARC is interested in, not a
-          catalog of standing programs or a claim that every project is a fit.
+          Areas of interest include:
         </p>
       </div>
       <div class="use-case-grid">
@@ -67,12 +57,10 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
     <section class="stack-md" aria-labelledby="larc-method-heading">
       <div class="section-head">
-        <p class="eyebrow">Working method</p>
-        <h2 id="larc-method-heading">Move from a promising concept to a testable development pathway.</h2>
+        <h2 id="larc-method-heading">How the work develops</h2>
         <p>
-          The exact work is project-specific. The common thread is reducing the
-          right uncertainty in the right order before committing to an
-          inefficient architecture or an unnecessarily expensive build.
+          Each project has its own scope. These steps help organize the work
+          around the questions that need answers first.
         </p>
       </div>
       <div class="larc-method-grid">
@@ -88,47 +76,31 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
     <section class="two-column">
       <div class="evidence-list reveal">
-        <p class="eyebrow">Possible outputs</p>
-        <h2>Concrete technical structure, not a generic recommendation.</h2>
+        <h2>Possible outputs</h2>
         <ul>
-          <li>System decomposition and bottleneck analysis</li>
-          <li>Optimization, constraint, and evaluation architecture</li>
-          <li>Models, benchmarks, or prototype sequences</li>
-          <li>Validation criteria and measurable technical milestones</li>
-          <li>A project-specific path from uncertainty toward implementation</li>
+          <li>A system breakdown and bottleneck analysis</li>
+          <li>A plan for optimization, constraints, and evaluation</li>
+          <li>Models, benchmarks, or a sequence of prototypes</li>
+          <li>Validation criteria and measurable milestones</li>
+          <li>A technical plan for the next stage of implementation</li>
         </ul>
       </div>
       <div class="evidence-list reveal">
-        <p class="eyebrow">Phase 0</p>
-        <h2>An exploratory initiative built around real projects.</h2>
+        <h2>Current stage</h2>
         <p>
-          LARC is beginning with a small number of project-specific
-          conversations and technical collaborations. It is not presented as a
-          standing membership organization, a formal project portfolio, or a
-          standardized service package. Its structure will grow only when real
-          work requires it.
+          LARC is an exploratory initiative, beginning with a small number of
+          technical conversations and collaborations. There is no standing
+          membership program or fixed service package; the scope follows the
+          needs of each project.
         </p>
       </div>
     </section>
 
-    <section class="proof-banner">
-      <p class="eyebrow">Why Looptimum</p>
-      <h2>Treat optimization and efficiency as architectural questions.</h2>
-      <p>
-        Looptimum was built around a simple principle: when evaluations are
-        expensive, the way a system chooses what to evaluate matters. LARC
-        applies that principle earlier—before the evaluation loop,
-        architecture, or development sequence is fully defined.
-      </p>
-    </section>
-
     <ActionPanel
-      title="Bring an ambitious technical question."
-      body="If optimization, efficiency, or computational feasibility may decide whether the project can move forward, start with a focused exploratory conversation."
+      title="Tell us about the project"
+      body="Describe what you want to build and the technical question you need to resolve first."
       primaryHref={siteConfig.larcContactHref}
       primaryLabel="Discuss a project"
-      secondaryHref="/"
-      secondaryLabel="See core Looptimum"
     />
   </div>
 </BaseLayout>

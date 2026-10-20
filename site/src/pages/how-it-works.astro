@@ -7,18 +7,13 @@ import { repoLinks, workflowSteps } from "../data/site";
 
 <BaseLayout
   title="How It Works | Looptimum"
-  description="See how Looptimum performs sequential black-box optimization while expensive evaluators remain in client-controlled environments."
+  description="Looptimum chooses the next trial, your existing workflow runs it, and the results stay in local files you can review and resume."
   currentPath="/how-it-works/"
 >
   <PageHero
-    eyebrow="How the loop runs"
-    title="Use completed results to choose the next expensive trial."
-    dek="Looptimum is a lightweight optimization controller. It selects bounded candidates while your evaluator continues to run in your own scripts, clusters, or workflows."
+    title="How Looptimum works"
+    dek="Looptimum chooses the next trial. Your existing workflow runs it and returns a score or a failure. Each result informs the next choice."
     spacedBelow={true}
-    primaryHref="/pilot/"
-    primaryLabel="Discuss a pilot"
-    secondaryHref={repoLinks.repo}
-    secondaryLabel="Read the code"
   />
 
   <div class="stack-lg">
@@ -39,41 +34,41 @@ import { repoLinks, workflowSteps } from "../data/site";
 
     <section class="two-column">
       <div class="section-head">
-        <p class="eyebrow">What stays local</p>
-        <h2>The controller stays small because it does not run the evaluator.</h2>
+        <h2>Working in your environment</h2>
         <p>
-          Looptimum keeps state and decision trace in local files so the loop
-          survives interruptions, audit questions, and restricted deployment
-          environments without requiring a hosted optimization service.
+          The controller keeps its state and decision history in local files.
+          You can inspect the record, resume after interruptions, and work in
+          restricted environments.
         </p>
+        <a class="inline-link" href={repoLinks.repo}>Read the code <span aria-hidden="true">→</span></a>
       </div>
       <div class="criteria-grid">
         <article class="criteria-card">
           <h3>Local state</h3>
           <p>
-            Observations, trial manifests, and suggestion logs remain file-backed
-            so the optimization state stays transparent and resumable.
+            Results, trial manifests, and suggestion logs are saved as files
+            you can inspect and carry between runs.
           </p>
         </article>
         <article class="criteria-card">
-          <h3>Thin contract</h3>
+          <h3>Evaluator interface</h3>
           <p>
-            The evaluator only needs to accept bounded parameters and return a
-            scalar objective or explicit failure outcome.
+            The evaluator accepts parameters within defined bounds and returns
+            a single score or an explicit failure.
           </p>
         </article>
         <article class="criteria-card">
-          <h3>Failure-aware</h3>
+          <h3>Failed runs</h3>
           <p>
-            Failed or timed-out evaluations are recorded rather than lost, which
-            matters when each run is expensive.
+            Failures and timeouts are recorded with their reasons, so they
+            remain part of the campaign history.
           </p>
         </article>
         <article class="criteria-card">
           <h3>Decision trace</h3>
           <p>
-            The loop exposes why a trial was suggested and what had been learned
-            so far, instead of hiding the state behind a service boundary.
+            Suggestion logs preserve the context for each choice and the
+            observations available at the time.
           </p>
         </article>
       </div>
@@ -81,58 +76,52 @@ import { repoLinks, workflowSteps } from "../data/site";
 
     <section class="stack-md" aria-labelledby="decision-boundaries-heading">
       <div class="section-head">
-        <p class="eyebrow">Decision boundaries</p>
-        <h2 id="decision-boundaries-heading">Feasibility, preference, and failure are different signals.</h2>
+        <h2 id="decision-boundaries-heading">Constraints, scores, and failures</h2>
         <p>
-          Keeping these signals separate makes suggestions easier to explain
-          and prevents an invalid run from being mistaken for an ordinary
-          objective measurement.
+          Define which candidates are allowed, how successful runs are scored,
+          and how failures are reported.
         </p>
       </div>
       <div class="criteria-grid decision-grid">
         <article class="criteria-card">
           <h3>Hard constraints</h3>
           <p>
-            Bounds and declared feasibility rules filter invalid candidates
-            before a suggestion is issued.
+            Parameter bounds and feasibility rules filter candidates before
+            they are suggested.
           </p>
         </article>
         <article class="criteria-card">
-          <h3>Objective shaping</h3>
+          <h3>Objective score</h3>
           <p>
-            Acceptable candidates are ranked by a scalar objective or explicit
-            scalarization rule. Soft preferences belong in that score.
+            A single score ranks valid candidates. If several measurements
+            matter, define how they combine into that score.
           </p>
         </article>
         <article class="criteria-card">
           <h3>Failure outcomes</h3>
           <p>
-            Failed and timed-out evaluations are recorded as terminal outcomes
-            with reasons instead of being silently treated as successful runs.
+            A failed or timed-out evaluation is recorded as a completed failure
+            with a reason, separately from successful measurements.
           </p>
         </article>
       </div>
     </section>
 
     <section class="proof-banner">
-      <p class="eyebrow">Good fit</p>
-      <h2>Looptimum is a strong pilot candidate when</h2>
+      <h2>What you need to start</h2>
       <ul>
-        <li>The evaluation is expensive in time, compute, money, or operational risk.</li>
-        <li>You can define one scalar objective or a defensible scalarization rule.</li>
-        <li>The knob set is bounded and practically searchable.</li>
-        <li>An existing, repeatable execution path can return a score or declared failure.</li>
-        <li>You need fewer wasted runs without surrendering environmental control.</li>
+        <li>An evaluation costly enough that choosing the next run carefully matters.</li>
+        <li>A score that measures the result you want to improve.</li>
+        <li>A manageable set of parameters with defined bounds.</li>
+        <li>A repeatable way to run a trial and return a score or failure.</li>
       </ul>
     </section>
 
     <ActionPanel
-      title="See the loop in practice."
-      body="The evidence library shows how the same controller pattern applies to engineering and model-training workflows, with each result presented against its own validation boundary."
+      title="See it in practice"
+      body="The case studies document the search, results, and validation in engineering and model training."
       primaryHref="/evidence/"
       primaryLabel="Read the case studies"
-      secondaryHref={repoLinks.repo}
-      secondaryLabel="Read the code"
     />
   </div>
 </BaseLayout>

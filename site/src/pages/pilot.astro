@@ -7,36 +7,25 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
 
 <BaseLayout
   title="Pilot Intake | Looptimum"
-  description="Start a fit review for a bounded black-box optimization pilot with a client-controlled evaluator."
+  description="Scope a Looptimum pilot around one evaluation loop, a measurable objective, and parameters your team can control."
   currentPath="/pilot/"
 >
   <PageHero
-    eyebrow="Discuss a pilot"
-    title="Start with the loop that is already expensive enough to deserve attention."
-    dek="A useful first conversation is short: what is being optimized, how expensive is one run, where does it execute, and what constraints cannot be violated."
+    title="Plan a pilot"
+    dek="Start with one evaluation loop and a result you want to improve. A short description of your setup is enough for an initial conversation."
     spacedBelow={true}
-    primaryHref={siteConfig.contactHref}
-    primaryLabel="Email Looptimum"
-    secondaryHref={repoLinks.intake}
-    secondaryLabel="Read the intake notes"
   />
 
   <div class="stack-lg">
     <section class="two-column">
       <div class="feature-panel">
-        <p class="eyebrow">What to send</p>
-        <h2>These answers are usually enough to decide whether a pilot is worth scoping.</h2>
+        <h2>What to send</h2>
         <p>
-          The intake prompts below are intended to help guide initial fit
-          assessment of your project. Short, concrete answers are helpful for a
-          first screening.
+          Brief answers to these questions help us understand the work and
+          whether Looptimum would be useful. Include rough estimates where
+          exact numbers aren't available.
         </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href={siteConfig.contactHref}>
-            {siteConfig.contactEmail}
-          </a>
-          <a class="button button-secondary" href={repoLinks.pilot}>Pilot framing in repo</a>
-        </div>
+        <a class="inline-link" href={repoLinks.intake}>Read the intake notes <span aria-hidden="true">→</span></a>
       </div>
       <div class="question-grid">
         {intakeQuestions.map((question) => (
@@ -49,50 +38,47 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
 
     <section class="stack-md">
       <div class="section-head">
-        <p class="eyebrow">Fit signals</p>
-        <h2>What a strong first Looptimum project looks like.</h2>
-        <p>These are the characteristics that usually indicate a good early fit.</p>
+        <h2>Keeping the scope manageable</h2>
+        <a class="inline-link" href={repoLinks.pilot}>Read the pilot scope notes <span aria-hidden="true">→</span></a>
       </div>
 
       <section class="criteria-grid">
         <article class="criteria-card">
-          <h3>Best early pilot</h3>
+          <h3>One loop</h3>
           <p>
-            One loop, one scalar objective, bounded knobs.
+            Begin with one evaluator, one score, and a small set of parameters
+            with defined bounds.
           </p>
         </article>
         <article class="criteria-card">
-          <h3>Security posture</h3>
+          <h3>Your environment</h3>
           <p>
-            Looptimum is strongest where execution must stay in a client-owned or
-            restricted environment instead of moving to a hosted service.
+            Evaluations stay in your environment. Identify access restrictions,
+            offline requirements, and other operating limits before starting.
           </p>
         </article>
         <article class="criteria-card">
-          <h3>What the example demonstrates</h3>
+          <h3>Acceptance criteria</h3>
           <p>
-            The example case outlines an end-to-end validated
-            outcome: fewer trials, lighter mesh, faster solve, and preserved
-            behavior.
+            Agree on how to judge a useful result, including any checks beyond
+            the optimization score.
           </p>
         </article>
         <article class="criteria-card">
           <h3>What happens next</h3>
           <p>
-            If Looptimum might fit your project, the next step is to get in
-            touch, or explore Looptimum on GitHub.
+            Use the initial conversation to review the evaluator, objective,
+            and evaluation budget before defining the pilot.
           </p>
         </article>
       </section>
     </section>
 
     <ActionPanel
-      title="Check whether Looptimum fits your project."
-      body="Explore the technical details, review the case-study library, or get in touch."
-      primaryHref="/evidence/"
-      primaryLabel="Read the case studies"
-      secondaryHref={repoLinks.repo}
-      secondaryLabel="Read the code"
+      title="Tell us about your setup"
+      body="Send your answers or a brief project description."
+      primaryHref={siteConfig.contactHref}
+      primaryLabel="Email Looptimum"
     />
   </div>
 </BaseLayout>

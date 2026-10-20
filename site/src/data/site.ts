@@ -20,45 +20,45 @@ export const larcProjectArchetypes = [
   {
     title: "Integrated technical systems",
     body:
-      "Projects combining software, hardware, models, data, or human workflows where performance depends on how the pieces are designed together.",
+      "Software, hardware, models, and human workflows whose performance depends on how the parts work together.",
   },
   {
-    title: "Compute-limited concepts",
+    title: "Computing limits",
     body:
-      "Architectures whose simulation, inference, training, or orchestration costs may prevent a credible implementation path.",
+      "Systems where simulation, training, inference, or coordination costs could make the proposed design impractical.",
   },
   {
-    title: "Scarce physical evaluation",
+    title: "Costly experiments",
     body:
-      "Experimental or laboratory systems where each measurement is slow, costly, constrained, or difficult to repeat.",
+      "Laboratory or physical systems where measurements are slow, expensive, or hard to repeat.",
   },
   {
-    title: "Unresolved development paths",
+    title: "Planning the first build",
     body:
-      "Technically plausible ideas that need their bottlenecks, evidence sequence, and feasibility milestones made explicit.",
+      "Promising ideas that need a clearer account of the bottlenecks, tests, and milestones before implementation.",
   },
 ];
 
 export const larcMethodSteps = [
   {
     title: "Scope",
-    body: "Turn the broad concept into systems, dependencies, decisions, constraints, and open technical questions.",
+    body: "Define the system, its constraints, and the technical questions that remain open.",
   },
   {
     title: "Identify bottlenecks",
-    body: "Determine which costs, resources, measurements, or architectural choices are most likely to control feasibility.",
+    body: "Find the costs, resource limits, and design choices most likely to determine feasibility.",
   },
   {
-    title: "Define optimization architecture",
-    body: "Decide what should be optimized, at what level, and whether the problem should be staged, constrained, or decomposed.",
+    title: "Choose what to optimize",
+    body: "Decide which variables matter and whether to tackle the problem in stages or smaller parts.",
   },
   {
-    title: "Design the evidence pathway",
-    body: "Sequence models, benchmarks, experiments, or prototypes so each step reduces a meaningful uncertainty.",
+    title: "Plan the tests",
+    body: "Order the models, benchmarks, and experiments around what needs to be learned first.",
   },
   {
     title: "Support implementation",
-    body: "Translate favorable evidence into a credible technical roadmap, validation criteria, and the next build decision.",
+    body: "Use the results to set validation criteria and decide what to build next.",
   },
 ];
 
@@ -74,17 +74,17 @@ export const workflowSteps = [
   {
     title: "Suggest",
     body:
-      "Looptimum uses the campaign's completed results to select the next bounded candidate instead of scheduling a broad sweep.",
+      "Looptimum selects the next candidate from your parameter bounds, using the results collected so far.",
   },
   {
     title: "Evaluate",
     body:
-      "Your evaluator runs where it already lives: cluster jobs, scripts, CI runners, solver hosts, or lab workflows.",
+      "Your script, cluster, solver, or lab workflow runs the trial in its existing environment.",
   },
   {
     title: "Ingest",
     body:
-      "The result—or a declared failure—is recorded in local files so the campaign can resume after interruptions and preserve an auditable decision trail.",
+      "Record the score or failure in local files, then repeat. The saved history lets you review decisions and resume interrupted work.",
   },
 ];
 
@@ -99,24 +99,24 @@ export const useCases: UseCase[] = [
   {
     title: "Simulation and engineering",
     body:
-      "Mesh controls, solver tolerances, calibration knobs, and workflow parameters where every run costs serious compute or analyst time.",
+      "Tune mesh controls, solver tolerances, or calibration parameters when each run takes substantial compute or analyst time.",
   },
   {
     title: "Infrastructure tuning",
     body:
-      "Concurrency, retry policy, memory limits, thread counts, cache TTLs, and resource controls with measurable cost or latency impact.",
+      "Adjust concurrency, retries, memory limits, thread counts, or cache lifetimes against measured cost and latency.",
   },
   {
     title: "ML and evaluation loops",
     body:
-      "Training recipe knobs, evaluation thresholds, batch sizes, and runtime controls when experiments are slow and failures are expensive.",
+      "Search training settings, batch sizes, or evaluation thresholds when experiments are slow and failed runs are costly.",
     href: "/evidence/gpt-training/",
-    linkLabel: "See the anonymized GPT example",
+    linkLabel: "Read the GPT training case study",
   },
   {
     title: "Operational process tuning",
     body:
-      "Lab workflows, ETL processes, and production runbooks where throughput, quality, and cost need to be balanced under guardrails.",
+      "Improve throughput, quality, or cost in lab workflows, ETL pipelines, and production processes while respecting operating limits.",
   },
 ];
 
@@ -136,7 +136,6 @@ export interface CaseStudyProofAsset {
 export interface CaseStudy {
   slug: string;
   href: string;
-  eyebrow: string;
   title: string;
   summary: string;
   metrics: CaseStudyMetric[];
@@ -149,10 +148,9 @@ export const caseStudies: CaseStudy[] = [
   {
     slug: "engineering-mesh",
     href: "/evidence/engineering-mesh/",
-    eyebrow: "Validated engineering campaign",
-    title: "Fine-to-coarse simulation mesh search",
+    title: "A smaller simulation mesh",
     summary:
-      "A bounded engineering campaign paired its selected candidate with downstream solver and mesh-independence validation.",
+      "A 21-trial search found a smaller mesh, then a separate solver pass checked flow and pressure against the fine reference.",
     metrics: [
       { value: "72.9%", label: "Fewer cells", detail: "Selected coarse candidate" },
       { value: "91.0%", label: "Lower wall clock", detail: "Validated solver pass" },
@@ -194,16 +192,15 @@ export const caseStudies: CaseStudy[] = [
           "Aggregate MAP and pulse-pressure drift remained within the 0.5 mmHg acceptance band.",
       },
     ],
-    limitations: ["Domain-specific acceptance required a separate downstream solver pass."],
-    cta: { href: "/pilot/", label: "Assess a similar pilot" },
+    limitations: ["Acceptance required a separate solver pass and mesh-independence checks."],
+    cta: { href: "/pilot/", label: "Discuss a pilot" },
   },
   {
     slug: "gpt-training",
     href: "/evidence/gpt-training/",
-    eyebrow: "Anonymized ML campaign",
-    title: "Guided GPT training-recipe search",
+    title: "A GPT training-recipe search",
     summary:
-      "Ten bounded evaluations tested four generic recipe controls while the training evaluator remained externally owned.",
+      "Ten evaluations tested four training controls. The selected model had lower held-out loss and fewer parameters than the fixed baseline.",
     metrics: [
       { value: "10/10", label: "Successful evaluations", detail: "4 initialization + 6 guided" },
       { value: "1.02%", label: "Lower held-out loss", detail: "Selected versus fixed baseline" },
@@ -226,10 +223,10 @@ export const caseStudies: CaseStudy[] = [
       },
     ],
     limitations: [
-      "Single-seed, small-budget campaign.",
-      "Observed result only; no statistical-significance or global-optimum claim.",
+      "Anonymized campaign with one seed and a small evaluation budget.",
+      "The observed result does not establish statistical significance or global optimality.",
     ],
-    cta: { href: "/pilot/", label: "Assess a similar pilot" },
+    cta: { href: "/pilot/", label: "Discuss a pilot" },
   },
 ];
 
@@ -241,11 +238,11 @@ export const validationChecks = [
 ];
 
 export const intakeQuestions = [
-  "What process or model are you optimizing?",
-  "How expensive is one evaluation in time, compute, or operational cost?",
-  "How many bounded knobs matter in the first pilot?",
-  "What environment runs the evaluation today?",
-  "What security, offline, or client-control constraints apply?",
+  "What are you optimizing, and how will you measure improvement?",
+  "What does one evaluation cost in time, compute, or money?",
+  "Which parameters can you change, and what are their limits?",
+  "Where and how do you run evaluations today?",
+  "What security, offline, or access requirements apply?",
 ];
 
 export const repoLinks = {
