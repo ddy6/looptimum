@@ -42,6 +42,7 @@ def reset_artifact_paths(
         ("report_json_file", runtime_paths["report_json_file"]),
         ("report_md_file", runtime_paths["report_md_file"]),
         ("trials_dir", runtime_paths["trials_dir"]),
+        ("optimizer_dir", runtime_paths.get("optimizer_dir", project_root / "state/optimizer")),
         ("demo_result_file", (project_root / demo_result_rel).resolve()),
     ]
     out: list[tuple[str, Path]] = []

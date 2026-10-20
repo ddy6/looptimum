@@ -105,6 +105,41 @@ jobs:
           -s docs/examples/gpt_training_campaign/tests
           -p 'test*.py' -v
 
+  ax-test:
+    name: Ax Integration (py${{ matrix.python-version }})
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      LOOPTIMUM_REQUIRE_AX_TESTS: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Ax dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e '.[ax]' 'pytest>=9,<10'
+      - name: Probe public Ax APIs and model-guided restart
+        run: python scripts/probe_ax_compatibility.py --output ax-compatibility.json
+      - name: Test Ax and lean backend contracts
+        run: >-
+          python -m pytest -q
+          templates/tests/test_ax_integration.py
+          templates/tests/test_optimizer_backend.py
+          templates/tests/test_portable_copy.py
+
   typecheck:
     name: Type Check (mypy, py3.12)
     needs: quality

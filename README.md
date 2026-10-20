@@ -403,6 +403,11 @@ Governance note:
 All template variants use the same canonical JSON contract file conventions and
 the same state/log artifact model under `state/`.
 
+Native Ax integration for `bo_client` and `bo_client_full` is in development
+for `v1.0.0`. See [Ax backend configuration and compatibility](docs/ax-backend.md)
+for the optional dependency setup, supported shapes, and recovery boundaries.
+Existing template defaults remain unchanged.
+
 ## Examples and Case Studies
 
 The `examples/` folder shows integration patterns, not benchmark leaderboards.

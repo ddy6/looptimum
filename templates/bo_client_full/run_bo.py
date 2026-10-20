@@ -48,6 +48,8 @@ _GOVERNANCE = _load_shared_module("looptimum_shared_governance", "governance.py"
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 _OBSERVATIONS_IO = _load_shared_module("looptimum_shared_observations_io", "observations_io.py")
+_OPTIMIZER = _load_shared_module("looptimum_optimizer_backend", "optimizer_backend.py")
+_AX = _load_shared_module("looptimum_optimizer_ax", "optimizer_ax.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -110,7 +112,7 @@ resolve_runtime_paths = _RUNTIME.resolve_runtime_paths
 save_trial_manifest = _RUNTIME.save_trial_manifest
 state_for_persist = _RUNTIME.state_for_persist
 state_schema_upgrade_pending = _RUNTIME.state_schema_upgrade_pending
-state_schema_version = _RUNTIME.state_schema_version
+state_schema_version = _RUNTIME.payload_schema_version
 normalize_state_schema_version = _RUNTIME.normalize_state_schema_version
 trial_dir = _RUNTIME.trial_dir
 STATE_SCHEMA_VERSION = _RUNTIME.STATE_SCHEMA_VERSION
@@ -1038,6 +1040,11 @@ def _status_payload(
 
     payload = {
         "schema_version": state_schema_version(state),
+        **(
+            {"state_schema_version": state["schema_version"], "optimizer": state["optimizer"]}
+            if state.get("optimizer")
+            else {}
+        ),
         "observations": len(state["observations"]),
         "pending": len(state["pending"]),
         "leased_pending": leased_pending,
@@ -2015,6 +2022,11 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     max_pending_trials = resolve_max_pending_trials(cfg)
     worker_leases_enabled = resolve_worker_leases_enabled(cfg)
     requested_count = _resolve_effective_suggest_count(cfg, args)
+    optimizer_cfg = _OPTIMIZER.normalize_optimizer_config(
+        cfg, template="bo_client_full", enable_botorch_gp=use_botorch_backend(args, cfg)
+    )
+    if optimizer_cfg["backend"] == "ax":
+        _OPTIMIZER.validate_ax_capabilities(params, obj_cfg, constraints)
 
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
@@ -2028,6 +2040,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         )
         try:
             state = load_state(paths["state_file"])
+            _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
             if state["meta"]["seed"] is None:
                 state["meta"]["seed"] = int(cfg["seed"])
 
@@ -2116,25 +2129,44 @@ def cmd_suggest(args: argparse.Namespace) -> None:
             )
 
             planning_state = copy.deepcopy(state)
+            ax_plan = None
+            ax_latency_per_trial = 0.0
+            if optimizer_cfg["backend"] == "ax":
+                ax_started = time.perf_counter()
+                ax_plan = _AX.prepare_batch(
+                    root,
+                    paths,
+                    planning_state,
+                    cfg,
+                    params,
+                    obj_cfg,
+                    constraints,
+                    requested_count,
+                    optimizer_cfg,
+                )
+                ax_latency_per_trial = (time.perf_counter() - ax_started) / requested_count
             planned_suggestions: list[dict] = []
             planned_decisions: list[tuple[int, dict, float]] = []
             try:
                 for _ in range(requested_count):
-                    suggest_started = time.perf_counter()
+                    suggest_started = time.perf_counter() - ax_latency_per_trial
                     seed = int(planning_state["meta"]["seed"]) + int(
                         planning_state["next_trial_id"]
                     )
                     rng = random.Random(seed)
                     trial_id = int(planning_state["next_trial_id"])
-                    cand, decision = propose(
-                        rng,
-                        planning_state,
-                        cfg,
-                        params,
-                        obj_cfg,
-                        args,
-                        constraints,
-                    )
+                    if ax_plan is not None:
+                        cand, decision = ax_plan[len(planned_suggestions)]
+                    else:
+                        cand, decision = propose(
+                            rng,
+                            planning_state,
+                            cfg,
+                            params,
+                            obj_cfg,
+                            args,
+                            constraints,
+                        )
                     suggestion = {
                         "schema_version": state_schema_version(planning_state),
                         "trial_id": trial_id,
@@ -3280,6 +3312,17 @@ def cmd_validate(args: argparse.Namespace) -> None:
     except Exception as exc:
         hard_errors.append(f"config validation failure: {exc}")
 
+    try:
+        optimizer_cfg = _OPTIMIZER.normalize_optimizer_config(
+            cfg, template="bo_client_full", enable_botorch_gp=use_botorch_backend(args, cfg)
+        )
+        if optimizer_cfg["backend"] == "ax" and params is not None:
+            _OPTIMIZER.validate_ax_capabilities(
+                params, obj_cfg, _load_constraints(root, cfg, params)
+            )
+    except Exception as exc:
+        hard_errors.append(f"optimizer validation failure: {exc}")
+
     if hard_errors:
         for err in hard_errors:
             print(f"ERROR: {err}")
@@ -3291,6 +3334,12 @@ def cmd_validate(args: argparse.Namespace) -> None:
     except Exception as exc:
         print(f"ERROR: state load failure: {exc}")
         raise SystemExit(1) from exc
+
+    try:
+        _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
+        _AX.inspect_snapshot(root, paths, state)
+    except Exception as exc:
+        hard_errors.append(f"optimizer state validation failure: {exc}")
 
     hard_errors.extend(_validate_state_hard_checks(state, obj_cfg))
     hard_errors.extend(
@@ -3358,13 +3407,14 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     backend = str(cfg.get("surrogate", {}).get("type", "rbf_proxy")).lower()
     botorch_dependency_available = None
     if botorch_enabled:
-        try:
-            import botorch  # noqa: F401
+        versions = _OPTIMIZER.dependency_versions()
+        botorch_dependency_available = all(
+            versions[name] for name in ("torch", "botorch", "gpytorch")
+        )
 
-            botorch_dependency_available = True
-        except Exception:
-            botorch_dependency_available = False
-
+    optimizer_info = _OPTIMIZER.optimizer_diagnostics(
+        cfg, template="bo_client_full", enable_botorch_gp=use_botorch_backend(args, cfg)
+    )
     payload = {
         "schema_version": state_schema_version(state),
         "generated_at": time.time(),
@@ -3378,6 +3428,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             "botorch_enabled": botorch_enabled,
             "botorch_dependency_available": botorch_dependency_available,
         },
+        "optimizer": optimizer_info,
         "objective": objective,
         "status": status,
     }
@@ -3393,6 +3444,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     print(f"- platform: {payload['platform']}")
     print(f"- project_root: {payload['project_root']}")
     print(f"- backend.configured: {backend}")
+    print(f"- optimizer.backend: {optimizer_info['backend']}")
     print(f"- backend.botorch_enabled: {botorch_enabled}")
     if botorch_dependency_available is not None:
         print(f"- backend.botorch_dependency_available: {botorch_dependency_available}")

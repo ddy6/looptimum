@@ -31,6 +31,8 @@ Included files:
   operator decision tree for CI/local incident handling
 - `how-it-works.md`: conceptual optimizer behavior, backend model by template,
   exploration/exploitation policy, constraints posture, and determinism boundaries
+- `ax-backend.md`: optional native Ax development integration, configuration,
+  supported capabilities, and optimizer-state compatibility
 - `type-safety.md`: mypy gate scope, staged strictness policy, and `Any`/suppression rules
 - `ci-knob-tuning.md`: platform-agnostic CI runbook (with GitHub examples) for
   state persistence, contamination controls, safe parallelism, and robust-best policy

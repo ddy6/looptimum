@@ -18,6 +18,9 @@ RUNTIME_MODULES = (
     "runtime.py",
     "search_space.py",
     "observations_io.py",
+    "optimizer_backend.py",
+    "optimizer_ax.py",
+    "optimizer_ax_worker.py",
 )
 VENDORED_SHARED_RELATIVE_DIR = Path("vendor") / "looptimum_shared"
 VENDORED_SCHEMA_RELATIVE_DIR = VENDORED_SHARED_RELATIVE_DIR / "schemas"
@@ -33,6 +36,7 @@ RUNTIME_ARTIFACTS = frozenset(
         "state/trials",
         "state/reset_archives",
         "state/import_reports",
+        "state/optimizer",
         "examples/_demo_result.json",
     }
 )
@@ -154,6 +158,8 @@ def main() -> None:
     )
     _vendor_runtime(shared_root, destination_dir, schema_filenames)
     _rewrite_controller_paths(destination_dir / "run_bo.py")
+    for helper in destination_dir.glob("surrogate_*.py"):
+        _rewrite_controller_paths(helper)
     _rewrite_config_schema_paths(destination_dir / "bo_config.json", schema_filenames)
 
     print(f"Created portable Looptimum controller at {destination_dir}")

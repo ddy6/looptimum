@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FULL_TEMPLATE = REPO_ROOT / "templates" / "bo_client_full"
 PORTABLE_COPY_TOOL = REPO_ROOT / "templates" / "_shared" / "vendor_copy.py"
@@ -17,6 +19,9 @@ RUNTIME_MODULES = {
     "runtime.py",
     "search_space.py",
     "observations_io.py",
+    "optimizer_backend.py",
+    "optimizer_ax.py",
+    "optimizer_ax_worker.py",
 }
 SCHEMAS = {
     "constraints.schema.json",
@@ -31,12 +36,19 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, capture_output=True, text=True)
 
 
+@pytest.mark.parametrize("variant", ["bo_client", "bo_client_full", "bo_client_demo"])
 def test_portable_copy_is_self_contained_and_validates_from_an_empty_destination(
     tmp_path: Path,
+    variant: str,
 ) -> None:
     destination = tmp_path / "controller"
     copied = _run(
-        [sys.executable, str(PORTABLE_COPY_TOOL), str(FULL_TEMPLATE), str(destination)],
+        [
+            sys.executable,
+            str(PORTABLE_COPY_TOOL),
+            str(REPO_ROOT / "templates" / variant),
+            str(destination),
+        ],
         cwd=REPO_ROOT,
     )
     assert copied.returncode == 0, copied.stderr

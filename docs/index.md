@@ -34,6 +34,7 @@ For full command sequences and resume behavior:
 - [Operational Semantics](./operational-semantics.md)
 - [Recovery Playbook](./recovery-playbook.md)
 - [How It Works](./how-it-works.md)
+- [Ax Backend (in development)](./ax-backend.md)
 - [Type Safety](./type-safety.md)
 - [CI Knob Tuning](./ci-knob-tuning.md)
 - [Stability Guarantees](./stability-guarantees.md)
