@@ -60,5 +60,6 @@ module = ["acquisition", "surrogate_proxy", "surrogate_gp"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["torch", "botorch.*", "gpytorch.*", "ax.*"]
+# Optional optimizer dependencies are absent from the lean type-check environment.
+module = ["torch", "botorch.*", "gpytorch.*", "ax.*", "numpy"]
 ignore_missing_imports = true
