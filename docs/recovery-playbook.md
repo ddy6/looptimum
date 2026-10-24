@@ -59,6 +59,27 @@ Are there stale pending trials?
 
 ## Normative Runbooks
 
+### Ax allocation interrupted before a suggestion was returned
+
+For an Ax campaign, start with `status`. Pending entries in canonical
+`state/bo_state.json` are committed work even if stdout was lost. Preserve
+their IDs, parameters, and lease tokens when dispatching or redispatching
+work; coordinate with evaluators to avoid executing it twice.
+
+If status includes `allocation_recovery`, run the ordinary/full controller's
+`recover-allocation` command under the campaign's configured project root,
+then `validate --strict`. This requires no Ax installation. It discards an
+uncommitted preparation or finishes committed manifests and allocation logs
+without advancing counters, generating new trials, or reverting later
+results/heartbeats. The next `suggest` also performs this repair, but still
+requests additional work; use explicit recovery when no new allocation is
+wanted. See [Ax recovery boundaries](./ax-backend.md#state-and-recovery-boundaries).
+
+A corrupt journal or incompatible canonical history requires a matching
+backup and diagnosis. Preserve canonical state and the entire optimizer
+directory together. Allocation recovery does not recreate a missing Ax
+snapshot or promise exact continuation from observations alone.
+
 ### 1) `ingest` failed
 
 Run:

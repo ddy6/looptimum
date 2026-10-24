@@ -137,6 +137,7 @@ jobs:
         run: >-
           python -m pytest -q
           templates/tests/test_ax_integration.py
+          templates/tests/test_ax_recovery.py
           templates/tests/test_optimizer_backend.py
           templates/tests/test_portable_copy.py
 

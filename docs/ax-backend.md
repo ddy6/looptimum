@@ -95,6 +95,45 @@ write may leave an unreferenced snapshot, but it does not commit a partial
 allocation. Back up canonical state and the optimizer directory together.
 Reset archives include optimizer files; fresh portable copies exclude them.
 
+Ax allocations also stage a checksummed journal at
+`state/optimizer/ax/allocation.json`. Canonical state replacement is the
+commit point; manifests and allocation decision/event records are published
+afterward. Allocation log records carry an `allocation_id`. Publication
+preserves existing log contents and adds the batch through atomic replacement
+so a process exit cannot leave half of an allocation-owned JSONL record.
+The journal is removed after publication finishes.
+
+If `suggest` exits before returning its payload, inspect `status` first.
+Committed pending trials retain their IDs, parameter values, and lease
+tokens; retrieve them from canonical `bo_state.json` rather than allocating
+replacement work. `status` reports `allocation_recovery` when a journal is
+present, and `validate`/`health` flag unfinished publication. Reads do not
+repair files. Under the ordinary campaign lock, run:
+
+```bash
+python run_bo.py recover-allocation
+python run_bo.py validate --strict
+```
+
+`recover-allocation` needs no Ax/Torch installation and does not load the
+optimizer snapshot. A preparation that never committed is discarded without
+advancing trial IDs. A committed allocation has its manifests and log records
+repaired exactly once. Results, cancellations, and heartbeats delivered before
+repair are preserved by rebuilding manifests from current canonical records.
+The command does not generate trials or change canonical state. The next
+`suggest` also completes this recovery before attempting generation.
+Corrupt/conflicting journals stop recovery and generation explicitly;
+canonical reads and result/lifecycle operations remain available. Preserve
+the files and restore a matching backup rather than deleting the journal.
+Recovery also requires the original objective configuration so manifests
+cannot silently be reconstructed with different scoring semantics.
+This command repairs allocation publication; it does not rebuild lost Ax
+optimizer history or repair arbitrary pre-journal artifacts.
+
+With Ax selected, automatic stale retirement commits as a separate lifecycle
+change before generation. A subsequent Ax error leaves those trials retired
+without allocating new trials.
+
 Ingestion, cancellation, retirement, heartbeat, reads, and canonical import
 do not require Ax imports. Ax's snapshot can lag these operations; the next
 generation reconciles their canonical records. An identical ingest remains
@@ -112,11 +151,13 @@ compatibility. `validate` checks snapshot presence and digest without loading
 Ax. Numerical continuation is tested within a fixed stack; identical
 suggestions across platforms or dependency versions are not guaranteed.
 
-This development slice establishes canonical-state allocation and snapshot
-consistency. Hardening recovery of prepared manifests/decision logs after an
-abrupt process exit, broader lifecycle/constraint coverage, performance
-comparisons, and the final compatibility audit remain release gates. The
-rename-based persistence helper does not promise power-loss durability.
+Canonical-state allocation, snapshot consistency, and journaled allocation
+publication cover controller process exits. This is not a transaction across
+every lifecycle command or a promise of power-loss durability: persistence
+uses rename without explicit file/directory syncing. Explicit optimizer
+rebuild with new lineage, broader lifecycle/constraint coverage, performance
+comparisons, platform CI evidence, and the final compatibility audit remain
+release gates. Existing legacy-backend allocation behavior is unchanged.
 
 ## Verify an environment
 

@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -31,6 +32,226 @@ _BACKEND = _shared("optimizer_backend")
 _OBJECTIVES = _shared("objectives")
 _CONSTRAINTS = _shared("constraints")
 _RUNTIME = _shared("runtime")
+
+
+def _allocation_path(paths: dict[str, Path]) -> Path:
+    return paths["optimizer_dir"] / "ax" / "allocation.json"
+
+
+def _allocation_checkpoint(stage: str) -> None:
+    """Deterministic process-exit injection for allocation recovery tests."""
+    if os.environ.get("LOOPTIMUM_TEST_ALLOCATION_EXIT") == stage:
+        os._exit(86)
+
+
+def _load_allocation(paths: dict[str, Path]) -> JSONDict | None:
+    path = _allocation_path(paths)
+    if not path.exists():
+        return None
+    try:
+        envelope = json.loads(path.read_text(encoding="utf-8"))
+        journal = envelope["allocation"]
+        if _BACKEND.canonical_digest(journal) != envelope["sha256"]:
+            raise ValueError("digest mismatch")
+        required = {
+            "format_version",
+            "allocation_id",
+            "previous_snapshot",
+            "snapshot",
+            "objective_config",
+            "suggestions",
+            "decisions",
+            "events",
+        }
+        if not isinstance(journal, dict) or set(journal) != required:
+            raise ValueError("invalid journal fields")
+        if (
+            type(journal["format_version"]) is not int
+            or journal["format_version"] != 1
+            or not isinstance(journal["allocation_id"], str)
+            or not journal["allocation_id"]
+            or not isinstance(journal["objective_config"], dict)
+        ):
+            raise ValueError("unsupported journal format")
+        for key in ("previous_snapshot", "snapshot"):
+            pointer = journal[key]
+            if pointer is None and key == "previous_snapshot":
+                continue
+            if (
+                not isinstance(pointer, dict)
+                or set(pointer) != {"path", "sha256"}
+                or any(not isinstance(value, str) or not value for value in pointer.values())
+            ):
+                raise ValueError(f"invalid {key}")
+        suggestions = journal["suggestions"]
+        if not isinstance(suggestions, list) or any(
+            not isinstance(row, dict) or not isinstance(row.get("params"), dict)
+            for row in suggestions
+        ):
+            raise ValueError("invalid suggestions")
+        ids = [row["trial_id"] for row in suggestions]
+        if not ids or any(type(value) is not int or value < 1 for value in ids):
+            raise ValueError("invalid trial IDs")
+        if ids != list(range(ids[0], ids[0] + len(ids))):
+            raise ValueError("non-contiguous allocation")
+        for key in ("decisions", "events"):
+            if (
+                not isinstance(journal[key], list)
+                or any(not isinstance(row, dict) for row in journal[key])
+                or [row["trial_id"] for row in journal[key]] != ids
+                or any(row["allocation_id"] != journal["allocation_id"] for row in journal[key])
+            ):
+                raise ValueError(f"invalid {key}")
+        return cast(JSONDict, journal)
+    except (KeyError, TypeError, OSError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"Invalid Ax allocation journal at {path}: {exc}") from exc
+
+
+def _allocation_status(journal: JSONDict, state: JSONDict) -> str:
+    pointer = (state.get("optimizer") or {}).get("snapshot")
+    canonical = {row["trial_id"]: row for row in state["pending"] + state["observations"]}
+    suggestions = journal["suggestions"]
+    if pointer == journal["snapshot"]:
+        for row in suggestions:
+            current = canonical.get(row["trial_id"])
+            if current is None or any(
+                current.get(key) != row.get(key)
+                for key in ("params", "suggested_at", "lease_token")
+            ):
+                raise ValueError("Ax allocation journal disagrees with committed canonical trials")
+        if state["next_trial_id"] <= suggestions[-1]["trial_id"]:
+            raise ValueError("Ax allocation journal disagrees with the canonical trial counter")
+        return "committed"
+    if (
+        pointer == journal["previous_snapshot"]
+        and state["next_trial_id"] == suggestions[0]["trial_id"]
+        and not any(row["trial_id"] in canonical for row in suggestions)
+    ):
+        return "prepared"
+    raise ValueError("Ax allocation journal belongs to a different canonical history")
+
+
+def inspect_allocation(paths: dict[str, Path], state: JSONDict) -> JSONDict:
+    """Read-only diagnostics; optimizer dependencies and snapshots are not loaded."""
+    journal = _load_allocation(paths)
+    if journal is None:
+        return {"status": "clean", "trial_ids": []}
+    return {
+        "status": _allocation_status(journal, state),
+        "allocation_id": journal["allocation_id"],
+        "trial_ids": [row["trial_id"] for row in journal["suggestions"]],
+    }
+
+
+def allocation_diagnostics(paths: dict[str, Path], state: JSONDict) -> JSONDict | None:
+    try:
+        result = inspect_allocation(paths, state)
+        return None if result["status"] == "clean" else result
+    except ValueError as exc:
+        return {"status": "invalid", "error": str(exc)}
+
+
+def _publish_allocation_rows(path: Path, rows: list[JSONDict]) -> None:
+    """Logically append once, using replacement to avoid a torn journal-owned row."""
+    original = path.read_text(encoding="utf-8") if path.exists() else ""
+    existing = [json.loads(line) for line in original.splitlines() if line.strip()]
+    if any(not isinstance(row, dict) for row in existing):
+        raise ValueError(f"Expected JSON objects in {path}; preserve files for diagnosis")
+    allocation_id = rows[0]["allocation_id"]
+    present = [row for row in existing if row.get("allocation_id") == allocation_id]
+    if present:
+        if present != rows:
+            raise ValueError(
+                f"Conflicting allocation records in {path}; preserve files for diagnosis"
+            )
+        return
+    separator = "\n" if original and not original.endswith("\n") else ""
+    suffix = "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows)
+    _RUNTIME.atomic_write_text(path, original + separator + suffix)
+
+
+def recover_allocation(
+    paths: dict[str, Path],
+    state: JSONDict,
+    write_manifest: Callable[[JSONDict, bool], None],
+    *,
+    objective_cfg: JSONDict,
+) -> JSONDict:
+    """Repair one interrupted allocation while the caller holds the campaign lock."""
+    journal = _load_allocation(paths)
+    if journal is None:
+        return {"status": "clean", "trial_ids": []}
+    status = _allocation_status(journal, state)
+    ids = [row["trial_id"] for row in journal["suggestions"]]
+    if status == "committed":
+        if _OBJECTIVES.objective_config_snapshot(objective_cfg) != journal["objective_config"]:
+            raise ValueError("Restore the allocation's objective configuration before recovery")
+        pending = {row["trial_id"]: row for row in state["pending"]}
+        observed = {row["trial_id"]: row for row in state["observations"]}
+        for trial_id in ids:
+            # Results/heartbeats can arrive before recovery. Never resurrect pending work.
+            write_manifest(pending.get(trial_id) or observed[trial_id], trial_id in pending)
+        _allocation_checkpoint("manifests")
+        _publish_allocation_rows(paths["acquisition_log_file"], journal["decisions"])
+        _allocation_checkpoint("decisions")
+        _publish_allocation_rows(paths["event_log_file"], journal["events"])
+        _allocation_checkpoint("events")
+    _allocation_path(paths).unlink()
+    return {
+        "status": "repaired" if status == "committed" else "discarded_preparation",
+        "allocation_id": journal["allocation_id"],
+        "trial_ids": ids,
+    }
+
+
+def commit_allocation(
+    paths: dict[str, Path],
+    previous_state: JSONDict,
+    state: JSONDict,
+    suggestions: list[JSONDict],
+    decisions: list[JSONDict],
+    save_state: Callable[[Path, JSONDict], None],
+    write_manifest: Callable[[JSONDict, bool], None],
+    *,
+    objective_cfg: JSONDict,
+) -> None:
+    """Commit pending work and its snapshot before publishing repairable artifacts."""
+    if _allocation_path(paths).exists():
+        raise ValueError("Recover the previous Ax allocation before committing another batch")
+    allocation_id = uuid.uuid4().hex
+    journal = {
+        "format_version": 1,
+        "allocation_id": allocation_id,
+        "previous_snapshot": (previous_state.get("optimizer") or {}).get("snapshot"),
+        "snapshot": state["optimizer"]["snapshot"],
+        "objective_config": _OBJECTIVES.objective_config_snapshot(objective_cfg),
+        "suggestions": suggestions,
+        "decisions": [{**row, "allocation_id": allocation_id} for row in decisions],
+        "events": [
+            {
+                "event": "suggestion_created",
+                "timestamp": row["suggested_at"],
+                "trial_id": row["trial_id"],
+                "allocation_id": allocation_id,
+            }
+            for row in suggestions
+        ],
+    }
+    _RUNTIME.atomic_write_json(
+        _allocation_path(paths),
+        {"allocation": journal, "sha256": _BACKEND.canonical_digest(journal)},
+    )
+    _allocation_checkpoint("prepared")
+    save_state(paths["state_file"], state)
+    _allocation_checkpoint("committed")
+    try:
+        recover_allocation(paths, state, write_manifest, objective_cfg=objective_cfg)
+    except Exception as exc:
+        raise ValueError(
+            "Ax allocation committed, but artifact publication is unfinished. "
+            "Inspect status and run recover-allocation before requesting more work: "
+            f"{exc}"
+        ) from exc
 
 
 def _parameters(params: list[JSONDict]) -> list[JSONDict]:

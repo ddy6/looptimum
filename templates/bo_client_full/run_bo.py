@@ -888,6 +888,48 @@ def _ensure_terminal_manifest(
     save_trial_manifest(paths["trials_dir"], trial_id, manifest)
 
 
+def _write_allocation_manifest(
+    root: Path,
+    paths: dict[str, Path],
+    objective_cfg: dict[str, Any],
+    row: dict[str, Any],
+    pending: bool,
+) -> None:
+    if pending:
+        _ensure_pending_manifest(paths, row, objective_cfg=objective_cfg, now=time.time())
+    else:
+        _ensure_terminal_manifest(
+            root,
+            paths,
+            row,
+            objective_cfg=objective_cfg,
+            payload_copy_path=None,
+            now=time.time(),
+        )
+
+
+def cmd_recover_allocation(args: argparse.Namespace) -> None:
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    paths = _runtime_paths(root, cfg)
+    obj_cfg = _load_objective_config(root, cfg)
+    with hold_exclusive_lock(
+        paths["lock_file"],
+        timeout_seconds=resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds),
+        fail_fast=args.fail_fast,
+    ):
+        state = load_state(paths["state_file"])
+        result = _AX.recover_allocation(
+            paths,
+            state,
+            lambda row, pending: _write_allocation_manifest(root, paths, obj_cfg, row, pending),
+            objective_cfg=obj_cfg,
+        )
+        print(json.dumps(result, indent=2))
+
+
 def _annotate_import_manifest(
     paths: dict[str, Path],
     *,
@@ -1024,6 +1066,7 @@ def _status_payload(
     worker_leases_enabled: bool,
 ) -> dict:
     now = time.time()
+    allocation = _AX.allocation_diagnostics(paths, state)
     stale_pending = 0
     leased_pending = 0
     if max_pending_age is not None:
@@ -1045,6 +1088,7 @@ def _status_payload(
             if state.get("optimizer")
             else {}
         ),
+        **({"allocation_recovery": allocation} if allocation is not None else {}),
         "observations": len(state["observations"]),
         "pending": len(state["pending"]),
         "leased_pending": leased_pending,
@@ -1662,6 +1706,14 @@ def _build_health_payload(args: argparse.Namespace) -> tuple[dict, int]:
     status_payload: dict | None = None
     governance_snapshot: dict | None = None
     if state is not None:
+        try:
+            allocation = _AX.inspect_allocation(paths, state)
+            if allocation["status"] != "clean":
+                warnings_out.append(
+                    f"Ax allocation publication is {allocation['status']}; run recover-allocation"
+                )
+        except ValueError as exc:
+            hard_errors.append(str(exc))
         status_payload = _status_payload(
             root,
             state,
@@ -2041,6 +2093,12 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         try:
             state = load_state(paths["state_file"])
             _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
+            _AX.recover_allocation(
+                paths,
+                state,
+                lambda row, pending: _write_allocation_manifest(root, paths, obj_cfg, row, pending),
+                objective_cfg=obj_cfg,
+            )
             if state["meta"]["seed"] is None:
                 state["meta"]["seed"] = int(cfg["seed"])
 
@@ -2054,6 +2112,10 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                     now=now,
                     reason="retired_stale_auto",
                 )
+                if stale_observations and optimizer_cfg["backend"] == "ax":
+                    # Retirement is a separate committed lifecycle change, even if Ax fails.
+                    update_best(state, obj_cfg)
+                    _save_state_and_rows(paths, state)
                 for obs in stale_observations:
                     _ensure_terminal_manifest(
                         root,
@@ -2215,28 +2277,52 @@ def cmd_suggest(args: argparse.Namespace) -> None:
                     )
                 raise
 
-            state = planning_state
-            for suggestion in planned_suggestions:
-                _ensure_pending_manifest(
-                    paths,
-                    suggestion,
-                    objective_cfg=obj_cfg,
-                    now=time.time(),
-                )
-            for trial_id, decision, suggest_latency_seconds in planned_decisions:
-                append_jsonl(
-                    paths["acquisition_log_file"],
+            if ax_plan is not None:
+                decision_rows = [
                     {
                         "trial_id": trial_id,
                         "decision": decision,
-                        "telemetry": _suggest_telemetry_payload(suggest_latency_seconds),
+                        "telemetry": _suggest_telemetry_payload(latency),
                         "timestamp": time.time(),
-                    },
+                    }
+                    for trial_id, decision, latency in planned_decisions
+                ]
+                _AX.commit_allocation(
+                    paths,
+                    state,
+                    planning_state,
+                    planned_suggestions,
+                    decision_rows,
+                    save_state,
+                    lambda row, pending: _write_allocation_manifest(
+                        root, paths, obj_cfg, row, pending
+                    ),
+                    objective_cfg=obj_cfg,
                 )
-                _emit_constraint_warning(decision)
-                _append_event(paths, "suggestion_created", trial_id=trial_id)
+                state = planning_state
+            else:
+                state = planning_state
+                for suggestion in planned_suggestions:
+                    _ensure_pending_manifest(
+                        paths,
+                        suggestion,
+                        objective_cfg=obj_cfg,
+                        now=time.time(),
+                    )
+                for trial_id, decision, suggest_latency_seconds in planned_decisions:
+                    append_jsonl(
+                        paths["acquisition_log_file"],
+                        {
+                            "trial_id": trial_id,
+                            "decision": decision,
+                            "telemetry": _suggest_telemetry_payload(suggest_latency_seconds),
+                            "timestamp": time.time(),
+                        },
+                    )
+                    _emit_constraint_warning(decision)
+                    _append_event(paths, "suggestion_created", trial_id=trial_id)
 
-            save_state(paths["state_file"], state)
+                save_state(paths["state_file"], state)
             if stale_observations:
                 write_obs_csv(paths["observations_csv"], _observation_rows(state))
             _append_governance_violation_event(
@@ -3338,6 +3424,11 @@ def cmd_validate(args: argparse.Namespace) -> None:
     try:
         _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
         _AX.inspect_snapshot(root, paths, state)
+        allocation = _AX.inspect_allocation(paths, state)
+        if allocation["status"] != "clean":
+            warnings_out.append(
+                f"Ax allocation publication is {allocation['status']}; run recover-allocation"
+            )
     except Exception as exc:
         hard_errors.append(f"optimizer state validation failure: {exc}")
 
@@ -3505,6 +3596,7 @@ def parse_args() -> argparse.Namespace:
         "command",
         choices=[
             "suggest",
+            "recover-allocation",
             "ingest",
             "import-observations",
             "export-observations",
@@ -3635,6 +3727,7 @@ def main() -> None:
     args = parse_args()
     commands = {
         "suggest": cmd_suggest,
+        "recover-allocation": cmd_recover_allocation,
         "ingest": cmd_ingest,
         "import-observations": cmd_import_observations,
         "export-observations": cmd_export_observations,

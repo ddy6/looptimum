@@ -12,6 +12,10 @@ Stable command names and required flag posture are documented in
 - lifecycle ops: `cancel`, `retire`, `heartbeat`
 - support ops: `import-observations`, `export-observations`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `health`, `metrics`, `validate`, `doctor`
 
+The optional Ax backend also provides `recover-allocation` in ordinary/full
+controllers to finish interrupted allocation publication without generating
+work. See [Ax backend](./ax-backend.md#state-and-recovery-boundaries).
+
 ## Core Loop Contract
 
 1. `suggest`: emits one trial proposal by default, or a locked batch when

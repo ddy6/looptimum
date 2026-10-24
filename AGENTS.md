@@ -15,11 +15,16 @@
   or create release tags as part of an engineering slice.
 - Preserve existing proxy/direct-BoTorch defaults and evaluator contracts
   while introducing optional Ax support. Keep the ordinary environment lean.
+- Verify Mypy in an environment installed from `requirements-dev.txt` without
+  the optional optimizer stack. An Ax-enabled environment can hide missing
+  optional-import errors that fail the lean GitHub type-check job.
 
 ## Long-running processes
 
-- Prefer independent useful work while a process runs; do not repeatedly
-  poll an unchanged process or consume inference merely to watch it.
+- Finish independent implementation work before launching long checks. If a
+  command returns an active process/session, record its ID and log, give a
+  useful polling interval, and pause. Do not keep working while leaving an
+  active check unreported, or poll again without the user's command.
 - When further progress requires waiting for an active process, give the
   user a useful polling interval and pause immediately. The approximate
   three-minute limit below is a maximum, not a period to fill with inference.

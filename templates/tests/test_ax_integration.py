@@ -131,6 +131,12 @@ def test_real_ax_batch_restart_ingest_failure_and_cancellation(tmp_path, variant
     invoke(project, "report", lean=True)
     doctor = json.loads(invoke(project, "doctor", "--json", lean=True).stdout)
     assert doctor["optimizer"]["available"] is False
+    edited = state(project)
+    edited["observations"][0]["objectives"]["loss"] = 999
+    (project / "state/bo_state.json").write_text(json.dumps(edited))
+    failed = invoke(project, "suggest", "--json-only", success=False)
+    assert failed.returncode != 0 and "Previously projected terminal observation" in failed.stderr
+    assert state(project)["next_trial_id"] == 6
 
 
 def test_real_ax_mixed_space_types_and_snapshot_failure_are_atomic(tmp_path):
@@ -151,8 +157,12 @@ def test_real_ax_mixed_space_types_and_snapshot_failure_are_atomic(tmp_path):
     assert failed.returncode != 0
     assert (project / "state/bo_state.json").read_bytes() == original
     assert len(state(project)["pending"]) == 1
+    assert not (project / "state/trials/trial_2/manifest.json").exists()
+    assert len((project / "state/acquisition_log.jsonl").read_text().splitlines()) == 1
+    assert (project / "state/optimizer/ax/allocation.json").exists()
     retried = json.loads(invoke(project, "suggest", "--json-only").stdout)
     assert retried["trial_id"] == 2
+    assert not (project / "state/optimizer/ax/allocation.json").exists()
 
 
 def test_real_ax_partial_initialization_batch_does_not_allocate(tmp_path):
@@ -185,3 +195,83 @@ def test_snapshot_corruption_blocks_generation_but_preserves_read_and_ingest(tmp
     observed = json.loads(invoke(project, "status", lean=True).stdout)
     assert observed["observations"] == 1 and observed["pending"] == 0
     assert invoke(project, "validate", lean=True, success=False).returncode != 0
+
+
+def test_real_ax_process_exit_repairs_and_continues_model_generation(tmp_path):
+    project = campaign(tmp_path)
+    stopped = invoke(
+        project,
+        "suggest",
+        "--count",
+        "2",
+        "--json-only",
+        success=False,
+        env={"LOOPTIMUM_TEST_ALLOCATION_EXIT": "decisions"},
+    )
+    assert stopped.returncode == 86 and stopped.stdout == ""
+    initial = state(project)["pending"]
+    pointer = project / state(project)["optimizer"]["snapshot"]["path"]
+    snapshot_bytes = pointer.read_bytes()
+    recovered = json.loads(invoke(project, "recover-allocation", lean=True).stdout)
+    assert recovered["status"] == "repaired" and recovered["trial_ids"] == [1, 2]
+    ingest(project, initial[1], 0.2)
+    ingest(project, initial[0], 0.5)
+    third = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert third["trial_id"] == 3 and pointer.read_bytes() == snapshot_bytes
+    decisions = [
+        json.loads(line)
+        for line in (project / "state/acquisition_log.jsonl").read_text().splitlines()
+    ]
+    assert [row["trial_id"] for row in decisions] == [1, 2, 3]
+    assert decisions[-1]["decision"]["generation_node"] == "MBM"
+    invoke(project, "validate", "--strict", lean=True)
+
+
+@pytest.mark.parametrize("policy,expected", [("weighted_sum", -7.0), ("weighted_tchebycheff", 1.5)])
+def test_real_ax_imported_scalar_objectives_and_tightened_bounds(tmp_path, policy, expected):
+    project = campaign(tmp_path)
+    scalarization = {"policy": policy, "weights": {"loss": 1, "throughput": 3}}
+    if policy == "weighted_tchebycheff":
+        scalarization["reference_point"] = {"loss": 1, "throughput": 12}
+    (project / "objective_schema.json").write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "secondary_objectives": [{"name": "throughput", "direction": "maximize"}],
+                "scalarization": scalarization,
+            }
+        )
+    )
+    (project / "constraints.json").write_text(
+        json.dumps(
+            {
+                "bound_tightening": [{"param": "x", "min": 0.2, "max": 0.8}],
+            }
+        )
+    )
+    imported = [
+        {
+            "trial_id": 41,
+            "params": {"x": 0.3, "y": 0.3},
+            "objectives": {"loss": 2, "throughput": 10},
+            "status": "ok",
+        },
+        {
+            "trial_id": 99,
+            "params": {"x": 0.7, "y": 0.7},
+            "objectives": {"loss": 8, "throughput": 2},
+            "status": "ok",
+        },
+    ]
+    (project / "seed.jsonl").write_text("".join(json.dumps(row) + "\n" for row in imported))
+    invoke(project, "import-observations", "--input-file", "seed.jsonl", lean=True)
+    third = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert third["trial_id"] == 3 and 0.2 <= third["params"]["x"] <= 0.8
+    observed = state(project)
+    assert [row["source_trial_id"] for row in observed["observations"]] == [41, 99]
+    assert observed["observations"][0]["objectives"] == imported[0]["objectives"]
+    assert observed["best"]["trial_id"] == 1
+    assert observed["best"]["objective_value"] == pytest.approx(expected)
+    decision = json.loads((project / "state/acquisition_log.jsonl").read_text().splitlines()[-1])
+    assert decision["decision"]["generation_node"] == "MBM"
+    invoke(project, "validate", lean=True)
