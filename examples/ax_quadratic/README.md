@@ -18,4 +18,11 @@ inspect it without the Ax dependencies, use its `run_bo.py status`, `report`,
 or `validate` command. Set a larger `max_trials` before requesting more trials;
 the example sets the evaluation budget to `--steps`.
 
+If exact snapshot restoration is unavailable, its controller also supports
+`rebuild-optimizer --reason "Original optimizer snapshot unavailable"`.
+Run it from the campaign directory with Ax installed. It preserves trial
+records and pending leases, allocates no evaluations, saves recovery evidence,
+and starts a new optimizer lineage. It does not reproduce the lost optimizer's
+future suggestions. See the recovery contract below before using it.
+
 See [Ax backend configuration and recovery boundaries](../../docs/ax-backend.md).

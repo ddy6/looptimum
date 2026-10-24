@@ -80,6 +80,30 @@ backup and diagnosis. Preserve canonical state and the entire optimizer
 directory together. Allocation recovery does not recreate a missing Ax
 snapshot or promise exact continuation from observations alone.
 
+### Ax optimizer snapshot cannot be restored
+
+First preserve canonical state and all optimizer files. Restore the original
+configuration, resolve pending allocation publication with
+`recover-allocation`, and install the compatible Ax stack. Then run the
+ordinary/full controller's explicit transition:
+
+```bash
+python run_bo.py rebuild-optimizer --reason "Original snapshot could not be restored"
+python run_bo.py validate --strict
+```
+
+The rebuild preserves canonical trial records, leases, and best-so-far,
+creates no evaluations, and starts a new optimizer lineage. It retains exact
+pre-rebuild state and available snapshot bytes under the optimizer directory.
+Future suggestions can differ. See the [rebuild contract and backup
+inventory](./ax-backend.md#rebuild-a-lost-optimizer-snapshot), including older
+state whose configuration cannot be independently verified.
+
+If status reports unfinished `optimizer_recovery`, rerun the rebuild command
+to finish the committed audit without generating work or rebuilding again.
+That completion requires no optimizer imports. A rebuild error is not
+permission to discard pending workers or alter trial IDs.
+
 ### 1) `ingest` failed
 
 Run:

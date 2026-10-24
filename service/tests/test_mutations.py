@@ -114,6 +114,66 @@ def _normalize_jsonl_suggestions(text: str) -> list[dict[str, object]]:
     return normalized
 
 
+@pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
+def test_ax_snapshot_unavailable_does_not_block_service_reads_or_leased_ingest(
+    tmp_path: Path, variant: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = _prepare_variant_copy(
+        tmp_path, variant, target_name="lean_ax_service", worker_leases_enabled=True
+    )
+    suggestion = json.loads(_run_cli(project, "suggest", "--json-only").stdout)
+    config_path = project / "bo_config.json"
+    config = json.loads(config_path.read_text())
+    config["optimizer"] = {"backend": "ax"}
+    config_path.write_text(json.dumps(config))
+    # Fixture of a committed Ax campaign whose optimizer files are unavailable.
+    canonical_path = project / "state/bo_state.json"
+    canonical = json.loads(canonical_path.read_text())
+    canonical["schema_version"] = "0.4.0"
+    canonical["optimizer"] = {
+        "backend": "ax",
+        "format_version": 1,
+        "snapshot": {"path": "state/optimizer/ax/snapshots/missing.json", "sha256": "0" * 64},
+    }
+    canonical_path.write_text(json.dumps(canonical))
+    attempted = []
+
+    class ForbidOptimizerImports:
+        def find_spec(self, fullname, path=None, target=None):
+            if fullname.split(".")[0] in {"ax", "botorch", "torch", "gpytorch", "numpy"}:
+                attempted.append(fullname)
+                raise AssertionError(f"Service terminal operation imported {fullname}")
+            return None
+
+    monkeypatch.setattr(sys, "meta_path", [ForbidOptimizerImports(), *sys.meta_path])
+    app = create_app(build_service_config(tmp_path / "registry.json"))
+    with TestClient(app) as client:
+        registration = client.post("/campaigns", json={"root_path": str(project)})
+        assert registration.status_code == 201
+        campaign_id = registration.json()["campaign_id"]
+        status = client.get(f"/campaigns/{campaign_id}/status")
+        assert status.status_code == 200 and status.json()["pending"] == 1
+        payload = _ok_result_payload(project, suggestion, 0.15)
+        wrong_lease = client.post(
+            f"/campaigns/{campaign_id}/ingest", json={"payload": payload, "lease_token": "wrong"}
+        )
+        assert wrong_lease.status_code == 409
+        response = client.post(
+            f"/campaigns/{campaign_id}/ingest",
+            json={"payload": payload, "lease_token": suggestion["lease_token"]},
+        )
+        assert response.status_code == 200 and response.json()["noop"] is False
+        replay = client.post(
+            f"/campaigns/{campaign_id}/ingest",
+            json={"payload": payload, "lease_token": suggestion["lease_token"]},
+        )
+        assert replay.status_code == 200 and replay.json()["noop"] is True
+        status = client.get(f"/campaigns/{campaign_id}/status")
+        assert status.json()["pending"] == 0 and status.json()["best"]["trial_id"] == 1
+    assert attempted == []
+    assert json.loads(canonical_path.read_text())["optimizer"] == canonical["optimizer"]
+
+
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_suggest_endpoint_matches_cli_bundle_payload_across_variants(
     tmp_path: Path, variant: str

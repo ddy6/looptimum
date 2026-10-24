@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import importlib.util
 import json
 import math
 import os
 import subprocess
 import sys
+import time
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -151,14 +154,16 @@ def allocation_diagnostics(paths: dict[str, Path], state: JSONDict) -> JSONDict 
         return {"status": "invalid", "error": str(exc)}
 
 
-def _publish_allocation_rows(path: Path, rows: list[JSONDict]) -> None:
+def _publish_allocation_rows(
+    path: Path, rows: list[JSONDict], *, key_field: str = "allocation_id"
+) -> None:
     """Logically append once, using replacement to avoid a torn journal-owned row."""
     original = path.read_text(encoding="utf-8") if path.exists() else ""
     existing = [json.loads(line) for line in original.splitlines() if line.strip()]
     if any(not isinstance(row, dict) for row in existing):
         raise ValueError(f"Expected JSON objects in {path}; preserve files for diagnosis")
-    allocation_id = rows[0]["allocation_id"]
-    present = [row for row in existing if row.get("allocation_id") == allocation_id]
+    identifier = rows[0][key_field]
+    present = [row for row in existing if row.get(key_field) == identifier]
     if present:
         if present != rows:
             raise ValueError(
@@ -294,23 +299,88 @@ def _encode(values: JSONDict, parameters: list[JSONDict]) -> JSONDict:
     return encoded
 
 
+def _snapshot_path(root: Path, paths: dict[str, Path], reference: JSONDict) -> Path:
+    if not isinstance(reference, dict):
+        raise ValueError("Invalid optimizer snapshot reference")
+    relative = reference.get("path")
+    if not isinstance(relative, str) or not relative:
+        raise ValueError("Invalid optimizer snapshot path")
+    path = (root / relative).resolve()
+    if not path.is_relative_to(paths["optimizer_dir"].resolve()):
+        raise ValueError("Snapshot path escapes the optimizer directory")
+    return path
+
+
 def inspect_snapshot(root: Path, paths: dict[str, Path], state: JSONDict) -> JSONDict | None:
     metadata = state.get("optimizer")
     if metadata is None:
         return None
     try:
         reference = metadata["snapshot"]
-        path = (root / reference["path"]).resolve()
-        if not path.is_relative_to(paths["optimizer_dir"].resolve()):
-            raise ValueError("Snapshot path escapes the optimizer directory")
+        path = _snapshot_path(root, paths, reference)
         snapshot = json.loads(path.read_text())
         if _BACKEND.canonical_digest(snapshot) != reference["sha256"]:
             raise ValueError("Ax snapshot digest mismatch")
         if snapshot["format_version"] != _BACKEND.AX_FORMAT_VERSION:
             raise ValueError("Unsupported Ax snapshot format")
+        for key in ("fingerprint", "lineage", "generation", "last_rebuild"):
+            if key in metadata and metadata[key] != snapshot.get(key):
+                raise ValueError(f"Ax optimizer metadata disagrees with snapshot {key}")
         return cast(JSONDict, snapshot)
     except (KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"Ax snapshot is missing or invalid: {exc}") from exc
+
+
+def _fingerprint(
+    parameters: list[JSONDict], objective_cfg: JSONDict, options: JSONDict, state: JSONDict
+) -> str:
+    return cast(
+        str,
+        _BACKEND.canonical_digest(
+            {
+                "parameters": parameters,
+                "objectives": _OBJECTIVES.objective_config_snapshot(objective_cfg),
+                "options": {
+                    key: value
+                    for key, value in options.items()
+                    if key not in ("generation_timeout_seconds", "max_generation_attempts")
+                },
+                "seed": state["meta"]["seed"],
+            }
+        ),
+    )
+
+
+def _check_finite_capacity(
+    parameters: list[JSONDict],
+    records: list[JSONDict],
+    count: int,
+    *,
+    allow_completed_repeats: bool,
+) -> None:
+    if count == 0:
+        return
+    capacity = 1
+    for param in parameters:
+        if "values" in param:
+            capacity *= len({_BACKEND.canonical_digest(value) for value in param["values"]})
+        elif param["parameter_type"] == "int":
+            capacity *= int(param["bounds"][1]) - int(param["bounds"][0]) + 1
+        elif param["bounds"][0] == param["bounds"][1]:
+            continue
+        else:
+            return  # At least one non-fixed continuous parameter.
+    blocked = {
+        _BACKEND.canonical_digest(row["params"])
+        for row in records
+        if row["status"] == "pending" or not allow_completed_repeats
+    }
+    available = capacity - len(blocked)
+    if available < count:
+        raise ValueError(
+            f"Ax finite search space has {available} available unique points; "
+            f"cannot allocate a complete batch of {count}"
+        )
 
 
 def prepare_batch(
@@ -324,24 +394,33 @@ def prepare_batch(
     count: int,
     optimizer: JSONDict,
 ) -> list[tuple[JSONDict, JSONDict]]:
+    if state.get("optimizer", {}).get("pending_rebuild_event"):
+        raise ValueError("Finish the committed optimizer rebuild before generating trials")
+    return _prepare_projection(
+        root, paths, state, cfg, params, objective_cfg, constraints, count, optimizer
+    )
+
+
+def _prepare_projection(
+    root: Path,
+    paths: dict[str, Path],
+    state: JSONDict,
+    cfg: JSONDict,
+    params: list[JSONDict],
+    objective_cfg: JSONDict,
+    constraints: JSONDict | None,
+    count: int,
+    optimizer: JSONDict,
+    *,
+    rebuild: JSONDict | None = None,
+) -> list[tuple[JSONDict, JSONDict]]:
     """Stage a complete Ax allocation in planning state; caller owns the state commit."""
     _BACKEND.assert_backend_matches_state(state, optimizer)
     _BACKEND.validate_ax_capabilities(params, objective_cfg, constraints)
     parameters = _parameters(_CONSTRAINTS.apply_bound_tightening(params, constraints))
     options = optimizer["ax"]
-    fingerprint = _BACKEND.canonical_digest(
-        {
-            "parameters": parameters,
-            "objectives": _OBJECTIVES.objective_config_snapshot(objective_cfg),
-            "options": {
-                key: value
-                for key, value in options.items()
-                if key not in ("generation_timeout_seconds", "max_generation_attempts")
-            },
-            "seed": state["meta"]["seed"],
-        }
-    )
-    previous = inspect_snapshot(root, paths, state)
+    fingerprint = _fingerprint(parameters, objective_cfg, options, state)
+    previous = inspect_snapshot(root, paths, state) if rebuild is None else None
     if previous is not None:
         if previous["fingerprint"] != fingerprint:
             raise ValueError(
@@ -372,8 +451,12 @@ def prepare_batch(
                 }
             )
     generation = 0 if previous is None else previous["generation"]
+    _check_finite_capacity(
+        parameters, records, count, allow_completed_repeats=options["allow_completed_repeats"]
+    )
     request = {
         "protocol": 1,
+        "operation": "rebuild" if rebuild is not None else "generate",
         "parameters": parameters,
         "options": options,
         "direction": _OBJECTIVES.scalarized_direction(objective_cfg),
@@ -420,6 +503,12 @@ def prepare_batch(
     result = response["result"]
     if len(result["candidates"]) != count:
         raise ValueError("Ax returned an incomplete batch; no trials were allocated")
+    if rebuild is not None and (
+        set(result["mapping"]) != {str(row["trial_id"]) for row in records}
+        or result["signatures"] != {str(row["trial_id"]): row["signature"] for row in records}
+        or len(set(result["mapping"].values())) != len(records)
+    ):
+        raise ValueError("Ax rebuild did not project every canonical trial exactly once")
     planned = []
     for candidate in result["candidates"]:
         raw = {param["raw_name"]: candidate["params"][param["name"]] for param in parameters}
@@ -454,15 +543,19 @@ def prepare_batch(
     for _, decision in planned:
         decision["constraint_status"] = constraint_status
         decision["ax_generation_attempts"] = result["attempts"]
+    last_rebuild = rebuild if rebuild is not None else (previous or {}).get("last_rebuild")
     envelope = {
         "format_version": _BACKEND.AX_FORMAT_VERSION,
         "fingerprint": fingerprint,
-        "lineage": previous["lineage"] if previous else uuid.uuid4().hex,
-        "generation": generation + 1,
+        "lineage": rebuild["lineage"]
+        if rebuild is not None
+        else (previous["lineage"] if previous else uuid.uuid4().hex),
+        "generation": 0 if rebuild is not None else generation + 1,
         "versions": result["versions"],
         "mapping": result["mapping"],
         "signatures": result["signatures"],
         "ax": result["snapshot"],
+        **({"last_rebuild": last_rebuild} if last_rebuild is not None else {}),
     }
     digest = _BACKEND.canonical_digest(envelope)
     path = paths["optimizer_dir"] / "ax" / "snapshots" / f"{digest}.json"
@@ -470,10 +563,171 @@ def prepare_batch(
     _RUNTIME.atomic_write_json(path, envelope)
     for _, decision in planned:
         decision["optimizer_snapshot"] = digest
+        decision["optimizer_lineage"] = envelope["lineage"]
     state["schema_version"] = _BACKEND.AX_STATE_SCHEMA_VERSION
     state["optimizer"] = {
         "backend": "ax",
         "format_version": _BACKEND.AX_FORMAT_VERSION,
         "snapshot": {"path": relative, "sha256": digest},
+        "lineage": envelope["lineage"],
+        "generation": envelope["generation"],
+        "fingerprint": fingerprint,
+        **({"last_rebuild": last_rebuild} if last_rebuild is not None else {}),
     }
     return planned
+
+
+def rebuild_diagnostics(state: JSONDict) -> JSONDict | None:
+    event = (state.get("optimizer") or {}).get("pending_rebuild_event")
+    if event is None:
+        return None
+    if (
+        not isinstance(event, dict)
+        or event.get("event") != "optimizer_rebuilt"
+        or not isinstance(event.get("rebuild_id"), str)
+        or not isinstance(state["optimizer"].get("last_rebuild"), dict)
+        or event.get("snapshot") != state["optimizer"].get("snapshot")
+        or event
+        != {
+            "event": "optimizer_rebuilt",
+            **state["optimizer"].get("last_rebuild", {}),
+            "snapshot": state["optimizer"].get("snapshot"),
+        }
+    ):
+        return {"status": "invalid", "error": "Invalid pending optimizer rebuild event"}
+    return {"status": "committed", "rebuild_id": event["rebuild_id"]}
+
+
+def recover_rebuild_event(
+    paths: dict[str, Path], state: JSONDict, save_state: Callable[[Path, JSONDict], None]
+) -> JSONDict | None:
+    """Finish a committed rebuild without requiring the numerical optimizer stack."""
+    diagnostic = rebuild_diagnostics(state)
+    if diagnostic is None:
+        return None
+    if diagnostic["status"] == "invalid":
+        raise ValueError(diagnostic["error"])
+    event = state["optimizer"]["pending_rebuild_event"]
+    try:
+        _publish_allocation_rows(paths["event_log_file"], [event], key_field="rebuild_id")
+        _allocation_checkpoint("rebuild_event")
+        repaired = copy.deepcopy(state)
+        del repaired["optimizer"]["pending_rebuild_event"]
+        save_state(paths["state_file"], repaired)
+    except Exception as exc:
+        raise ValueError(
+            "Optimizer rebuild already committed; rerun rebuild-optimizer to finish its audit "
+            f"publication without rebuilding again: {exc}"
+        ) from exc
+    state.clear()
+    state.update(repaired)
+    return cast(JSONDict, event)
+
+
+def _preserve_bytes(path: Path, contents: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp-{uuid.uuid4().hex}")
+    temporary.write_bytes(contents)
+    temporary.replace(path)
+
+
+def rebuild_optimizer(
+    root: Path,
+    paths: dict[str, Path],
+    state: JSONDict,
+    cfg: JSONDict,
+    params: list[JSONDict],
+    objective_cfg: JSONDict,
+    constraints: JSONDict | None,
+    optimizer: JSONDict,
+    reason: str,
+    save_state: Callable[[Path, JSONDict], None],
+) -> JSONDict:
+    """Explicitly start a new Ax lineage from canonical records, without allocating work."""
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("rebuild-optimizer requires a non-empty --reason")
+    if optimizer["backend"] != "ax" or not state.get("optimizer"):
+        raise ValueError("rebuild-optimizer requires an existing Ax campaign")
+    _BACKEND.assert_backend_matches_state(state, optimizer)
+    if _allocation_path(paths).exists():
+        raise ValueError("Run recover-allocation before rebuilding the optimizer")
+    recovered = recover_rebuild_event(paths, state, save_state)
+    if recovered is not None:
+        return {"status": "recovered_rebuild", "rebuild": recovered, "allocated_trials": 0}
+    _BACKEND.validate_ax_capabilities(params, objective_cfg, constraints)
+    parameters = _parameters(_CONSTRAINTS.apply_bound_tightening(params, constraints))
+    fingerprint = _fingerprint(parameters, objective_cfg, optimizer["ax"], state)
+    source_path = _snapshot_path(root, paths, state["optimizer"]["snapshot"])
+    source_bytes = source_path.read_bytes() if source_path.exists() else None
+    prior = None
+    source_error = None
+    try:
+        prior = inspect_snapshot(root, paths, state)
+    except ValueError as exc:
+        source_error = str(exc)
+    known_fingerprint = state["optimizer"].get("fingerprint") or (prior or {}).get("fingerprint")
+    if known_fingerprint is not None and known_fingerprint != fingerprint:
+        raise ValueError(
+            "Ax campaign configuration changed; restore it before rebuilding, or create a new campaign"
+        )
+    rebuild_id = uuid.uuid4().hex
+    directory = paths["optimizer_dir"] / "ax" / "rebuilds" / rebuild_id
+    relative = directory.resolve().relative_to(root.resolve()).as_posix()
+    canonical_bytes = paths["state_file"].read_bytes()
+    recovery = {
+        "rebuild_id": rebuild_id,
+        "reason": reason.strip(),
+        "timestamp": time.time(),
+        "lineage": uuid.uuid4().hex,
+        "previous_lineage": state["optimizer"].get("lineage") or (prior or {}).get("lineage"),
+        "previous_snapshot": state["optimizer"]["snapshot"],
+        "previous_versions": (prior or {}).get("versions"),
+        "versions": _BACKEND.dependency_versions(),
+        "configuration_verified": known_fingerprint is not None,
+        "backup_directory": relative,
+        "source_state_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
+        "source_snapshot_sha256": hashlib.sha256(source_bytes).hexdigest()
+        if source_bytes is not None
+        else None,
+        "source_snapshot_error": source_error,
+        "observations": len(state["observations"]),
+        "pending": len(state["pending"]),
+    }
+    planning = copy.deepcopy(state)
+    _prepare_projection(
+        root,
+        paths,
+        planning,
+        cfg,
+        params,
+        objective_cfg,
+        constraints,
+        0,
+        optimizer,
+        rebuild=recovery,
+    )
+    _preserve_bytes(directory / "state-before.json", canonical_bytes)
+    if source_bytes is not None:
+        _preserve_bytes(directory / "snapshot-before.bin", source_bytes)
+    _RUNTIME.atomic_write_json(
+        directory / "rebuild.json",
+        {
+            **recovery,
+            "snapshot": planning["optimizer"]["snapshot"],
+            "versions": _BACKEND.dependency_versions(),
+            "fingerprint": fingerprint,
+        },
+    )
+    event = {
+        "event": "optimizer_rebuilt",
+        **recovery,
+        "snapshot": planning["optimizer"]["snapshot"],
+    }
+    planning["optimizer"]["pending_rebuild_event"] = event
+    _allocation_checkpoint("rebuild_prepared")
+    save_state(paths["state_file"], planning)
+    state.clear()
+    state.update(planning)
+    _allocation_checkpoint("rebuild_committed")
+    recover_rebuild_event(paths, state, save_state)
+    return {"status": "rebuilt", "rebuild": event, "allocated_trials": 0}

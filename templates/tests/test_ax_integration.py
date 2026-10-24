@@ -131,12 +131,29 @@ def test_real_ax_batch_restart_ingest_failure_and_cancellation(tmp_path, variant
     invoke(project, "report", lean=True)
     doctor = json.loads(invoke(project, "doctor", "--json", lean=True).stdout)
     assert doctor["optimizer"]["available"] is False
+    invoke(project, "cancel", "--trial-id", str(fifth["trial_id"]), lean=True)
+    (project / "later_import.jsonl").write_text(
+        json.dumps(
+            {
+                "trial_id": 99,
+                "params": {"x": 0.3, "y": 0.7},
+                "objectives": {"loss": 0.1},
+                "status": "ok",
+            }
+        )
+        + "\n"
+    )
+    invoke(project, "import-observations", "--input-file", "later_import.jsonl", lean=True)
+    seventh = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert seventh["trial_id"] == 7
+    assert state(project)["observations"][-1]["source_trial_id"] == 99
+    assert state(project)["best"]["trial_id"] == 6
     edited = state(project)
     edited["observations"][0]["objectives"]["loss"] = 999
     (project / "state/bo_state.json").write_text(json.dumps(edited))
     failed = invoke(project, "suggest", "--json-only", success=False)
     assert failed.returncode != 0 and "Previously projected terminal observation" in failed.stderr
-    assert state(project)["next_trial_id"] == 6
+    assert state(project)["next_trial_id"] == 8
 
 
 def test_real_ax_mixed_space_types_and_snapshot_failure_are_atomic(tmp_path):
@@ -275,3 +292,113 @@ def test_real_ax_imported_scalar_objectives_and_tightened_bounds(tmp_path, polic
     decision = json.loads((project / "state/acquisition_log.jsonl").read_text().splitlines()[-1])
     assert decision["decision"]["generation_node"] == "MBM"
     invoke(project, "validate", lean=True)
+
+
+@pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
+def test_real_ax_rebuild_preserves_pending_lease_and_resumes_model_generation(tmp_path, variant):
+    project = campaign(tmp_path, variant)
+    initial = json.loads(invoke(project, "suggest", "--count", "2", "--json-only").stdout)[
+        "suggestions"
+    ]
+    ingest(project, initial[0], 0.4)
+    before = state(project)
+    source = project / before["optimizer"]["snapshot"]["path"]
+    source.write_text("broken snapshot")
+    rebuilt = json.loads(invoke(project, "rebuild-optimizer", "--reason", "lost snapshot").stdout)
+    assert rebuilt["status"] == "rebuilt" and rebuilt["allocated_trials"] == 0
+    after = state(project)
+    assert after["pending"] == before["pending"]
+    assert after["observations"] == before["observations"] and after["best"] == before["best"]
+    assert after["next_trial_id"] == 3
+    assert after["optimizer"]["lineage"] != before["optimizer"]["lineage"]
+    assert source.read_text() == "broken snapshot"
+    ingest(project, initial[1], 0.2)
+    third = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert third["trial_id"] == 3
+    decisions = [
+        json.loads(line)
+        for line in (project / "state/acquisition_log.jsonl").read_text().splitlines()
+    ]
+    assert decisions[-1]["decision"]["generation_node"] == "MBM"
+    assert decisions[-1]["decision"]["optimizer_lineage"] == after["optimizer"]["lineage"]
+    invoke(project, "validate", lean=True)
+
+
+def test_rebuild_rejects_missing_dependencies_without_editing_canonical_state(tmp_path):
+    project = campaign(tmp_path)
+    invoke(project, "suggest", "--json-only")
+    canonical = (project / "state/bo_state.json").read_bytes()
+    environment = tmp_path / "without_ax"
+    venv.EnvBuilder(with_pip=False, system_site_packages=False).create(environment)
+    executable = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    failed = invoke(
+        project,
+        "rebuild-optimizer",
+        "--reason",
+        "lost environment",
+        executable=str(executable),
+        success=False,
+    )
+    assert failed.returncode != 0 and "requires ax-platform==1.3.1" in failed.stderr
+    assert (project / "state/bo_state.json").read_bytes() == canonical
+
+
+def test_failed_initialization_does_not_become_a_successful_model_observation(tmp_path):
+    from ax.api.client import Client
+
+    project = campaign(tmp_path)
+    initial = json.loads(invoke(project, "suggest", "--count", "2", "--json-only").stdout)[
+        "suggestions"
+    ]
+    for trial in initial:
+        ingest(project, trial, None, "failed")
+    failed_observations = state(project)["observations"]
+    replacement = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert replacement["trial_id"] == 3
+    decision = json.loads((project / "state/acquisition_log.jsonl").read_text().splitlines()[-1])
+    assert decision["decision"]["generation_node"] == "Sobol"
+    assert state(project)["observations"] == failed_observations
+    assert state(project)["best"] is None
+    # Inspect via public Ax APIs: failed initialization has statuses but no scores.
+    envelope = json.loads((project / state(project)["optimizer"]["snapshot"]["path"]).read_text())
+    client_path = project / "client-inspection.json"
+    client_path.write_text(json.dumps(envelope["ax"]))
+    summary = Client.load_from_json_file(filepath=str(client_path)).summarize()
+    assert (summary["trial_status"] == "FAILED").sum() == 2
+    assert "score" not in summary.columns or summary["score"].isna().all()
+    ingest(project, replacement, 0.4)
+    fourth = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert fourth["trial_id"] == 4
+    decision = json.loads((project / "state/acquisition_log.jsonl").read_text().splitlines()[-1])
+    assert decision["decision"]["generation_node"] == "Sobol"
+    ingest(project, fourth, 0.2)
+    fifth = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    assert fifth["trial_id"] == 5
+    decision = json.loads((project / "state/acquisition_log.jsonl").read_text().splitlines()[-1])
+    assert decision["decision"]["generation_node"] == "MBM"
+    assert state(project)["best"]["trial_id"] == 4
+    assert state(project)["observations"][:2] == failed_observations
+
+
+def test_finite_ax_space_exhaustion_does_not_reallocate_completed_points(tmp_path):
+    project = campaign(tmp_path)
+    (project / "parameter_space.json").write_text(
+        json.dumps(
+            {
+                "parameters": [
+                    {"name": "flag", "type": "bool"},
+                ]
+            }
+        )
+    )
+    initial = json.loads(invoke(project, "suggest", "--count", "2", "--json-only").stdout)[
+        "suggestions"
+    ]
+    assert {row["params"]["flag"] for row in initial} == {False, True}
+    for index, trial in enumerate(initial):
+        ingest(project, trial, index + 0.1)
+    canonical = (project / "state/bo_state.json").read_bytes()
+    failed = invoke(project, "suggest", "--json-only", success=False)
+    assert failed.returncode != 0
+    assert (project / "state/bo_state.json").read_bytes() == canonical
+    assert state(project)["next_trial_id"] == 3 and state(project)["pending"] == []

@@ -13,8 +13,10 @@ Stable command names and required flag posture are documented in
 - support ops: `import-observations`, `export-observations`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `health`, `metrics`, `validate`, `doctor`
 
 The optional Ax backend also provides `recover-allocation` in ordinary/full
-controllers to finish interrupted allocation publication without generating
-work. See [Ax backend](./ax-backend.md#state-and-recovery-boundaries).
+controllers to finish interrupted allocation publication, and
+`rebuild-optimizer --reason TEXT` to create a new optimizer lineage from
+canonical history if exact restoration is unavailable. Neither command
+allocates trials. See [Ax backend](./ax-backend.md#state-and-recovery-boundaries).
 
 ## Core Loop Contract
 

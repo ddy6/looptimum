@@ -228,3 +228,25 @@ def test_invalid_optimizer_preflight_creates_no_campaign_artifacts(tmp_path, var
 def test_shared_optimizer_modules_do_not_import_optional_stack():
     source = f"import sys; sys.path.insert(0, {str(ROOT / 'templates/_shared')!r}); import optimizer_ax; assert not any(x in sys.modules for x in ('ax', 'torch', 'numpy', 'botorch'))"
     subprocess.run([sys.executable, "-S", "-c", source], check=True)
+
+
+def test_finite_capacity_preserves_repeat_policy_and_counts_unique_parameterizations():
+    parameters = [
+        {"name": "p0", "parameter_type": "bool", "values": [False, True]},
+        {"name": "p1", "parameter_type": "int", "bounds": [2, 3]},
+    ]
+    records = [
+        {"status": "ok", "params": {"p0": False, "p1": 2}},
+        {"status": "failed", "params": {"p0": False, "p1": 2}},
+        {"status": "pending", "params": {"p0": True, "p1": 2}},
+        {"status": "killed", "params": {"p0": False, "p1": 3}},
+    ]
+    AX._check_finite_capacity(parameters, records, 1, allow_completed_repeats=False)
+    with pytest.raises(ValueError, match="1 available unique points"):
+        AX._check_finite_capacity(parameters, records, 2, allow_completed_repeats=False)
+    AX._check_finite_capacity(parameters, records, 3, allow_completed_repeats=True)
+    with pytest.raises(ValueError, match="3 available unique points"):
+        AX._check_finite_capacity(parameters, records, 4, allow_completed_repeats=True)
+    AX._check_finite_capacity(parameters, records, 0, allow_completed_repeats=False)
+    continuous = [{"name": "p0", "parameter_type": "float", "bounds": [0, 1]}]
+    AX._check_finite_capacity(continuous, [], 100, allow_completed_repeats=False)

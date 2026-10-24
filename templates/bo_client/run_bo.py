@@ -773,6 +773,54 @@ def cmd_recover_allocation(args: argparse.Namespace) -> None:
         print(json.dumps(result, indent=2))
 
 
+def cmd_rebuild_optimizer(args: argparse.Namespace) -> None:
+    if not args.reason or not args.reason.strip():
+        raise ValueError("rebuild-optimizer requires a non-empty --reason")
+    root = Path(args.project_root).resolve()
+    cfg, _ = load_contract_document(root, "bo_config")
+    if not isinstance(cfg, dict):
+        raise ValueError("bo_config must be an object")
+    space, space_path = load_contract_document(root, "parameter_space")
+    schema, _ = load_schema_from_paths(
+        root,
+        cfg["paths"],
+        key="search_space_schema_file",
+        default_rel="../_shared/schemas/search_space.schema.json",
+    )
+    validate_against_schema(space, schema, source_path=space_path)
+    params = normalize_search_space(space)
+    obj_cfg = _load_objective_config(root, cfg)
+    constraints = _load_constraints(root, cfg, params)
+    optimizer = _OPTIMIZER.normalize_optimizer_config(
+        cfg,
+        template="bo_client",
+        enable_botorch_gp=False,
+    )
+    paths = _runtime_paths(root, cfg)
+    with hold_exclusive_lock(
+        paths["lock_file"],
+        timeout_seconds=resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds),
+        fail_fast=args.fail_fast,
+    ):
+        state = load_state(paths["state_file"])
+        errors = _validate_state_hard_checks(state, obj_cfg)
+        if errors:
+            raise ValueError("Cannot rebuild invalid canonical state: " + "; ".join(errors))
+        result = _AX.rebuild_optimizer(
+            root,
+            paths,
+            state,
+            cfg,
+            params,
+            obj_cfg,
+            constraints,
+            optimizer,
+            args.reason,
+            save_state,
+        )
+        print(json.dumps(result, indent=2))
+
+
 def _annotate_import_manifest(
     paths: PathMap,
     *,
@@ -908,6 +956,7 @@ def _status_payload(
 ) -> JSONDict:
     now = time.time()
     allocation = _AX.allocation_diagnostics(paths, state)
+    rebuild = _AX.rebuild_diagnostics(state)
     stale_pending = 0
     leased_pending = 0
     if max_pending_age is not None:
@@ -930,6 +979,7 @@ def _status_payload(
             else {}
         ),
         **({"allocation_recovery": allocation} if allocation is not None else {}),
+        **({"optimizer_recovery": rebuild} if rebuild is not None else {}),
         "observations": len(state["observations"]),
         "pending": len(state["pending"]),
         "leased_pending": leased_pending,
@@ -1554,6 +1604,14 @@ def _build_health_payload(args: argparse.Namespace) -> tuple[JSONDict, int]:
     governance_snapshot: JSONDict | None = None
     if state is not None:
         try:
+            rebuild = _AX.rebuild_diagnostics(state)
+            if rebuild is not None:
+                if rebuild["status"] == "invalid":
+                    hard_errors.append(rebuild["error"])
+                else:
+                    warnings_out.append(
+                        "Optimizer rebuild audit is unfinished; rerun rebuild-optimizer"
+                    )
             allocation = _AX.inspect_allocation(paths, state)
             if allocation["status"] != "clean":
                 warnings_out.append(
@@ -1946,6 +2004,7 @@ def cmd_suggest(args: argparse.Namespace) -> None:
         try:
             state = load_state(paths["state_file"])
             _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
+            _AX.recover_rebuild_event(paths, state, save_state)
             _AX.recover_allocation(
                 paths,
                 state,
@@ -3283,6 +3342,14 @@ def cmd_validate(args: argparse.Namespace) -> None:
     try:
         _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
         _AX.inspect_snapshot(root, paths, state)
+        rebuild = _AX.rebuild_diagnostics(state)
+        if rebuild is not None:
+            if rebuild["status"] == "invalid":
+                hard_errors.append(rebuild["error"])
+            else:
+                warnings_out.append(
+                    "Optimizer rebuild audit is unfinished; rerun rebuild-optimizer"
+                )
         allocation = _AX.inspect_allocation(paths, state)
         if allocation["status"] != "clean":
             warnings_out.append(
@@ -3448,6 +3515,7 @@ def parse_args() -> argparse.Namespace:
         choices=[
             "suggest",
             "recover-allocation",
+            "rebuild-optimizer",
             "ingest",
             "import-observations",
             "export-observations",
@@ -3492,7 +3560,10 @@ def parse_args() -> argparse.Namespace:
         type=float,
         help="For retire --stale: override stale age threshold in seconds",
     )
-    parser.add_argument("--reason", help="For cancel/retire: terminal reason to store")
+    parser.add_argument(
+        "--reason",
+        help="For cancel/retire: terminal reason; for rebuild-optimizer: required recovery reason",
+    )
     parser.add_argument("--heartbeat-at", type=float, help="For heartbeat: explicit epoch seconds")
     parser.add_argument("--heartbeat-note", help="For heartbeat: short status note")
     parser.add_argument(
@@ -3576,6 +3647,7 @@ def main() -> None:
     commands = {
         "suggest": cmd_suggest,
         "recover-allocation": cmd_recover_allocation,
+        "rebuild-optimizer": cmd_rebuild_optimizer,
         "ingest": cmd_ingest,
         "import-observations": cmd_import_observations,
         "export-observations": cmd_export_observations,

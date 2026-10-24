@@ -23,6 +23,13 @@ def run_request(request: JSONDict) -> JSONDict:
         )
     if request.get("protocol") != 1:
         raise ValueError("Unsupported Ax worker protocol")
+    count = request.get("count")
+    if (
+        type(count) is not int
+        or count < 0
+        or (count == 0 and request.get("operation") != "rebuild")
+    ):
+        raise ValueError("Ax worker count must be positive except during an explicit rebuild")
     import numpy as np
     import torch
     from ax.api.client import Client

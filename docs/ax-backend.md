@@ -45,7 +45,9 @@ With Ax selected, legacy `initial_random_trials`, `candidate_pool_size`,
 `surrogate`, and `acquisition` settings are inactive. Ax's public `fast`
 generation strategy owns initialization and model-guided selection. The
 minimum completed initialization count defaults to the initialization budget.
-Initialization failures do not become successful measurements. If Ax cannot
+Initialization failures do not become successful measurements. Ax can replace
+failed or abandoned initialization trials with additional Sobol trials; these
+attempts still consume Looptimum's evaluation budget. If Ax cannot
 advance until results arrive, generation fails explicitly without allocating
 part of a requested batch. Try a smaller batch or complete outstanding work.
 
@@ -78,6 +80,11 @@ Finite spaces can therefore exhaust. Retries are bounded; rejected Ax arms
 do not consume public trial IDs or evaluation budget. Canonical `best` still
 ranks successful observed results through Looptimum's objective helpers.
 Reporting penalties for failed trials are never used as training data.
+For spaces consisting entirely of choices, integers, and fixed numeric
+values, the adapter checks remaining unique capacity before starting Ax.
+A batch larger than that capacity fails without fitting a model or allocating
+part of the batch. The completed-repeat option permits reuse; it does not
+guarantee that Ax's selected method will propose a repeat.
 
 ## State and recovery boundaries
 
@@ -145,6 +152,63 @@ snapshot, and environment. Do not delete optimizer metadata to restart a
 campaign. A new campaign warm-started from exported observations is a new
 optimization history, not exact recovery of the previous generator.
 
+### Rebuild a lost optimizer snapshot
+
+If the matching snapshot/environment cannot be restored, ordinary/full
+controllers provide an explicit rebuild:
+
+```bash
+python run_bo.py rebuild-optimizer --reason "Original optimizer snapshot unavailable"
+python run_bo.py validate --strict
+```
+
+This requires the optional Ax stack. It creates a fresh Ax client from
+canonical observations and pending trials, with a new optimizer lineage and
+generation counter zero. It generates **no suggestions** and does not change
+trial IDs, pending parameters or leases, observations, best-so-far, evaluation
+budget usage, manifests, or the observations CSV. Existing workers can still
+deliver their results. Subsequent `suggest` uses this new lineage; its next
+point may differ from what the lost optimizer would have chosen.
+
+Use the original parameter/objective/constraint configuration. New state
+metadata also records its semantic fingerprint outside the snapshot, so a
+lost snapshot does not bypass a known configuration mismatch. A rebuild can
+adopt the currently installed compatible dependency stack explicitly, with
+old/new versions recorded when available. It cannot bypass the pinned Ax
+version or unsupported-feature checks. Older development state may lack a
+fingerprint outside its lost snapshot. In that case original semantics cannot
+be verified; the receipt records `configuration_verified: false`. Restore
+and review the original configuration before using this route. Invalid
+canonical records, out-of-bounds history, and known semantic changes are
+rejected; rebuild does not repair or reweight observations.
+
+Before the canonical pointer changes, a unique directory under
+`state/optimizer/ax/rebuilds/<rebuild_id>/` preserves:
+
+- `state-before.json`: exact pre-rebuild canonical state bytes;
+- `snapshot-before.bin`: exact old snapshot bytes when available, including
+  corrupt or non-UTF-8 contents; the original snapshot is also left intact;
+- `rebuild.json`: reason, source hashes, old/new snapshot references, lineage,
+  configuration verification, dependency versions, and record counts.
+
+The new immutable snapshot also records rebuild provenance. A single
+canonical state replacement commits its pointer and pending audit event.
+The `optimizer_rebuilt` event is published once, then the pending marker is
+cleared. Status exposes `optimizer_recovery` while publication is unfinished;
+`validate`/`health` flag it without repairing files. Rerunning
+`rebuild-optimizer --reason "Finish committed recovery"` completes the
+already committed audit instead of creating another lineage, and requires
+no Ax imports. The next `suggest` also finishes that audit before generation.
+An ordinary successful rebuild command issued again starts another lineage.
+
+Finish any `recover-allocation` work before rebuilding. A failure before
+canonical commit leaves the previous campaign selected; a failure afterward
+leaves the rebuilt campaign selected and its audit repairable. Preparations
+may leave unreferenced snapshots/backup directories; they are not proof of
+commit. Keep backups with the canonical state and optimizer directory.
+Reset/restore retains them and portable copies exclude them. Exact recovery
+still means restoring the matching original state and snapshot, not rebuilding.
+
 Use `doctor --json` for dependency versions and effective backend settings;
 dependency presence is a lightweight diagnostic, not proof of binary import
 compatibility. `validate` checks snapshot presence and digest without loading
@@ -154,9 +218,9 @@ suggestions across platforms or dependency versions are not guaranteed.
 Canonical-state allocation, snapshot consistency, and journaled allocation
 publication cover controller process exits. This is not a transaction across
 every lifecycle command or a promise of power-loss durability: persistence
-uses rename without explicit file/directory syncing. Explicit optimizer
-rebuild with new lineage, broader lifecycle/constraint coverage, performance
-comparisons, platform CI evidence, and the final compatibility audit remain
+uses rename without explicit file/directory syncing. Broader
+lifecycle/constraint coverage, performance comparisons, platform CI evidence,
+and the final compatibility audit remain
 release gates. Existing legacy-backend allocation behavior is unchanged.
 
 ## Verify an environment
