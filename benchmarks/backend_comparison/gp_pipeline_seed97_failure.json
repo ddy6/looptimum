@@ -1,0 +1,237 @@
+{
+  "purpose": "Diagnostic reproduction of a direct GP fit failure observed in the declared reference; not an expected cross-platform failure test.",
+  "workload": "pipeline",
+  "backend": "gp",
+  "seed": 97,
+  "failed_public_trial_id": 12,
+  "fit_seed": 109,
+  "environment": {
+    "python": "3.11.12",
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "versions": {
+      "ax-platform": "1.3.1",
+      "botorch": "0.18.1",
+      "torch": "2.14.1",
+      "gpytorch": "1.15.2",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1"
+    }
+  },
+  "settings": {
+    "seed": 97,
+    "initial_random_trials": 4,
+    "candidate_pool_size": 256,
+    "surrogate": {
+      "type": "gp",
+      "length_scale": 0.22,
+      "gp_model": {
+        "kernel": "matern_2.5",
+        "ard": true
+      }
+    },
+    "acquisition": {
+      "type": "ei",
+      "kappa": 1.8,
+      "xi": 0.01
+    }
+  },
+  "parameter_space": {
+    "parameters": [
+      {
+        "name": "batch_size",
+        "type": "int",
+        "bounds": [
+          16,
+          128
+        ]
+      },
+      {
+        "name": "workers",
+        "type": "int",
+        "bounds": [
+          1,
+          8
+        ]
+      },
+      {
+        "name": "cache",
+        "type": "bool"
+      },
+      {
+        "name": "compression",
+        "type": "categorical",
+        "choices": [
+          "none",
+          "lz4",
+          "zstd"
+        ]
+      },
+      {
+        "name": "buffer_mb",
+        "type": "float",
+        "bounds": [
+          4,
+          256
+        ],
+        "scale": "log"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "trial_id": 1,
+      "params": {
+        "batch_size": 61,
+        "workers": 1,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 5.106549810336318
+      },
+      "objectives": {
+        "loss": 63.62990668528559
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 2,
+      "params": {
+        "batch_size": 67,
+        "workers": 7,
+        "cache": false,
+        "compression": "zstd",
+        "buffer_mb": 8.41412892285924
+      },
+      "objectives": {
+        "loss": 63.154307777062016
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 3,
+      "params": {
+        "batch_size": 34,
+        "workers": 8,
+        "cache": true,
+        "compression": "none",
+        "buffer_mb": 75.22182280277998
+      },
+      "objectives": {
+        "loss": 69.43954824200722
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 4,
+      "params": {
+        "batch_size": 90,
+        "workers": 4,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 4.894379343696391
+      },
+      "objectives": {
+        "loss": 38.47917170781881
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 5,
+      "params": {
+        "batch_size": 106,
+        "workers": 5,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 12.455058576453608
+      },
+      "objectives": {
+        "loss": 26.271326874130093
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 6,
+      "params": {
+        "batch_size": 121,
+        "workers": 3,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 47.85205088098502
+      },
+      "objectives": {
+        "loss": 16.729184239935638
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 7,
+      "params": {
+        "batch_size": 128,
+        "workers": 2,
+        "cache": false,
+        "compression": "lz4",
+        "buffer_mb": 4.9580601044119
+      },
+      "objectives": {
+        "loss": 59.23550987268176
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 8,
+      "params": {
+        "batch_size": 124,
+        "workers": 5,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 102.1261022218226
+      },
+      "objectives": {
+        "loss": 17.551074815041726
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 9,
+      "params": {
+        "batch_size": 127,
+        "workers": 1,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 221.65517856748156
+      },
+      "objectives": {
+        "loss": 47.33375961711482
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 10,
+      "params": {
+        "batch_size": 126,
+        "workers": 4,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 14.597665658449676
+      },
+      "objectives": {
+        "loss": 22.914002662225663
+      },
+      "status": "ok"
+    },
+    {
+      "trial_id": 11,
+      "params": {
+        "batch_size": 70,
+        "workers": 4,
+        "cache": true,
+        "compression": "lz4",
+        "buffer_mb": 52.740961323502255
+      },
+      "objectives": {
+        "loss": 10.222703647321739
+      },
+      "status": "ok"
+    }
+  ],
+  "failure": "All attempts to fit the model have failed."
+}

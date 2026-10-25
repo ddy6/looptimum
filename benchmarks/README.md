@@ -1,5 +1,10 @@
 # Benchmarks
 
+The separate [optional backend comparison](backend_comparison/README.md)
+declares fixed-budget comparisons of random/proxy/direct-GP/Ax policies,
+including mixed and noisy workloads and measured controller overhead.
+Its artifacts are separate from the golden evidence below.
+
 Phase 8 evidence anchors live in this directory.
 
 Canonical benchmark script:

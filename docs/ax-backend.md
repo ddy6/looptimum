@@ -227,6 +227,15 @@ release gates. Existing legacy-backend allocation behavior is unchanged.
 
 The [native quadratic example](../examples/ax_quadratic/README.md) runs a
 complete Looptimum campaign in a fresh portable directory.
+The [mixed pipeline example](../examples/ax_pipeline_tuning/README.md) adds
+integer, Boolean, categorical, and logarithmic controls around an external
+synthetic evaluator. The separate [backend comparison protocol](../benchmarks/backend_comparison/README.md)
+declares fixed-budget quality and resource measurements; it does not change
+the existing published benchmark evidence.
+The first reference [readout](../benchmarks/backend_comparison/readout.md)
+retains a direct-GP numerical fit failure; the full comparison acceptance
+gate remains unmet. Completed Ax results and resource measurements are
+reported with their synthetic-workload and environment limits.
 
 ```bash
 python scripts/probe_ax_compatibility.py --output /tmp/ax-compatibility.json

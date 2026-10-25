@@ -32,6 +32,8 @@ ignore = ["E501", "E741"]
 [tool.mypy]
 python_version = "3.12"
 files = [
+  "benchmarks/backend_comparison/*.py",
+  "examples/ax_pipeline_tuning/*.py",
   "service/*.py",
   "templates/_shared/*.py",
   "templates/bo_client/run_bo.py",

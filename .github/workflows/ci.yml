@@ -141,6 +141,16 @@ jobs:
           templates/tests/test_ax_rebuild.py
           templates/tests/test_optimizer_backend.py
           templates/tests/test_portable_copy.py
+      - name: Run mixed pipeline example
+        run: >-
+          python examples/ax_pipeline_tuning/run_pipeline_loop.py
+          --destination /tmp/looptimum-ax-pipeline-example --steps 4 --initialization 2
+      - name: Smoke backend comparison contracts
+        run: >-
+          python -m benchmarks.backend_comparison.run
+          --output-dir /tmp/looptimum-backend-smoke
+          --budget 4 --initialization 2 --seeds 17
+          --workloads smooth_quadratic --workers 2
 
   typecheck:
     name: Type Check (mypy, py3.12)
