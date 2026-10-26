@@ -392,7 +392,7 @@ def _normalize_terminal_reason(
     if legacy_reason is not None and emit_transition_warnings:
         _warn_deprecation(
             "Deprecated ingest field 'failure_reason' received; use 'terminal_reason'. "
-            "Compatibility alias will be removed in v0.4.0."
+            "Compatibility alias remains supported throughout v1.x; removal requires v2.0.0 or later."
         )
 
     if status == "ok":

@@ -1,6 +1,6 @@
 # Ax support and verification
 
-This is the advertised native Ax surface for the planned v1.0.0 release. It
+This is the supported native Ax surface in v1.0.0. It
 applies to `bo_client` and `bo_client_full` with `optimizer.backend: "ax"`.
 The [installation profile](ax-installation.md) defines the CPU/Python targets.
 The default legacy controller and direct BoTorch options retain their existing
@@ -53,6 +53,7 @@ environment, not a guarantee of performance or identical proposals elsewhere.
   No power-loss durability or transaction across every lifecycle operation is
   claimed. Persistence does not explicitly sync files/directories to disk.
 
-The final release still requires successful required CI lanes and the stable
-compatibility/version/migration audit. This matrix does not itself declare a
-v1.0.0 release.
+The [v1 stability policy](stability-guarantees.md) defines the compatibility
+promise and [migration guide](migration-v1.md) defines upgrade/rollback.
+The [release procedure](release-guide.md) requires successful CI on the exact
+release commit before tagging; this matrix does not itself publish a release.

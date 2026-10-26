@@ -20,12 +20,14 @@ numerical run alone does not establish that an installation is consistent.
 | macOS arm64, CPython 3.11 and 3.12 | Required Ax CI lanes, PyPI Torch wheel, CPU generation |
 | Other OS/architectures/interpreters, CUDA/MPS execution | Outside this installation profile |
 
-These are the configured release targets. New lanes must pass after this slice
-is pushed before claiming their evidence. Each lane builds a wheelhouse,
+These are the supported CPU release targets. Each required CI lane builds a wheelhouse,
 installs it into a fresh virtual environment without an index, runs `pip check`,
 probes real model generation and seeded JSON restart, runs the integration and
 recovery suite, and executes the mixed external-evaluator example. CI retains
 the exact wheel inventory, hashes, installation versions, probe and test receipt.
+All four lanes passed for implementation commit `70e2e58`
+([CI run](https://github.com/ddy6/looptimum/actions/runs/40289436046));
+the final release commit must pass them again before tagging.
 The [GitHub runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 identifies `macos-14` as arm64; the installer also checks the actual architecture.
 

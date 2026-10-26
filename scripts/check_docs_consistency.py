@@ -17,6 +17,9 @@ REQUIRED_FILES = (
     "docs/coordination-preview.md",
     "docs/integration-starter-kit.md",
     "docs/quick-reference.md",
+    "docs/stability-guarantees.md",
+    "docs/migration-v1.md",
+    "docs/release-guide.md",
     "quickstart/README.md",
     "quickstart/etl-pipeline-knob-tuning.md",
 )
@@ -112,7 +115,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "## Example Pack",
     ),
     "docs/quick-reference.md": (
-        "## Public Command Surface (`v0.4.x`)",
+        "## Public Command Surface (`v1.x`)",
         "## Optional Starter-Kit Sidecars",
         "## State and Artifact Definitions",
         "## Compatibility",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -181,3 +183,44 @@ def test_rejects_unsupported_state_schema_series(tmp_path: Path, variant: str) -
     out = _run_cmd(project_root, "status", expect_ok=False)
     assert out.returncode != 0
     assert "Unsupported state.schema_version '0.4.0'" in out.stderr
+
+
+@pytest.mark.parametrize(
+    "fixture,accepted", [("v0_3_1_schema_version.json", True), ("v0_4_0_ax_schema.json", False)]
+)
+def test_released_v0_4_reader_accepts_legacy_but_rejects_ax_without_writes(
+    tmp_path, fixture, accepted
+):
+    historical = FIXTURES_ROOT / "released_v0_4_0_state_reader.py.txt"
+    provenance = json.loads(
+        (FIXTURES_ROOT / "released_v0_4_0_state_reader.provenance.json").read_text()
+    )
+    assert hashlib.sha256(historical.read_bytes()).hexdigest() == provenance["fixture_sha256"]
+    namespace = {"__name__": "released_v0_4_state_reader"}
+    exec(compile(historical.read_text(), str(historical), "exec"), namespace)
+    state = _fixture_payload(fixture)
+    path = tmp_path / "bo_state.json"
+    path.write_text(json.dumps(state))
+    before = path.read_bytes()
+    if accepted:
+        assert (
+            namespace["normalize_state_schema_version"](state, state_path=path)["schema_version"]
+            == "0.3.1"
+        )
+    else:
+        with pytest.raises(ValueError, match="supports only 0.3.x"):
+            namespace["normalize_state_schema_version"](state, state_path=path)
+    assert path.read_bytes() == before
+
+
+def test_v1_package_keeps_ax_state_and_evaluator_versions_separate():
+    spec = importlib.util.spec_from_file_location(
+        "v1_state_runtime", TEMPLATES_ROOT / "_shared/runtime.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    state = _fixture_payload("v0_4_0_ax_schema.json")
+    module.normalize_state_schema_version(state, state_path=Path("not-written.json"))
+    assert module.state_schema_version(state) == "0.4.0"
+    assert module.payload_schema_version(state) == "0.3.0"
+    assert module.state_for_persist(state)["schema_version"] == "0.4.0"

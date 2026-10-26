@@ -1,7 +1,7 @@
 # Feedback Loop
 
 This document defines the post-release feedback intake and backlog workflow
-(initiated in `v0.2.0`, current public baseline: `v0.4.0`).
+(initiated in `v0.2.0`, repository baseline: `v1.0.0`).
 
 ## Source of Truth
 

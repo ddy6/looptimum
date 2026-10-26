@@ -25,6 +25,10 @@
   x86_64/macOS arm64 Python 3.11/3.12 CI lanes. Do not infer installation
   consistency from a successful numerical benchmark alone. Keep runtime
   snapshots' six-version guard separate from the full installation receipt.
+- Follow `docs/release-guide.md` for release preparation. Validate package,
+  preview metadata, wheel contents and state/payload version boundaries with
+  `scripts/check_release.py`. Require all CI lanes on the exact final commit;
+  an earlier successful implementation run does not qualify a release tag.
 
 ## Long-running processes
 

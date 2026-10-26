@@ -98,6 +98,7 @@ python3 templates/bo_client/run_bo.py validate --project-root templates/bo_clien
 python3 templates/bo_client_demo/run_bo.py validate --project-root templates/bo_client_demo
 python3 templates/bo_client_full/run_bo.py validate --project-root templates/bo_client_full
 python3 scripts/release_smoke.py
+python3 scripts/check_release.py
 ```
 
 For manual smoke fallback commands, see

@@ -33,14 +33,15 @@ Included files:
   exploration/exploitation policy, constraints posture, and determinism boundaries
 - `ax-installation.md`: pinned CPU runtime and hashed offline wheelhouses.
 - `ax-support-matrix.md`: supported native Ax features and verification evidence.
-- `ax-backend.md`: optional native Ax development integration, configuration,
+- `ax-backend.md`: optional native Ax integration, configuration,
   supported capabilities, and optimizer-state compatibility
 - `type-safety.md`: mypy gate scope, staged strictness policy, and `Any`/suppression rules
 - `ci-knob-tuning.md`: platform-agnostic CI runbook (with GitHub examples) for
   state persistence, contamination controls, safe parallelism, and robust-best policy
-- `stability-guarantees.md`: public compatibility guarantees, deprecation
-  policy, and breaking-change rules for `v0.4.x` (current tag:
-  `v0.4.0`)
+- `stability-guarantees.md`: stable v1.x contracts, version boundaries,
+  preview exclusions, deprecations and breaking-change policy
+- `migration-v1.md`: upgrade and rollback for legacy and native Ax campaigns
+- `release-guide.md`: exact-commit checks, tag publication and release notes
 - `feedback-loop.md`: post-release feedback intake, issue-triage workflow,
   and backlog synchronization rules
 - `search-space.md`: supported parameter types, constraints framing, and

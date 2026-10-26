@@ -2,8 +2,53 @@
 
 All notable changes to this repository are documented in this file.
 
-The format is inspired by Keep a Changelog and follows the repository's
-`0.x` compatibility policy.
+The format is inspired by Keep a Changelog. Releases from v1.0.0 follow
+Semantic Versioning for the stable surface in `docs/stability-guarantees.md`.
+Earlier entries retain their historical `0.x` compatibility policy.
+
+## [1.0.0] - 2026-10-26
+
+Prepared release; publication is identified by the GitHub tag/release.
+
+### Added
+
+- Stable v1.x repository-template CLI/contracts, explicit version boundaries,
+  migration/rollback guidance and release metadata/tag/artifact checks.
+- Optional native Ax 1.3.1 / BoTorch 0.18.1 generation in ordinary/full
+  controllers, with flat mixed spaces, bound tightening and existing scalar
+  objective policies. Legacy defaults and evaluator contracts are preserved.
+- Immutable Ax snapshots, recoverable journaled allocation publication,
+  canonical lifecycle reconciliation and audited explicit optimizer rebuild.
+- Complete pinned CPU dependency profile, hashed offline wheelhouses and
+  portable installation tooling with isolated Python paths and pip checks.
+- Linux x86_64/macOS arm64 Python 3.11/3.12 Ax CI, retained compatibility
+  receipts, mixed external-evaluator example and supported feature matrix.
+
+### Fixed
+
+- Bounded direct-GP recovery after default-fit line-search failure, without
+  silent ordinary-GP fallback or partial allocation on exhausted fitting.
+- A separate fresh comparison completed 200 campaigns / 2400 evaluations
+  and passed seven gates. One case recovered; all 199 formerly successful
+  cases retained scores and selected parameters. Original failed evidence
+  remains intact; these synthetic results are not a universal guarantee.
+- Stale `failure_reason` removal warning: the alias remains supported through
+  v1.x, with removal no earlier than v2.0.0.
+
+### Compatibility and Migration
+
+- Package `1.0.0` is independent of legacy state `0.3.x`, explicitly marked
+  Ax state `0.4.x`, optimizer format `1`, and existing evaluator payloads
+  `0.3.x`. Older released controllers reject Ax state.
+- Legacy `0.3.x` loads without forced migration. Missing/`0.2.x` state keeps
+  its warning and next-mutation upgrade path. Initial Ax conversion requires
+  no outstanding pending work.
+- Exact Ax recovery requires matching configuration, snapshot and numerical
+  dependency versions. Rebuild preserves canonical records with a new lineage.
+- Preview service/dashboard/auth/coordination remain outside stable v1.x;
+  service metadata becomes `1.0.0-preview` without a registry schema change.
+- See `docs/migration-v1.md`, `docs/releases/v1.0.0.md` and
+  `docs/release-guide.md` for instructions and scope limits.
 
 ## [0.4.0] - 2026-03-26
 

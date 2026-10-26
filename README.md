@@ -9,7 +9,8 @@ Looptimum is a file-backed loop for optimum parameter targeting when each
 trial is costly (time, compute, money, or operational risk).
 You provide a parameter space and objective schema; Looptimum suggests the
 next trial, records decisions, and resumes cleanly after interruptions.
-Current stable release: `v0.4.0`.
+Version in this checkout: `v1.0.0`. See [published releases](https://github.com/ddy6/looptimum/releases)
+for publication status and the [v1 upgrade guide](docs/migration-v1.md) for existing campaigns.
 For expensive black-box objectives, Looptimum starts with bounded exploration
 and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
 Its key differentiator is operational: a file-backed, resumable workflow that
@@ -86,7 +87,7 @@ Preview note:
 
 - the optional Service API preview under `service/` is explicitly preview-scoped,
   keeps campaign roots file-backed and authoritative, and is not part of the
-  stable `v0.4.x` compatibility surface
+  stable `v1.x` compatibility surface
 - see [`docs/service-api-preview.md`](docs/service-api-preview.md) and
   [`docs/dashboard-preview.md`](docs/dashboard-preview.md)
 - optional preview auth/RBAC/SSO guidance for that local service stack is in
@@ -333,18 +334,21 @@ Best ranking rule:
   `terminal_reason` as `status=<status>`.
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
   to `0.3.0` and persists on next mutating command.
-- Current `v0.4.x` state artifacts still persist `schema_version: "0.3.0"`
-  because the on-disk state-file series did not change in this line.
-- Earlier `v0.3.x` state versions load transparently in `v0.4.x`.
+- Legacy campaigns retain state series `0.3.x`; Ax campaigns use explicitly
+  marked state series `0.4.x` and optimizer format `1`.
+- Evaluator payloads retain their existing `0.3.x` contract; Ax emits `0.3.0`.
+  Package version `1.0.0` does not renumber either surface.
+- Earlier `0.3.x` state loads transparently. Older released controllers reject
+  Ax state; use the [upgrade and rollback guide](docs/migration-v1.md).
 
-### Stability Promise (`v0.4.x`)
+### Stability Promise (`v1.x`)
 
-- No breaking changes within the `v0.4.x` line for CLI command names/required
+- No breaking changes within the `v1.x` line for CLI command names/required
   flags, ingest required fields/status vocabulary, and core state-file
   compatibility.
-- Breaking changes are allowed only on `0.x` major-line increments (for
-  example `0.4 -> 0.5`) and require explicit compatibility notes.
-- Current tag in this line: `v0.4.0` (see `CHANGELOG.md`).
+- Breaking stable-contract changes require `v2.0.0` or later, with explicit
+  migration notes. Optional Ax remains bounded by its supported feature matrix
+  and matching-environment recovery requirements.
 - Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
 
 ### Duplicate Ingest Behavior
@@ -397,15 +401,16 @@ Governance note:
 | Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
 |---|---|---|---|---|
 | `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `import-observations`, `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`) |
-| `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
-| `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) | full parity |
+| `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` or native `ax` (config-selected) | full core/lifecycle parity; Ax recovery commands |
+| `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) or native `ax` | full core/lifecycle parity; Ax recovery commands |
 
 All template variants use the same canonical JSON contract file conventions and
 the same state/log artifact model under `state/`.
 
-Native Ax integration for `bo_client` and `bo_client_full` is in development
-for `v1.0.0`. See [Ax backend configuration and compatibility](docs/ax-backend.md)
+Native Ax integration is available in `bo_client` and `bo_client_full`.
+See [Ax backend configuration and compatibility](docs/ax-backend.md)
 for the optional dependency setup, supported shapes, and recovery boundaries.
+Select one numerical backend; Ax cannot be combined with the direct-GP flag.
 Existing template defaults remain unchanged.
 
 ## Examples and Case Studies

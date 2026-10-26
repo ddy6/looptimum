@@ -17,7 +17,7 @@ Looptimum is the strongest near-term fit when the pilot looks like:
 - a clear one-evaluation interface
 - client-controlled, offline-friendly, or restricted execution
 
-Current public baseline: `v0.4.0`
+Repository baseline: `v1.0.0`; see [published releases](https://github.com/ddy6/looptimum/releases).
 
 If your problem requires a hosted control plane, hard SLA commitments, or
 enterprise packaging beyond the current preview/path guidance, that may be a

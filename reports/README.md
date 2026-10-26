@@ -1,5 +1,10 @@
 # Reports
 
+For v1.0.0 preparation and publication checks, see
+[`docs/release-guide.md`](../docs/release-guide.md) and the
+[`release notes`](../docs/releases/v1.0.0.md). The program-status entries below
+retain their historical dates and release scope.
+
 Sample reporting outputs and workups for pilot/managed optimization runs (lightweight but practical).
 
 Scope note:

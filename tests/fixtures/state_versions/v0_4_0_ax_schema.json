@@ -1,0 +1,37 @@
+{
+  "schema_version": "0.4.0",
+  "meta": {
+    "created_at": 1700000000.0,
+    "seed": 17
+  },
+  "observations": [
+    {
+      "trial_id": 1,
+      "params": {
+        "x1": 0.2,
+        "x2": 0.7
+      },
+      "objectives": {
+        "loss": 0.11
+      },
+      "status": "ok",
+      "completed_at": 1700000010.0
+    }
+  ],
+  "pending": [],
+  "next_trial_id": 2,
+  "best": {
+    "trial_id": 1,
+    "objective_name": "loss",
+    "objective_value": 0.11,
+    "updated_at": 1700000010.1
+  },
+  "optimizer": {
+    "backend": "ax",
+    "format_version": 1,
+    "snapshot": {
+      "path": "state/optimizer/ax/snapshots/missing-fixture.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}

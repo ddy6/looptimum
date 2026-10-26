@@ -1,0 +1,9 @@
+{
+  "source_tag": "v0.4.0",
+  "source_commit": "d1f68a7efc1872db208269511ba62b2af52e37d1",
+  "source_path": "templates/_shared/runtime.py",
+  "source_git_blob": "a4913195807f768b2f88a8e993e158e4faf16ebb",
+  "source_sha256": "efadff05d7942ce074be8eecc7c417ce7e830f5c889888595267e833af871007",
+  "extraction": "Unmodified prefix through normalize_state_schema_version; single trailing newline",
+  "fixture_sha256": "32fc665dc52f70512bfaa5ff26dda8ee7292ba44acb3318d244ffb55c260a144"
+}

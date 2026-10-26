@@ -34,11 +34,14 @@ State schema versioning rule:
 
 - `state.schema_version` is required for `v0.3.0` state artifacts and follows
   semver string format.
-- current `v0.4.x` runtime artifacts still persist `schema_version: "0.3.0"`
-  because the on-disk state-file series did not change in this line.
+- legacy campaigns retain state series `0.3.x`; new legacy state uses `0.3.0`.
+- Ax campaigns persist explicitly marked state series `0.4.x` and optimizer
+  format `1`. Evaluator/status payloads remain `0.3.0`; status additionally
+  reports `state_schema_version`. Package version `1.0.0` is independent.
 - legacy `v0.2.x` (or missing-version) state is upgraded in-memory and persisted
   on the next mutating command, with a loud warning and migration pointer.
-- earlier `v0.3.x` state versions load transparently in `v0.4.x`.
+- earlier `0.3.x` state versions load transparently in v1.x. Released v0.4.0
+  controllers reject Ax state. Follow [upgrade/rollback guidance](migration-v1.md).
 
 ## Supported Topology
 

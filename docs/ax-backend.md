@@ -1,7 +1,7 @@
 # Ax backend
 
-The native Ax backend is under development for the planned Looptimum `v1.0.0`
-release. It uses Ax 1.3.1 and its compatible BoTorch stack to generate trials
+The native Ax backend is optional in Looptimum `v1.0.0`.
+It uses Ax 1.3.1 and its compatible BoTorch stack to generate trials
 through the existing `suggest -> evaluate -> ingest` workflow. Default proxy
 behavior and the existing direct BoTorch options remain available.
 
@@ -59,7 +59,7 @@ Generation happens in an isolated CPU subprocess with a timeout. Ax logging
 does not appear in the public JSON payload. Backend errors do not silently
 switch the campaign to proxy generation.
 
-## Supported development surface
+## Supported surface
 
 - Flat float/int/bool parameters and homogeneous categorical choices.
 - Linear/log numeric scales and fixed bounds, subject to the selected Ax
@@ -97,7 +97,9 @@ Older controllers reject the Ax series rather than accidentally generate a
 proxy suggestion. Evaluator suggestion/result/status payloads retain the
 existing `0.3.x` surface. Status additionally identifies the internal
 `state_schema_version` and optimizer snapshot pointer for an Ax campaign.
-These state versions are independent of the package's planned `1.0.0` tag.
+These state versions are independent of package version `1.0.0`.
+See the [v1 stability policy](stability-guarantees.md) and
+[migration guide](migration-v1.md) for upgrade and rollback boundaries.
 
 Immutable JSON snapshots live in `state/optimizer/ax/snapshots/`. The pointer
 in `bo_state.json` selects the committed snapshot. New snapshots are installed
@@ -222,10 +224,10 @@ suggestions across platforms or dependency versions are not guaranteed.
 Canonical-state allocation, snapshot consistency, and journaled allocation
 publication cover controller process exits. This is not a transaction across
 every lifecycle command or a promise of power-loss durability: persistence
-uses rename without explicit file/directory syncing. Broader
-lifecycle/constraint coverage, platform CI evidence,
-and the final compatibility audit remain
-release gates. Existing legacy-backend allocation behavior is unchanged.
+uses rename without explicit file/directory syncing. Supported lifecycle and
+platform coverage is listed in the [support matrix](ax-support-matrix.md);
+richer constraint methods remain outside this release's scope.
+Existing legacy-backend allocation behavior is unchanged.
 
 ## Verify an environment
 
@@ -251,6 +253,6 @@ The probe reaches real CPU BoTorch generation, compares a seeded resumed run,
 and exercises public JSON persistence and terminal transitions. It records
 dependency versions, platform and timing. CI runs the optional Ax lane on
 Linux x86_64 and macOS arm64 with Python 3.11 and 3.12, installing a hashed
-wheelhouse into a fresh environment on each target. New lanes require a
-successful post-push run before they supply release evidence. The default
+wheelhouse into a fresh environment on each target. Every release commit must
+pass these lanes before tagging. The default
 suite does not install Ax or Torch.

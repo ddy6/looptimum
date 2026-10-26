@@ -368,6 +368,8 @@ def test_non_ok_failure_reason_alias_maps_to_terminal_reason(template_copy) -> N
 
     out = run_cmd(template_copy, "ingest", "--results-file", str(path))
     assert "Deprecated ingest field 'failure_reason'" in out.stderr
+    assert "supported throughout v1.x" in out.stderr
+    assert "v2.0.0 or later" in out.stderr
     state = json.loads((template_copy / "state" / "bo_state.json").read_text(encoding="utf-8"))
     obs = state["observations"][0]
     assert obs["status"] == "failed"
