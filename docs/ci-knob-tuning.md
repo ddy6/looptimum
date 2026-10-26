@@ -4,6 +4,15 @@ This playbook defines a reproducible CI operating model for
 `suggest -> evaluate -> ingest` workflows.
 It is platform-agnostic and uses GitHub Actions snippets as concrete examples.
 
+The repository's optional Ax lanes additionally verify the
+[pinned CPU installation workflow](ax-installation.md) on Linux x86_64 and
+macOS arm64 with Python 3.11/3.12. Each builds a target-specific wheelhouse,
+installs hashed local wheels into a fresh venv without an index, runs the
+public API probe and real controller/recovery tests, and retains installation,
+compatibility and test receipts. The [support matrix](ax-support-matrix.md)
+defines the tested surface. Lean unit and Mypy jobs still omit the optimizer
+stack so accidental dependency requirements remain visible.
+
 ## Scope
 
 Primary goals:

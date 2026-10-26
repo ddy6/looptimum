@@ -7,6 +7,10 @@ behavior and the existing direct BoTorch options remain available.
 
 ## Install and select
 
+Use the [tested CPU profile and offline installation workflow](ax-installation.md)
+for a reproducible controller environment. The [support matrix](ax-support-matrix.md)
+maps supported behavior to integration and recovery evidence.
+
 From a repository checkout, install optional controller dependencies:
 
 ```bash
@@ -243,7 +247,10 @@ python scripts/probe_ax_compatibility.py --output /tmp/ax-compatibility.json
 LOOPTIMUM_REQUIRE_AX_TESTS=1 python -m pytest -q templates/tests/test_ax_integration.py
 ```
 
-The probe reaches real BoTorch generation, compares a seeded resumed run,
+The probe reaches real CPU BoTorch generation, compares a seeded resumed run,
 and exercises public JSON persistence and terminal transitions. It records
-dependency versions and timing. CI runs the optional Ax lane separately on
-Python 3.11 and 3.12; the default suite does not install Ax or Torch.
+dependency versions, platform and timing. CI runs the optional Ax lane on
+Linux x86_64 and macOS arm64 with Python 3.11 and 3.12, installing a hashed
+wheelhouse into a fresh environment on each target. New lanes require a
+successful post-push run before they supply release evidence. The default
+suite does not install Ax or Torch.

@@ -106,13 +106,14 @@ jobs:
           -p 'test*.py' -v
 
   ax-test:
-    name: Ax Integration (py${{ matrix.python-version }})
+    name: Ax Integration (${{ matrix.os }}, py${{ matrix.python-version }})
     needs: quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-14]
         python-version: ["3.11", "3.12"]
     env:
       LOOPTIMUM_REQUIRE_AX_TESTS: "1"
@@ -126,16 +127,26 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Ax dependencies
+      - name: Build portable CPU wheelhouse
         run: |
           python -m pip install --upgrade pip
-          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install -e '.[ax]' 'pytest>=9,<10'
+          python templates/_shared/vendor_copy.py templates/bo_client "$RUNNER_TEMP/ax-installer"
+          python "$RUNNER_TEMP/ax-installer/ax_install.py" build "$RUNNER_TEMP/ax-wheelhouse"
+      - name: Install only hashed local wheels into a fresh environment
+        run: |
+          python -I -m venv "$RUNNER_TEMP/ax-offline"
+          python "$RUNNER_TEMP/ax-installer/ax_install.py" install "$RUNNER_TEMP/ax-wheelhouse" \
+            --python "$RUNNER_TEMP/ax-offline/bin/python" --receipt ax-installation.json
+          echo "$RUNNER_TEMP/ax-offline/bin" >> "$GITHUB_PATH"
       - name: Probe public Ax APIs and model-guided restart
         run: python scripts/probe_ax_compatibility.py --output ax-compatibility.json
+      - name: Install test tooling separately from the verified runtime
+        run: python -I -m pip install -c templates/_shared/ax-constraints.txt 'pytest>=9,<10'
       - name: Test Ax and lean backend contracts
         run: >-
           python -m pytest -q
+          --junitxml=ax-tests.xml
+          templates/tests/test_ax_install.py
           templates/tests/test_ax_integration.py
           templates/tests/test_ax_recovery.py
           templates/tests/test_ax_rebuild.py
@@ -153,6 +164,17 @@ jobs:
           --output-dir /tmp/looptimum-backend-smoke
           --budget 4 --initialization 2 --seeds 17
           --workloads smooth_quadratic --workers 2
+      - name: Retain installation and compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ax-evidence-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            ax-installation.json
+            ax-compatibility.json
+            ax-tests.xml
+            ${{ runner.temp }}/ax-wheelhouse/manifest.json
+            ${{ runner.temp }}/ax-wheelhouse/requirements.lock
 
   typecheck:
     name: Type Check (mypy, py3.12)

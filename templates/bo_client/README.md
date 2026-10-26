@@ -36,6 +36,12 @@ surrogate backend, and restartable JSON state.
 
 ## Notes
 
+For the optional native Ax backend, see
+[CPU installation and offline wheelhouses](../../docs/ax-installation.md).
+Portable copies include `ax_install.py`, `ax-constraints.txt` and
+`requirements-ax.txt`; only suggestion generation and optimizer rebuild require
+the numerical stack.
+
 - JSON (`.json`) is the required contract format.
 - `feature_flags` exists in all templates; preview flags are reserved scaffolding
   and no-op in the current file-backed runtime.

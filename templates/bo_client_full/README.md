@@ -1,5 +1,11 @@
 # bo_client_full
 
+For the optional native Ax backend, see
+[CPU installation and offline wheelhouses](../../docs/ax-installation.md).
+Portable copies include `ax_install.py`, `ax-constraints.txt` and
+`requirements-ax.txt`; only suggestion generation and optimizer rebuild require
+the numerical stack.
+
 Single-stage optimization harness with an optional BoTorch GP backend behind a feature flag.
 
 ## Path Guidance

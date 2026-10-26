@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import platform
 import tempfile
 import time
 from importlib.metadata import version
@@ -21,6 +22,8 @@ def run_probe() -> dict[str, Any]:
 
     started = time.perf_counter()
     torch.set_num_threads(1)
+    if torch.version.cuda is not None:
+        raise AssertionError("CPU installation probe found a CUDA Torch build")
     client = Client()
     client.configure_experiment(
         name="looptimum_compatibility_probe",
@@ -82,6 +85,13 @@ def run_probe() -> dict[str, Any]:
 
     return {
         "probe_version": 1,
+        "platform": {
+            "system": platform.system(),
+            "machine": platform.machine(),
+            "python": platform.python_version(),
+        },
+        "torch_device": "cpu",
+        "torch_cuda_build": torch.version.cuda,
         "versions": {
             name: version(name)
             for name in ("ax-platform", "botorch", "torch", "gpytorch", "numpy", "scipy")

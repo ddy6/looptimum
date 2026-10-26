@@ -31,6 +31,8 @@ Included files:
   operator decision tree for CI/local incident handling
 - `how-it-works.md`: conceptual optimizer behavior, backend model by template,
   exploration/exploitation policy, constraints posture, and determinism boundaries
+- `ax-installation.md`: pinned CPU runtime and hashed offline wheelhouses.
+- `ax-support-matrix.md`: supported native Ax features and verification evidence.
 - `ax-backend.md`: optional native Ax development integration, configuration,
   supported capabilities, and optimizer-state compatibility
 - `type-safety.md`: mypy gate scope, staged strictness policy, and `Any`/suppression rules

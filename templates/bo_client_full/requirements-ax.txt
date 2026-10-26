@@ -1,2 +1,4 @@
-# Match the optional `ax` extra in pyproject.toml.
+# Tested CPU profile. For Linux, install the pinned CPU Torch wheel first;
+# ax_install.py provides the complete online-build/offline-install workflow.
+-c ../_shared/ax-constraints.txt
 ax-platform==1.3.1

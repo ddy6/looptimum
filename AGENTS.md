@@ -18,6 +18,13 @@
 - Verify Mypy in an environment installed from `requirements-dev.txt` without
   the optional optimizer stack. An Ax-enabled environment can hide missing
   optional-import errors that fail the lean GitHub type-check job.
+- Keep the optional CPU installation profile in
+  `templates/_shared/ax-constraints.txt` synchronized with the root Ax extra and
+  portable requirements. Dependency updates require fresh hashed wheelhouses,
+  `pip check`, a real model-generation/restart probe, and the required Linux
+  x86_64/macOS arm64 Python 3.11/3.12 CI lanes. Do not infer installation
+  consistency from a successful numerical benchmark alone. Keep runtime
+  snapshots' six-version guard separate from the full installation receipt.
 
 ## Long-running processes
 

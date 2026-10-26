@@ -402,3 +402,54 @@ def test_finite_ax_space_exhaustion_does_not_reallocate_completed_points(tmp_pat
     assert failed.returncode != 0
     assert (project / "state/bo_state.json").read_bytes() == canonical
     assert state(project)["next_trial_id"] == 3 and state(project)["pending"] == []
+
+
+@pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
+def test_real_ax_fixed_values_numeric_choices_log_integer_and_maximization(tmp_path, variant):
+    from ax.api.client import Client
+
+    project = campaign(tmp_path, variant)
+    parameters = [
+        {"name": "rate.raw", "type": "float", "bounds": [0.001, 0.1], "scale": "log"},
+        {"name": "workers", "type": "int", "bounds": [1, 16], "scale": "log"},
+        {"name": "fixed_float", "type": "float", "bounds": [0.5, 0.5]},
+        {"name": "fixed_int", "type": "int", "bounds": [7, 7]},
+        {"name": "fixed_kind", "type": "categorical", "choices": ["only"]},
+        {"name": "int_choice", "type": "categorical", "choices": [1, 3, 5]},
+        {"name": "float_choice", "type": "categorical", "choices": [0.25, 0.75]},
+    ]
+    (project / "parameter_space.json").write_text(json.dumps({"parameters": parameters}))
+    (project / "objective_schema.json").write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "maximize"},
+            }
+        )
+    )
+    initial = json.loads(invoke(project, "suggest", "--count", "2", "--json-only").stdout)[
+        "suggestions"
+    ]
+    ingest(project, initial[0], 0.2)
+    ingest(project, initial[1], 0.8)
+    third = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    for trial in [*initial, third]:
+        params = trial["params"]
+        assert set(params) == {row["name"] for row in parameters}
+        assert 0.001 <= params["rate.raw"] <= 0.1
+        assert type(params["workers"]) is int and 1 <= params["workers"] <= 16
+        assert type(params["fixed_float"]) is float and params["fixed_float"] == 0.5
+        assert type(params["fixed_int"]) is int and params["fixed_int"] == 7
+        assert params["fixed_kind"] == "only"
+        assert type(params["int_choice"]) is int and params["int_choice"] in [1, 3, 5]
+        assert type(params["float_choice"]) is float and params["float_choice"] in [0.25, 0.75]
+    assert state(project)["best"]["trial_id"] == 2
+    decision = json.loads((project / "state/acquisition_log.jsonl").read_text().splitlines()[-1])
+    assert decision["decision"]["generation_node"] == "MBM"
+    envelope = json.loads((project / state(project)["optimizer"]["snapshot"]["path"]).read_text())
+    client_file = project / "inspect-maximize.json"
+    client_file.write_text(json.dumps(envelope["ax"]))
+    client = Client.load_from_json_file(filepath=str(client_file))
+    # Public Ax best-observed selection must also maximize the unchanged score.
+    _, outcomes, best_index, _ = client.get_best_parameterization(use_model_predictions=False)
+    assert best_index == 1 and outcomes["score"][0] == pytest.approx(0.8)
+    invoke(project, "validate", "--strict", lean=True)

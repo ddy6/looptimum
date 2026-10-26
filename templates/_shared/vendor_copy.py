@@ -158,6 +158,14 @@ def main() -> None:
         ignore=_template_copy_ignore(template_dir),
     )
     _vendor_runtime(shared_root, destination_dir, schema_filenames)
+    if (destination_dir / "requirements-ax.txt").is_file():
+        # Installation tooling is separate from the runtime and has no third-party imports.
+        for filename in ("ax_install.py", "ax-constraints.txt"):
+            shutil.copy2(shared_root / filename, destination_dir / filename)
+        requirements = destination_dir / "requirements-ax.txt"
+        requirements.write_text(
+            requirements.read_text().replace("../_shared/ax-constraints.txt", "ax-constraints.txt")
+        )
     _rewrite_controller_paths(destination_dir / "run_bo.py")
     for helper in destination_dir.glob("surrogate_*.py"):
         _rewrite_controller_paths(helper)

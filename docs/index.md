@@ -35,6 +35,8 @@ For full command sequences and resume behavior:
 - [Recovery Playbook](./recovery-playbook.md)
 - [How It Works](./how-it-works.md)
 - [Ax Backend (in development)](./ax-backend.md)
+- [Ax CPU Installation and Offline Wheelhouses](./ax-installation.md)
+- [Ax Support Matrix](./ax-support-matrix.md)
 - [Type Safety](./type-safety.md)
 - [CI Knob Tuning](./ci-knob-tuning.md)
 - [Stability Guarantees](./stability-guarantees.md)
