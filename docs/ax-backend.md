@@ -219,7 +219,7 @@ Canonical-state allocation, snapshot consistency, and journaled allocation
 publication cover controller process exits. This is not a transaction across
 every lifecycle command or a promise of power-loss durability: persistence
 uses rename without explicit file/directory syncing. Broader
-lifecycle/constraint coverage, performance comparisons, platform CI evidence,
+lifecycle/constraint coverage, platform CI evidence,
 and the final compatibility audit remain
 release gates. Existing legacy-backend allocation behavior is unchanged.
 
@@ -233,9 +233,10 @@ synthetic evaluator. The separate [backend comparison protocol](../benchmarks/ba
 declares fixed-budget quality and resource measurements; it does not change
 the existing published benchmark evidence.
 The first reference [readout](../benchmarks/backend_comparison/readout.md)
-retains a direct-GP numerical fit failure; the full comparison acceptance
-gate remains unmet. Completed Ax results and resource measurements are
-reported with their synthetic-workload and environment limits.
+retains a direct-GP numerical fit failure. A separate
+[GP-fix reference](../benchmarks/backend_comparison/gp_fix/readout.md) completed
+all 200 campaigns and passed the comparison gates. Results and resource
+measurements retain their synthetic-workload and environment limits.
 
 ```bash
 python scripts/probe_ax_compatibility.py --output /tmp/ax-compatibility.json

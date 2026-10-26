@@ -22,6 +22,7 @@ RUNTIME_MODULES = {
     "optimizer_backend.py",
     "optimizer_ax.py",
     "optimizer_ax_worker.py",
+    "gp_fit.py",
 }
 SCHEMAS = {
     "constraints.schema.json",

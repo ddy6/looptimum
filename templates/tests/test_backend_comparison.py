@@ -86,7 +86,9 @@ def test_quality_uses_the_observed_incumbent_not_an_oracle_or_lucky_noisy_score(
         trial(2, 0.2, 0.1, {"x1": 0.2}),
         trial(3, 0.25, 0.1, {"x1": 0.2}),
     ]
+    traces[1]["decision"]["gp_fit_recovery"] = {"status": "converged"}
     result = run.metrics(traces, "noisy_quadratic", plan())
+    assert result["gp_fit_recovery_count"] == 1
     assert result["best_observed"] == -1
     assert result["selected_regret"] == 0.3 and result["best_latent_seen"] == 0.1
     assert result["repeat_rate"] == pytest.approx(1 / 3)
@@ -265,6 +267,39 @@ def test_published_errors_exclude_local_prefixes_without_hiding_failure_or_chang
     text = run.report(summary)
     assert "acceptance gate remains unmet" in text and "not established" in text
     assert summary["passed"] is False
+
+
+def test_gp_fix_reference_is_complete_and_preserves_prior_successful_outcomes():
+    directory = run.ROOT / "benchmarks/backend_comparison"
+    previous = run.read(directory / "summary.json")
+    current = run.read(directory / "gp_fix/summary.json")
+    assert previous["passed"] is False
+    assert current["reference_protocol"] is True and current["passed"] is True
+    assert all(current["gates"].values())
+    assert len(current["results"]) == 200
+    assert all(
+        row["status"] == "complete" and row["evaluations"] == 12 for row in current["results"]
+    )
+    assert sum(row["evaluations"] for row in current["results"]) == 2400
+    recovered = [row for row in current["results"] if row["gp_fit_recovery_count"]]
+    assert [
+        (row["workload"], row["backend"], row["seed"], row["gp_fit_recovery_count"])
+        for row in recovered
+    ] == [("pipeline", "gp", 97, 1)]
+    lookup = {(row["workload"], row["backend"], row["seed"]): row for row in current["results"]}
+    for row in previous["results"]:
+        if row["status"] == "complete":
+            fresh = lookup[(row["workload"], row["backend"], row["seed"])]
+            for key in (
+                "best_observed",
+                "selected_latent",
+                "selected_params",
+                "initial_parameters",
+                "initial_observations",
+            ):
+                assert fresh[key] == row[key]
+    text = (directory / "gp_fix/summary.json").read_text()
+    assert "/Users/" not in text and "/home/" not in text
 
 
 def test_reference_artifacts_retain_failed_cells_and_valid_diagnostic_inputs():

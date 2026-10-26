@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import math
 from pathlib import Path
 
 from acquisition import acquisition_score
@@ -24,6 +25,7 @@ def _load_shared_module(module_name: str, filename: str):
 
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 _OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py")
+_GP_FIT = _load_shared_module("looptimum_gp_fit", "gp_fit.py")
 
 normalize_numeric_point = _SEARCH_SPACE.normalize_numeric_point
 denormalize_numeric_point = _SEARCH_SPACE.denormalize_numeric_point
@@ -50,7 +52,6 @@ def propose_with_gp(
 ) -> tuple[dict, dict]:
     try:
         import torch
-        from botorch.fit import fit_gpytorch_mll
         from botorch.models import SingleTaskGP
         from gpytorch.kernels import MaternKernel, ScaleKernel
         from gpytorch.mlls import ExactMarginalLogLikelihood
@@ -69,7 +70,7 @@ def propose_with_gp(
     covar_module = ScaleKernel(MaternKernel(nu=2.5, ard_num_dims=X.shape[-1]))
     model = SingleTaskGP(X, Y, covar_module=covar_module)
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
-    fit_gpytorch_mll(mll)
+    fit_recovery = _GP_FIT.fit_with_recovery(mll)
 
     scored = []
     for cand in candidates:
@@ -80,6 +81,8 @@ def propose_with_gp(
 
         mean = mean_min if direction == "minimize" else -mean_min
         score = acquisition_score(mean, std, best, direction, acq_cfg)
+        if not all(math.isfinite(value) for value in (mean, std, score)):
+            raise RuntimeError("GP produced a non-finite posterior or acquisition score")
         scored.append((score, _denormalize(_normalize(cand, params), params), mean, std))
 
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -91,4 +94,5 @@ def propose_with_gp(
         "predicted_mean": mean,
         "predicted_std": std,
         "acquisition_score": score,
+        **({"gp_fit_recovery": fit_recovery} if fit_recovery is not None else {}),
     }

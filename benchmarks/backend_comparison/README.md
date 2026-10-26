@@ -7,7 +7,12 @@ The runner never overwrites those golden outputs.
 
 The first reference's [readout](readout.md), [generated table](report.md), and
 [per-seed summary](summary.json) retain one failed direct-GP pipeline case.
-The full acceptance gate remains unmet; the failure is not silently removed.
+That original reference's acceptance gate remains unmet; its failure is not
+silently removed. The subsequent [GP-fix reference](gp_fix/readout.md)
+completed all 200 campaigns and passed every gate. It validates the
+[direct-GP fit recovery](../../docs/gp-fit-recovery.md), with recovery counts
+recorded. The original failed summary/report are retained rather than patched
+into a successful run.
 
 ## Reference design
 

@@ -50,6 +50,7 @@ _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_spa
 _OBSERVATIONS_IO = _load_shared_module("looptimum_shared_observations_io", "observations_io.py")
 _OPTIMIZER = _load_shared_module("looptimum_optimizer_backend", "optimizer_backend.py")
 _AX = _load_shared_module("looptimum_optimizer_ax", "optimizer_ax.py")
+_GP_FIT = _load_shared_module("looptimum_gp_fit", "gp_fit.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -388,7 +389,6 @@ def propose_with_botorch(
     constraints: dict | None = None,
 ) -> tuple[dict, dict]:
     import torch
-    from botorch.fit import fit_gpytorch_mll
     from botorch.models import SingleTaskGP
     from gpytorch.mlls import ExactMarginalLogLikelihood
 
@@ -405,7 +405,7 @@ def propose_with_botorch(
 
     model = SingleTaskGP(x_train, y_train)
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
-    fit_gpytorch_mll(mll)
+    fit_recovery = _GP_FIT.fit_with_recovery(mll)
 
     best = state["best"]["objective_value"] if state["best"] else None
     scored = []
@@ -433,6 +433,8 @@ def propose_with_botorch(
 
         mean = -mean_tensor if direction == "maximize" else mean_tensor
         score = acq_score(mean, std_tensor, best, direction, acq_cfg)
+        if not all(math.isfinite(value) for value in (mean, std_tensor, score)):
+            raise RuntimeError("GP produced a non-finite posterior or acquisition score")
         scored.append(
             (
                 score,
@@ -452,6 +454,7 @@ def propose_with_botorch(
             "predicted_mean": mean,
             "predicted_std": std,
             "acquisition_score": score,
+            **({"gp_fit_recovery": fit_recovery} if fit_recovery is not None else {}),
         },
         status,
     )

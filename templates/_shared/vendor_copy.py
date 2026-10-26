@@ -21,6 +21,7 @@ RUNTIME_MODULES = (
     "optimizer_backend.py",
     "optimizer_ax.py",
     "optimizer_ax_worker.py",
+    "gp_fit.py",
 )
 VENDORED_SHARED_RELATIVE_DIR = Path("vendor") / "looptimum_shared"
 VENDORED_SCHEMA_RELATIVE_DIR = VENDORED_SHARED_RELATIVE_DIR / "schemas"

@@ -373,6 +373,7 @@ def metrics(trials: list[JSON], workload: str, plan: JSON) -> JSON:
         "selected_params": selected["params"],
         "failure_rate": 1 - len(successful) / len(trials),
         "repeat_rate": 1 - len(seen) / len(trials),
+        "gp_fit_recovery_count": sum("gp_fit_recovery" in row["decision"] for row in trials),
         "feasible_rate": 1.0,
         "suggest_wall_seconds": durations,
         "p95_suggest_wall_seconds": percentile(durations, 0.95),
@@ -414,6 +415,9 @@ def summarize(plan: JSON, results: list[JSON]) -> JSON:
                 "expected_seeds": len(plan["seeds"]),
             }
             if len(complete) == len(plan["seeds"]):
+                group["gp_fit_recovery_count"] = sum(
+                    row.get("gp_fit_recovery_count", 0) for row in complete
+                )
                 for key in (
                     "best_observed",
                     "selected_regret",
@@ -548,18 +552,18 @@ def report(summary: JSON) -> str:
         f"Initialization: {summary['protocol']['initialization']}; concurrent campaigns: {summary['protocol']['workers']}.",
         f"Modeled evaluator cost: {summary['protocol']['evaluator_seconds']} seconds per evaluation; no actual sleep.",
         "",
-        "| Workload | Backend | Seeds | Selected latent regret, median [Q25, Q75] | Suggest p95, s | Peak process MiB |",
-        "|---|---|---:|---:|---:|---:|",
+        "| Workload | Backend | Seeds | Selected latent regret, median [Q25, Q75] | Suggest p95, s | Peak process MiB | Fit recoveries |",
+        "|---|---|---:|---:|---:|---:|---:|",
     ]
     for group in summary["groups"]:
         if "selected_regret" not in group:
             lines.append(
-                f"| {group['workload']} | {group['backend']} | {group['completed_seeds']}/{group['expected_seeds']} | incomplete | — | — |"
+                f"| {group['workload']} | {group['backend']} | {group['completed_seeds']}/{group['expected_seeds']} | incomplete | — | — | — |"
             )
             continue
         values = group["selected_regret"]
         lines.append(
-            f"| {group['workload']} | {group['backend']} | {group['completed_seeds']} | {values['median']:.5g} [{values['q25']:.5g}, {values['q75']:.5g}] | {group['p95_suggest_wall_seconds']:.3f} | {group['max_process_rss_mib']:.1f} |"
+            f"| {group['workload']} | {group['backend']} | {group['completed_seeds']} | {values['median']:.5g} [{values['q25']:.5g}, {values['q75']:.5g}] | {group['p95_suggest_wall_seconds']:.3f} | {group['max_process_rss_mib']:.1f} | {group.get('gp_fit_recovery_count', 0)} |"
         )
     failed = [row for row in summary["results"] if row["status"] != "complete"]
     if failed:

@@ -1,0 +1,126 @@
+{
+  "case": "pipeline / ordinary GP / seed 97 / fit seed 109 / 11 observations",
+  "purpose": "Diagnosis collected before the fix; line-search-only comparisons from identical model initialization.",
+  "environment": {
+    "python": "3.11.12",
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "versions": {
+      "ax-platform": "1.3.1",
+      "botorch": "0.18.1",
+      "torch": "2.14.1",
+      "gpytorch": "1.15.2",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1"
+    }
+  },
+  "traces": [
+    {
+      "maxls": null,
+      "status": "ModelFittingError: All attempts to fit the model have failed.",
+      "attempts": [
+        {
+          "status": "OptimizationStatus.FAILURE",
+          "message": "ABNORMAL: ",
+          "steps": 73,
+          "loss": 0.33204640615457964,
+          "noise": [
+            0.004913602874208652
+          ],
+          "lengthscale": [
+            [
+              85.35716225417536,
+              0.4658836694787584,
+              6.105385078858543,
+              4.367989565668373e-05,
+              1.213703411525961e-07,
+              0.5312027875425063,
+              0.7309898902057917
+            ]
+          ],
+          "outputscale": 0.7522851441487758
+        },
+        {
+          "status": "OptimizationStatus.FAILURE",
+          "message": "ABNORMAL: ",
+          "steps": 67,
+          "loss": 0.39930342047725614,
+          "noise": [
+            0.005065663619464934
+          ],
+          "lengthscale": [
+            [
+              103.06364665515711,
+              0.43523819482546966,
+              0.6932385235091677,
+              1.2197102908296729e-05,
+              1.507902259076078e-07,
+              0.776526002979047,
+              0.7418502746198635
+            ]
+          ],
+          "outputscale": 0.69254802244571
+        }
+      ],
+      "warnings": [
+        "`scipy_minimize` terminated with status OptimizationStatus.FAILURE, displaying original message from `scipy.optimize.minimize`: ABNORMAL: ",
+        "`scipy_minimize` terminated with status OptimizationStatus.FAILURE, displaying original message from `scipy.optimize.minimize`: ABNORMAL: "
+      ]
+    },
+    {
+      "maxls": 50,
+      "status": "success",
+      "attempts": [
+        {
+          "status": "OptimizationStatus.SUCCESS",
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "steps": 75,
+          "loss": 0.3290934376794973,
+          "noise": [
+            0.004913596241474743
+          ],
+          "lengthscale": [
+            [
+              85.35716225519111,
+              0.46588365414242056,
+              6.10538508119877,
+              4.367989565158882e-05,
+              1.213703413643721e-07,
+              0.5312027875409632,
+              0.730989887060318
+            ]
+          ],
+          "outputscale": 0.7522851518899877
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "maxls": 100,
+      "status": "success",
+      "attempts": [
+        {
+          "status": "OptimizationStatus.SUCCESS",
+          "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+          "steps": 75,
+          "loss": 0.3290934376794973,
+          "noise": [
+            0.004913596241474743
+          ],
+          "lengthscale": [
+            [
+              85.35716225519111,
+              0.46588365414242056,
+              6.10538508119877,
+              4.367989565158882e-05,
+              1.213703413643721e-07,
+              0.5312027875409632,
+              0.730989887060318
+            ]
+          ],
+          "outputscale": 0.7522851518899877
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}
