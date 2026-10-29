@@ -79,7 +79,6 @@ figure {
 
 main,
 .site-header,
-.site-banner,
 .site-footer {
   width: min(calc(100% - 3rem), var(--width));
   margin-inline: auto;
@@ -148,12 +147,16 @@ ul {
 }
 
 .site-banner {
-  margin-top: 1.5rem;
+  width: 100%;
+  overflow: hidden;
 }
 
 .site-banner img {
   width: 100%;
   height: auto;
+  max-height: 24rem;
+  object-fit: cover;
+  object-position: center 40%;
 }
 
 .brand {
@@ -853,7 +856,6 @@ a:focus-visible {
 @media (max-width: 760px) {
   main,
   .site-header,
-  .site-banner,
   .site-footer {
     width: min(calc(100% - 1.5rem), var(--width));
   }

@@ -39,12 +39,25 @@ const isActiveNavItem = (href: string) =>
     <meta name="twitter:image" content={ogImageUrl} />
     <meta name="twitter:image:alt" content={siteConfig.ogImageAlt} />
     <meta name="theme-color" content="#edf5ff" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-looptimum.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-looptimum.png" sizes="180x180" />
     <link rel="canonical" href={canonicalUrl} />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="site-shell">
+      {currentPath === "/" && (
+        <div class="site-banner">
+          <img
+            src={siteConfig.ogImagePath}
+            alt={siteConfig.ogImageAlt}
+            width={siteConfig.ogImageWidth}
+            height={siteConfig.ogImageHeight}
+            fetchpriority="high"
+            decoding="async"
+          />
+        </div>
+      )}
       <header class="site-header">
         <a class="brand" href="/">
           <span class="brand-wordmark">looptimum</span>
@@ -66,16 +79,6 @@ const isActiveNavItem = (href: string) =>
           </ul>
         </nav>
       </header>
-      <div class="site-banner">
-        <img
-          src={siteConfig.ogImagePath}
-          alt={siteConfig.ogImageAlt}
-          width={siteConfig.ogImageWidth}
-          height={siteConfig.ogImageHeight}
-          fetchpriority="high"
-          decoding="async"
-        />
-      </div>
       <main id="main-content" tabindex="-1">
         <slot />
       </main>
