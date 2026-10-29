@@ -13,7 +13,10 @@ export const siteConfig = {
   contactEmail: "contact@looptimum.io",
   contactHref: "mailto:contact@looptimum.io?subject=Looptimum%20pilot%20fit%20review",
   larcContactHref: "mailto:contact@looptimum.io?subject=Discuss%20a%20LARC%20project",
-  ogImagePath: "/og-card.svg",
+  ogImagePath: "/brand/looptimum-landscape.png",
+  ogImageWidth: 2048,
+  ogImageHeight: 768,
+  ogImageAlt: "Looptimum wordmark over a blue optimization landscape, with a path rising to an orange peak.",
 };
 
 export const larcProjectArchetypes = [

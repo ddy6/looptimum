@@ -63,6 +63,11 @@ Those domain redirects are not handled inside the Astro site itself.
 
 ## Content Sources
 
+The shared top banner and social previews (Open Graph and X) use
+`public/brand/looptimum-landscape.png`. The image is displayed at its original
+aspect ratio below the navigation, with the existing page headings below it.
+Social metadata uses the absolute `https://looptimum.io` image URL on every page.
+
 The proof points and charts in the site are derived from the sanitized public
 case-study packages in:
 
