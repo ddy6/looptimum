@@ -101,13 +101,15 @@ def test_exhausted_fitting_never_allocates_or_switches_to_proxy(tmp_path):
     assert not (project / "state/trials/trial_12").exists()
 
 
-def test_real_bounded_recovery_converges_from_recorded_initialization(tmp_path, monkeypatch):
+@pytest.mark.parametrize("force_numerical_failure", [False, True])
+def test_recorded_recovery_converges_or_restores_state(monkeypatch, force_numerical_failure):
     import torch
     from botorch import fit as fitting
     from botorch.exceptions.errors import ModelFittingError
     from botorch.models import SingleTaskGP
     from gpytorch.kernels import MaternKernel, ScaleKernel
     from gpytorch.mlls import ExactMarginalLogLikelihood
+    from linear_operator.utils.errors import NotPSDError
 
     sys.path.insert(0, str(ROOT / "templates/bo_client"))
     try:
@@ -133,14 +135,74 @@ def test_real_bounded_recovery_converges_from_recorded_initialization(tmp_path, 
         x, y, covar_module=ScaleKernel(MaternKernel(nu=2.5, ard_num_dims=x.shape[-1]))
     )
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
+    original_state = {name: value.clone() for name, value in mll.state_dict().items()}
+    original_rng = torch.random.get_rng_state().clone()
 
     def failed_default(mll):
         raise ModelFittingError("forced default failure to exercise recovery across platforms")
 
     monkeypatch.setattr(fitting, "fit_gpytorch_mll", failed_default)
-    recovery = surrogate_gp._GP_FIT.fit_with_recovery(mll)
+
+    if force_numerical_failure:
+        from botorch.optim import fit as scipy_fitting
+
+        def failed_recovery(mll, **kwargs):
+            with torch.no_grad():
+                next(mll.parameters()).add_(1.0)
+            torch.rand(3)
+            raise NotPSDError("injected non-positive-definite covariance")
+
+        monkeypatch.setattr(scipy_fitting, "fit_gpytorch_mll_scipy", failed_recovery)
+
+    try:
+        recovery = surrogate_gp._GP_FIT.fit_with_recovery(mll)
+    except ModelFittingError as error:
+        # The retained history is a numerical regression case, not a promise
+        # that one bounded optimization will converge on every BLAS/platform.
+        assert "one bounded L-BFGS-B recovery" in str(error)
+        assert isinstance(error.__cause__, (ModelFittingError, NotPSDError))
+        if force_numerical_failure:
+            assert "injected non-positive-definite covariance" in str(error)
+        assert mll.training and model.training and model.likelihood.training
+        assert mll.state_dict().keys() == original_state.keys()
+        for name, value in mll.state_dict().items():
+            assert torch.equal(value, original_state[name]), name
+        assert torch.equal(torch.random.get_rng_state(), original_rng)
+    else:
+        assert not force_numerical_failure
+        assert recovery["status"] == "converged" and recovery["attempts"] == 1
+        assert recovery["steps"] <= 200 and math.isfinite(recovery["negative_mll"])
+        assert not mll.training
+        posterior = model.posterior(x)
+        assert torch.isfinite(posterior.mean).all() and torch.isfinite(posterior.variance).all()
+
+
+def test_real_bounded_recovery_converges_on_well_conditioned_data(monkeypatch):
+    import torch
+    from botorch import fit as fitting
+    from botorch.exceptions.errors import ModelFittingError
+    from botorch.models import SingleTaskGP
+    from gpytorch.kernels import MaternKernel, ScaleKernel
+    from gpytorch.mlls import ExactMarginalLogLikelihood
+
+    spec = importlib.util.spec_from_file_location(
+        "gp_convergence_fit", ROOT / "templates/_shared/gp_fit.py"
+    )
+    gp_fit = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gp_fit)
+    x = torch.linspace(0.0, 1.0, 9, dtype=torch.double).unsqueeze(-1)
+    y = (x - 0.35).square()
+    model = SingleTaskGP(x, y, covar_module=ScaleKernel(MaternKernel(nu=2.5, ard_num_dims=1)))
+    mll = ExactMarginalLogLikelihood(model.likelihood, model)
+
+    def failed_default(mll):
+        raise ModelFittingError("forced default failure on well-conditioned data")
+
+    monkeypatch.setattr(fitting, "fit_gpytorch_mll", failed_default)
+    recovery = gp_fit.fit_with_recovery(mll)
     assert recovery["status"] == "converged" and recovery["attempts"] == 1
     assert recovery["steps"] <= 200 and math.isfinite(recovery["negative_mll"])
+    assert not mll.training
     posterior = model.posterior(x)
     assert torch.isfinite(posterior.mean).all() and torch.isfinite(posterior.variance).all()
 

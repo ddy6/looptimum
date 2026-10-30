@@ -59,6 +59,15 @@ results. Optional real-stack tests exercise the retained history through a
 portable controller, real bounded fitting, the full GP dispatch, and atomic
 failure without allocating a trial or switching the ordinary backend.
 
+The recorded initialization can still encounter a non-positive-definite
+covariance during recovery on another numerical platform. Its integration
+test requires either explicit convergence with a finite posterior or an
+actionable fitting error with the original model and CPU RNG restored exactly.
+A forced covariance failure exercises restoration even on platforms where
+the recorded case converges. A separate well-conditioned real-data test
+requires successful bounded recovery; numerical failures are not accepted
+as success or hidden by a skipped test.
+
 The original failed reference remains preserved. A new complete reference
 must use a fresh raw evidence directory; no previously failed campaign is
 selectively retried into the old result. New summaries count recorded GP
