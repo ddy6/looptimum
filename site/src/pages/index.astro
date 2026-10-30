@@ -10,29 +10,22 @@ import {
 ---
 
 <BaseLayout
-  title="Looptimum | Black-Box Optimization for Expensive Evaluations"
-  description="Looptimum is a lightweight black-box optimization controller that uses previous results to choose which expensive evaluation to run next."
+  title="Looptimum | Optimization for Engineering and Research"
+  description="Looptimum supports parameter optimization for simulations, model training, and experiments, with evaluations and records kept in your own environment."
   currentPath="/"
 >
   <section id="core-looptimum" class="page-hero">
     <div class="hero-grid hero-grid-focused">
       <div class="hero-copy">
-        <h1>Run fewer expensive trials.</h1>
+        <h1>Optimization for engineering and research</h1>
         <p class="dek">
-          Looptimum uses completed results to choose what to try next. Your
-          evaluations run in your own environment, and the search can resume
-          after interruptions.
+          Looptimum helps teams select parameters for simulations, model
+          training, and experiments where each evaluation requires substantial
+          time or resources. The software uses previous results to guide the
+          search, with evaluations and records kept in your own environment.
         </p>
         <div class="hero-actions">
           <a class="button button-primary" href="/evidence/">Read the case studies</a>
-        </div>
-        <div class="loop-notation" aria-label="Looptimum workflow: suggest, evaluate, ingest, repeat">
-          <span>suggest</span>
-          <span aria-hidden="true">→</span>
-          <span>evaluate</span>
-          <span aria-hidden="true">→</span>
-          <span>ingest</span>
-          <span aria-hidden="true">↺</span>
         </div>
       </div>
     </div>
@@ -42,10 +35,11 @@ import {
     <section class="stack-md">
       <section class="two-column">
         <div class="section-head">
-          <h2>How it works</h2>
+          <h2>Optimization workflow</h2>
           <p>
-            Set the parameters you can change and the score you want to improve.
-            Looptimum proposes a trial; your existing workflow runs it.
+            Define the adjustable parameters, operating limits, and objective.
+            Looptimum proposes a configuration for your existing workflow to
+            evaluate, then incorporates the result into the search.
           </p>
         </div>
         <ol class="workflow-list">
@@ -86,10 +80,11 @@ import {
       </section>
 
       <div class="section-head">
-        <h2>Where it helps</h2>
+        <h2>Applications</h2>
         <p>
-          Start with a working evaluator, a few adjustable parameters, and a
-          real cost to every run.
+          Suitable projects have measurable outcomes, defined parameter
+          ranges, and evaluations that consume significant compute, equipment,
+          or staff time.
         </p>
       </div>
       <div class="use-case-grid">
@@ -104,24 +99,25 @@ import {
 
     <section class="larc-callout" aria-labelledby="larc-callout-heading">
       <div>
-        <h2 id="larc-callout-heading">Before you have an evaluation loop</h2>
+        <h2 id="larc-callout-heading">Research and feasibility</h2>
         <p>
           The Looptimum Advanced Research Collective (LARC) works on early
-          technical projects where computing costs, experiment design, or
-          system architecture still need to be worked out.
+          technical projects to assess system architecture, computing
+          requirements, and experiment design before implementation.
         </p>
       </div>
       <div class="larc-callout-action">
         <p>
-          LARC helps define what to build and test first.
+          Work may include bottleneck analysis, feasibility models, and a
+          plan for initial experiments.
         </p>
         <a class="inline-link" href="/larc/">Read about LARC <span aria-hidden="true">→</span></a>
       </div>
     </section>
 
     <ActionPanel
-      title="Work with Looptimum"
-      body="Tell us what one run costs, what you can change, and what you want to improve."
+      title="Pilot assessment"
+      body="We can review your evaluation workflow, optimization objective, and resource budget to assess a pilot."
       primaryHref="/pilot/"
       primaryLabel="Discuss a pilot"
     />
@@ -139,7 +135,7 @@ import {
       </figure>
       <article class="person-profile">
         <h2 id="people-heading">David Y.</h2>
-        <p class="person-role">Founder, Developer</p>
+        <p class="person-role">Developer</p>
         <p class="person-biography">
           David is the founder and lead developer of Looptimum. His work spans
           computational hemodynamics, medical-device research, Bayesian

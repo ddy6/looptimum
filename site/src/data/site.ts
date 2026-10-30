@@ -1,8 +1,8 @@
 export const navItems = [
   { href: "/", label: "Home" },
   { href: "/how-it-works/", label: "How it works" },
-  { href: "/use-cases/", label: "Use cases" },
-  { href: "/evidence/", label: "Evidence" },
+  { href: "/use-cases/", label: "Applications" },
+  { href: "/evidence/", label: "Case studies" },
   { href: "/larc/", label: "LARC" },
   { href: "/pilot/", label: "Pilot" },
   { href: "/#people", label: "People" },
@@ -36,7 +36,7 @@ export const larcProjectArchetypes = [
       "Laboratory or physical systems where measurements are slow, expensive, or hard to repeat.",
   },
   {
-    title: "Planning the first build",
+    title: "Prototype planning",
     body:
       "Promising ideas that need a clearer account of the bottlenecks, tests, and milestones before implementation.",
   },
@@ -48,19 +48,19 @@ export const larcMethodSteps = [
     body: "Define the system, its constraints, and the technical questions that remain open.",
   },
   {
-    title: "Identify bottlenecks",
+    title: "Bottleneck analysis",
     body: "Find the costs, resource limits, and design choices most likely to determine feasibility.",
   },
   {
-    title: "Choose what to optimize",
+    title: "Optimization scope",
     body: "Decide which variables matter and whether to tackle the problem in stages or smaller parts.",
   },
   {
-    title: "Plan the tests",
+    title: "Evaluation plan",
     body: "Order the models, benchmarks, and experiments around what needs to be learned first.",
   },
   {
-    title: "Support implementation",
+    title: "Implementation planning",
     body: "Use the results to set validation criteria and decide what to build next.",
   },
 ];
@@ -110,7 +110,7 @@ export const useCases: UseCase[] = [
       "Adjust concurrency, retries, memory limits, thread counts, or cache lifetimes against measured cost and latency.",
   },
   {
-    title: "ML and evaluation loops",
+    title: "Machine learning",
     body:
       "Search training settings, batch sizes, or evaluation thresholds when experiments are slow and failed runs are costly.",
     href: "/evidence/gpt-training/",
@@ -151,7 +151,7 @@ export const caseStudies: CaseStudy[] = [
   {
     slug: "engineering-mesh",
     href: "/evidence/engineering-mesh/",
-    title: "A smaller simulation mesh",
+    title: "Simulation-mesh optimization",
     summary:
       "A 21-trial search found a smaller mesh, then a separate solver pass checked flow and pressure against the fine reference.",
     metrics: [
@@ -201,7 +201,7 @@ export const caseStudies: CaseStudy[] = [
   {
     slug: "gpt-training",
     href: "/evidence/gpt-training/",
-    title: "A GPT training-recipe search",
+    title: "GPT training-parameter search",
     summary:
       "Ten evaluations tested four training controls. The selected model had lower held-out loss and fewer parameters than the fixed baseline.",
     metrics: [

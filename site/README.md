@@ -13,6 +13,12 @@ npm install
 npm run dev
 ```
 
+For a local copy review at `http://127.0.0.1:4321/`:
+
+```bash
+npm run dev -- --host 127.0.0.1 --port 4321
+```
+
 Build for production:
 
 ```bash

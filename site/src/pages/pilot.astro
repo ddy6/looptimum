@@ -6,24 +6,24 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
 ---
 
 <BaseLayout
-  title="Pilot Intake | Looptimum"
-  description="Scope a Looptimum pilot around one evaluation loop, a measurable objective, and parameters your team can control."
+  title="Pilot Assessment | Looptimum"
+  description="Assess a Looptimum pilot by defining the evaluation workflow, parameter bounds, resource budget, and acceptance criteria."
   currentPath="/pilot/"
 >
   <PageHero
-    title="Plan a pilot"
-    dek="Start with one evaluation loop and a result you want to improve. A short description of your setup is enough for an initial conversation."
+    title="Pilot assessment"
+    dek="An initial review establishes whether Looptimum fits your evaluation process. We consider the objective, adjustable parameters, operating environment, and available budget before defining the pilot scope."
     spacedBelow={true}
   />
 
   <div class="stack-lg">
     <section class="two-column">
       <div class="feature-panel">
-        <h2>What to send</h2>
+        <h2>Project information</h2>
         <p>
-          Brief answers to these questions help us understand the work and
-          whether Looptimum would be useful. Include rough estimates where
-          exact numbers aren't available.
+          Describe your current evaluation process and the result you want to
+          improve. The questions below guide the initial review; estimates
+          are sufficient where exact figures are unavailable.
         </p>
         <a class="inline-link" href={repoLinks.intake}>Read the intake notes <span aria-hidden="true">→</span></a>
       </div>
@@ -38,20 +38,20 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
 
     <section class="stack-md">
       <div class="section-head">
-        <h2>Keeping the scope manageable</h2>
+        <h2>Pilot scope</h2>
         <a class="inline-link" href={repoLinks.pilot}>Read the pilot scope notes <span aria-hidden="true">→</span></a>
       </div>
 
       <section class="criteria-grid">
         <article class="criteria-card">
-          <h3>One loop</h3>
+          <h3>Evaluation workflow</h3>
           <p>
             Begin with one evaluator, one score, and a small set of parameters
             with defined bounds.
           </p>
         </article>
         <article class="criteria-card">
-          <h3>Your environment</h3>
+          <h3>Operating environment</h3>
           <p>
             Evaluations stay in your environment. Identify access restrictions,
             offline requirements, and other operating limits before starting.
@@ -65,7 +65,7 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
           </p>
         </article>
         <article class="criteria-card">
-          <h3>What happens next</h3>
+          <h3>Initial review</h3>
           <p>
             Use the initial conversation to review the evaluator, objective,
             and evaluation budget before defining the pilot.
@@ -75,8 +75,8 @@ import { intakeQuestions, repoLinks, siteConfig } from "../data/site";
     </section>
 
     <ActionPanel
-      title="Tell us about your setup"
-      body="Send your answers or a brief project description."
+      title="Project inquiries"
+      body="Email a brief project description and any available details about your evaluation process."
       primaryHref={siteConfig.contactHref}
       primaryLabel="Email Looptimum"
     />

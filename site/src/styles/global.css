@@ -177,15 +177,10 @@ ul {
   line-height: 1;
 }
 
-.brand-tagline,
 .footer-copy {
   color: var(--ink-soft);
   font-size: 0.78rem;
   line-height: 1.35;
-}
-
-.brand-tagline {
-  max-width: 18rem;
 }
 
 .nav-list,
@@ -305,21 +300,6 @@ ul {
 .button-secondary:hover {
   color: var(--surface);
   background: var(--blue-deep);
-}
-
-.loop-notation {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: center;
-  width: fit-content;
-  margin-top: 1rem;
-  padding: 0.7rem 0;
-  color: var(--ink-soft);
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
 }
 
 .stack-lg,
@@ -535,8 +515,8 @@ ul {
 
 .people-section {
   display: grid;
-  grid-template-columns: minmax(14rem, 0.58fr) minmax(0, 1.42fr);
-  gap: clamp(2.5rem, 6vw, 5.5rem);
+  grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+  gap: clamp(1.25rem, 3vw, 2rem);
   align-items: start;
   padding: 2.25rem 0;
   border-top: 1px solid var(--line-strong);
@@ -546,7 +526,7 @@ ul {
 
 .person-portrait {
   width: 100%;
-  max-width: 21rem;
+  max-width: 8rem;
 }
 
 .person-portrait img {
@@ -874,10 +854,6 @@ a:focus-visible {
     font-size: 1.8rem;
   }
 
-  .brand-tagline {
-    max-width: none;
-  }
-
   .site-header nav,
   .header-cta {
     grid-column: 1;
@@ -930,10 +906,6 @@ a:focus-visible {
   .people-section {
     grid-template-columns: 1fr;
     gap: 1.75rem;
-  }
-
-  .person-portrait {
-    max-width: 18rem;
   }
 
   .metric-grid,

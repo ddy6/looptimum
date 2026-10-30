@@ -18,7 +18,7 @@ if (!campaign) {
   currentPath="/evidence/engineering-mesh/"
 >
   <PageHero
-    title="Finding a smaller simulation mesh"
+    title="Simulation-mesh optimization"
     dek="Looptimum tested 21 configurations in a 216-point search space. The selected coarse mesh was then checked against a trusted fine reference in a separate solver pass."
   />
 
@@ -32,7 +32,7 @@ if (!campaign) {
 
     <section class="two-column" aria-label="Campaign method">
       <div class="feature-panel reveal">
-        <h2>The engineering problem</h2>
+        <h2>Engineering objective</h2>
         <p>
           The fine mesh produced reliable pressure and flow results but took
           weeks to solve. The aim was to find a smaller, stable mesh that
@@ -40,7 +40,7 @@ if (!campaign) {
         </p>
       </div>
       <div class="feature-panel reveal">
-        <h2>How the search ran</h2>
+        <h2>Search method</h2>
         <p>
           Looptimum proposed mesh-control settings and recorded the outcomes.
           Existing meshing and checkMesh workflows evaluated each trial; the
@@ -89,8 +89,8 @@ if (!campaign) {
     </section>
 
     <ActionPanel
-      title="Have a similar workflow?"
-      body="Tell us about your evaluator and the checks a useful result would need to pass."
+      title="Simulation pilot assessment"
+      body="A project review covers your evaluator, computational budget, and the validation checks required for an acceptable result."
       primaryHref={campaign.cta.href}
       primaryLabel={campaign.cta.label}
     />

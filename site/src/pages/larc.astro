@@ -7,24 +7,23 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
 <BaseLayout
   title="LARC | Looptimum Advanced Research Collective"
-  description="LARC helps early technical projects work through system design, computing limits, and the experiments needed before implementation."
+  description="The Looptimum Advanced Research Collective explores technical feasibility, system design, and experiment planning for early research projects."
   currentPath="/larc/"
 >
   <PageHero
-    title="Looptimum Advanced Research Collective"
-    dek="LARC works with early technical projects where system design, computing costs, or the experiments needed to establish feasibility are still open questions."
+    title="Research and feasibility"
+    dek="The Looptimum Advanced Research Collective (LARC) works with early technical projects to assess system design, computing requirements, and experimental feasibility. The scope reflects the questions that need to be resolved before implementation."
     spacedBelow={true}
   />
 
   <div class="stack-lg">
     <section class="two-column" aria-label="LARC and core Looptimum">
       <div class="feature-panel reveal">
-        <h2>Early technical questions</h2>
+        <h2>Technical assessment</h2>
         <p>
           LARC helps identify the constraints, design choices, and tests that
-          matter most before committing to a build. The work starts by asking
-          what needs to be learned and which experiment would be worth doing
-          first.
+          determine feasibility. The assessment identifies gaps in the
+          available evidence and defines experiments to address them.
         </p>
       </div>
       <div class="feature-panel reveal">
@@ -40,10 +39,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
     <section class="stack-md" aria-labelledby="larc-projects-heading">
       <div class="section-head">
-        <h2 id="larc-projects-heading">Projects LARC can help explore</h2>
-        <p>
-          Areas of interest include:
-        </p>
+        <h2 id="larc-projects-heading">Research areas</h2>
       </div>
       <div class="use-case-grid">
         {larcProjectArchetypes.map((item) => (
@@ -57,10 +53,10 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
     <section class="stack-md" aria-labelledby="larc-method-heading">
       <div class="section-head">
-        <h2 id="larc-method-heading">How the work develops</h2>
+        <h2 id="larc-method-heading">Project approach</h2>
         <p>
-          Each project has its own scope. These steps help organize the work
-          around the questions that need answers first.
+          The work proceeds from a review of requirements and constraints to
+          an evaluation plan, with validation criteria agreed for each project.
         </p>
       </div>
       <div class="larc-method-grid">
@@ -76,7 +72,7 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
 
     <section class="two-column">
       <div class="evidence-list reveal">
-        <h2>Possible outputs</h2>
+        <h2>Potential deliverables</h2>
         <ul>
           <li>A system breakdown and bottleneck analysis</li>
           <li>A plan for optimization, constraints, and evaluation</li>
@@ -97,8 +93,8 @@ import { larcMethodSteps, larcProjectArchetypes, siteConfig } from "../data/site
     </section>
 
     <ActionPanel
-      title="Tell us about the project"
-      body="Describe what you want to build and the technical question you need to resolve first."
+      title="Research inquiries"
+      body="Share the project context, current stage of development, and technical questions you need to resolve."
       primaryHref={siteConfig.larcContactHref}
       primaryLabel="Discuss a project"
     />

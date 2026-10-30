@@ -18,7 +18,7 @@ if (!campaign) {
   currentPath="/evidence/gpt-training/"
 >
   <PageHero
-    title="A GPT training search in ten evaluations"
+    title="GPT training-parameter search"
     dek="An anonymized campaign tested four training controls, starting with four deterministic evaluations and following with six guided trials. All ten ran in the existing training environment."
   />
 
@@ -31,7 +31,7 @@ if (!campaign) {
     </section>
 
     <section class="proof-banner reveal" aria-labelledby="result-boundary-heading">
-      <h2 id="result-boundary-heading">The observed result</h2>
+      <h2 id="result-boundary-heading">Observed results</h2>
       <p>
         The selected model's held-out loss index was 98.98 against a fixed
         baseline of 100.00. Its parameter-count index was 75.4 against 100.0.
@@ -42,7 +42,7 @@ if (!campaign) {
 
     <section class="two-column" aria-label="Campaign method">
       <div class="feature-panel reveal">
-        <h2>What was tested</h2>
+        <h2>Search parameters</h2>
         <p>
           The search varied four controls within defined bounds. All ten
           evaluations completed successfully.
@@ -55,7 +55,7 @@ if (!campaign) {
         </div>
       </div>
       <div class="feature-panel reveal">
-        <h2>How evaluations ran</h2>
+        <h2>Evaluation method</h2>
         <p>
           Looptimum proposed the settings, and the client-owned training
           workflow returned a loss index measured on the fixed held-out data.
@@ -93,8 +93,8 @@ if (!campaign) {
     </section>
 
     <ActionPanel
-      title="Have a training loop to improve?"
-      body="Tell us what you can vary, how you measure results, and what each run costs."
+      title="Model-training pilot assessment"
+      body="A project review covers the adjustable training parameters, evaluation metric, and resource cost per run."
       primaryHref={campaign.cta.href}
       primaryLabel={campaign.cta.label}
     />

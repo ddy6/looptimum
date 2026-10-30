@@ -7,12 +7,12 @@ import { repoLinks, workflowSteps } from "../data/site";
 
 <BaseLayout
   title="How It Works | Looptimum"
-  description="Looptimum chooses the next trial, your existing workflow runs it, and the results stay in local files you can review and resume."
+  description="An overview of Looptimum's parameter search, evaluator interface, local records, and handling of constraints and failed evaluations."
   currentPath="/how-it-works/"
 >
   <PageHero
-    title="How Looptimum works"
-    dek="Looptimum chooses the next trial. Your existing workflow runs it and returns a score or a failure. Each result informs the next choice."
+    title="Optimization workflow"
+    dek="Looptimum connects a guided parameter search to your existing evaluation process. Each completed trial informs the next suggestion, with search state and results recorded locally."
     spacedBelow={true}
   />
 
@@ -34,7 +34,7 @@ import { repoLinks, workflowSteps } from "../data/site";
 
     <section class="two-column">
       <div class="section-head">
-        <h2>Working in your environment</h2>
+        <h2>Integration and records</h2>
         <p>
           The controller keeps its state and decision history in local files.
           You can inspect the record, resume after interruptions, and work in
@@ -108,7 +108,7 @@ import { repoLinks, workflowSteps } from "../data/site";
     </section>
 
     <section class="proof-banner">
-      <h2>What you need to start</h2>
+      <h2>Project requirements</h2>
       <ul>
         <li>An evaluation costly enough that choosing the next run carefully matters.</li>
         <li>A score that measures the result you want to improve.</li>
@@ -118,8 +118,8 @@ import { repoLinks, workflowSteps } from "../data/site";
     </section>
 
     <ActionPanel
-      title="See it in practice"
-      body="The case studies document the search, results, and validation in engineering and model training."
+      title="Case studies"
+      body="Review the methods, recorded results, and validation checks from simulation and model-training campaigns."
       primaryHref="/evidence/"
       primaryLabel="Read the case studies"
     />
