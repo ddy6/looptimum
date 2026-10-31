@@ -29,7 +29,7 @@ All four lanes passed for implementation commit `70e2e58`
 ([CI run](https://github.com/ddy6/looptimum/actions/runs/40289436046));
 the final release commit must pass them again before tagging.
 The [GitHub runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
-identifies `macos-14` as arm64; the installer also checks the actual architecture.
+identifies `macos-15` as arm64; the installer also checks the actual architecture.
 
 Package pins describe a tested profile; the per-target generated lock records
 the actual wheel hashes. Linux uses Torch's `+cpu` distribution from the

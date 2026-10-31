@@ -123,7 +123,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-14]
+        os: [ubuntu-latest, macos-15]
         python-version: ["3.11", "3.12"]
     env:
       LOOPTIMUM_REQUIRE_AX_TESTS: "1"
