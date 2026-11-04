@@ -5,7 +5,7 @@ for teams running expensive black-box evaluations in local, on-prem, or
 otherwise client-controlled environments.
 
 Private contact for pilot fit and scope:
-[contact@looptimum.com](mailto:contact@looptimum.com)
+[contact@looptimum.io](mailto:contact@looptimum.io)
 
 ## Best Initial Fit
 
@@ -82,7 +82,7 @@ client's environment.
 If you are evaluating fit for a pilot:
 
 1. Read this page.
-2. Send a short note to [contact@looptimum.com](mailto:contact@looptimum.com)
+2. Send a short note to [contact@looptimum.io](mailto:contact@looptimum.io)
    or fill out [`intake.md`](./intake.md).
 3. Review [`docs/pilot-checklist.md`](./docs/pilot-checklist.md) for pilot
    execution expectations.

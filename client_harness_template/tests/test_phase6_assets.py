@@ -88,7 +88,8 @@ def test_mypy_scope_and_type_safety_doc_are_present() -> None:
     assert TYPE_SAFETY_DOC.exists(), f"missing type-safety doc: {TYPE_SAFETY_DOC}"
     doc_text = TYPE_SAFETY_DOC.read_text(encoding="utf-8")
     assert "Type-checking tool: `mypy`." in doc_text
-    assert "Initial blocking CI gate scope" in doc_text
+    for pattern in files:
+        assert f"`{pattern}`" in doc_text
     assert "`service/*.py`" in doc_text
     assert "`client_harness_template/starterkit_*.py`" in doc_text
 

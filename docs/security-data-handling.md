@@ -27,6 +27,14 @@ The optimization loop only needs a small contract surface to operate:
 
 This supports a data-minimization-first integration pattern.
 
+Minimum required fields are not an automatic data filter. The generic harness
+preserves supplied parameter values and accepted reason text. Its default
+exception handler can put the exception class and message in `terminal_reason`
+and stderr. Controller payloads and artifacts can also retain supported metadata
+such as artifact paths and heartbeat notes. Define and construct the fields your
+project permits at its evaluator boundary, and inspect both outgoing payloads
+and saved state/logs; schema validity alone does not establish that policy.
+
 ## Typical Local Artifacts
 
 Template runs commonly produce local files such as:

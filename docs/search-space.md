@@ -15,6 +15,28 @@ All public templates currently support:
 
 The canonical contract file is `parameter_space.json`.
 
+These are the general template capabilities. Native Ax accepts flat mixed-type
+spaces but rejects conditional `when` parameters and some constraint/objective
+policies; check the [Ax support matrix](./ax-support-matrix.md) before choosing it.
+
+## Choose a useful parameter space
+
+Start with a small set of settings your evaluator can actually control. Keep
+measured outputs in the objective, and record the units and meaning of each
+setting. Bounds should describe safe, meaningful experiments rather than the
+widest range the software accepts.
+
+Use linear scale for additive changes and log scale for positive values spanning
+orders of magnitude. Use bool for a switch and categorical choices for distinct
+options; do not imply an ordering by encoding unrelated categories as integers.
+Express genuinely conditional settings with `when` only on a supporting backend.
+Keep invalid combinations in bounds or supported hard constraints.
+
+Freeze names, units and the space for a comparison. Expand it after proving one
+end-to-end evaluation and understanding the measurement's noise. Define the
+[objective and acceptance policy](./integration-guide.md#choose-parameters-and-define-the-measurement)
+alongside the space, rather than tuning the score definition during a campaign.
+
 ## Parameter Shapes
 
 ### Numeric

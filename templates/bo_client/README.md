@@ -3,6 +3,11 @@
 Minimal single-stage optimization harness with explicit config, a swappable
 surrogate backend, and restartable JSON state.
 
+For a fresh campaign, follow the [portable quickstart](../../quickstart/README.md).
+See the [template map](../README.md) for the complete CLI/backend boundary and
+[effective configuration](../../docs/how-it-works.md#effective-and-ignored-configuration)
+for ignored sample settings.
+
 ## Path Guidance
 
 - Running this template directly means you are on the repo path.
@@ -15,10 +20,7 @@ surrogate backend, and restartable JSON state.
 
 ## Files
 
-- `run_bo.py`: driver for `suggest`, `ingest`, `import-observations`,
-  `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
-  `report`, `reset`, `list-archives`, `restore`, `prune-archives`,
-  `validate`, and `doctor`.
+- `run_bo.py`: controller entrypoint; see the [CLI reference](../../docs/quick-reference.md).
 - `bo_config.json`: run budget, surrogate/acquisition choices, shared
   `feature_flags`, seed, and state paths.
 - `parameter_space.json`: explicit parameter types and bounds.
@@ -43,8 +45,9 @@ Portable copies include `ax_install.py`, `ax-constraints.txt` and
 the numerical stack.
 
 - JSON (`.json`) is the required contract format.
-- `feature_flags` exists in all templates; preview flags are reserved scaffolding
-  and no-op in the current file-backed runtime.
+- `feature_flags` exists in all templates; preview flags are enforced by the
+  service registry when using the corresponding preview routes. They do not
+  start services inside the standalone CLI.
 - State persists in `state/bo_state.json` and can be resumed between runs
   (no hidden service state).
 - Mutating commands use an exclusive lock file (`state/.looptimum.lock`);

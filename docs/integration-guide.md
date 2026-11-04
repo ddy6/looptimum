@@ -1,741 +1,146 @@
 # Integration Guide
 
-This guide explains how to connect your evaluation system to the optimization
-templates in this repository using the file-backed
-`suggest -> evaluate -> ingest` contract.
-
-The Looptimum CLI exposes a stable command contract across template variants:
-`suggest`, `ingest`, `import-observations`, `export-observations`, `status`,
-`demo`, lifecycle controls (`cancel`, `retire`, `heartbeat`), and support ops
-(`report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`,
-`doctor`).
-
-It is designed for expensive black-box objectives such as simulations,
-calibrations, pipeline tuning, and process optimization.
-
-Opinionated mainstream starting point:
-
-- [ETL/pipeline knob tuning scenario](../quickstart/etl-pipeline-knob-tuning.md)
-
-## What You Are Integrating
-
-The Looptimum templates in `templates/` provide a restartable loop that:
-
-1. Suggests one parameter set by default, or a locked batch when requested
-   (`suggest`)
-2. Waits for your system to run one or more external evaluations
-3. Ingests result payloads (`ingest`)
-4. Updates state and repeats
-
-The loop does not need raw data or internal model internals. It just needs:
-
-- parameter values
-- one objective value per configured objective name
-- a trial status (`ok`, `failed`, `killed`, or `timeout`)
-
-## Repository Paths You Will Use
-
-- `templates/`: runnable optimization harness variants
-  (`bo_client_demo`, `bo_client`, `bo_client_full`)
-- `client_harness_template/`: starter adapter for one-evaluation integration
-- `client_harness_template/starterkit_*.py`: optional scheduler, sidecar, and
-  tracker helpers layered on the same public contracts
-- `docs/integration-starter-kit.md`: safe topology and retry guidance for those
-  starter-kit helpers
-- `docs/service-api-preview.md`: preview-only local FastAPI wrapper over the
-  same file-backed runtime
-- `docs/dashboard-preview.md`: preview-only read-only operator UI mounted from
-  the local service layer
-- `docs/coordination-preview.md`: preview-only multi-controller coordination
-  guidance for the local service layer
-- `docs/aws-batch-integration.md`: optional AWS Batch executor path and recovery
-  sidecar design
-- `examples/toy-objectives/`: reference integration patterns
-- `examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end
-  objective loop example
-- `quickstart/README.md`: repo-root commands and state/resume examples
-- `intake.md`: project intake checklist
-- `SECURITY.MD`: top-level security/data-handling summary
-
-## Choose a Template Variant
-
-### `templates/bo_client_demo`
-
-Use when you want the lightest path to validate integration and process.
-
-- proxy-only surrogate backend
-- minimal dependency overhead
-- best for contract testing and onboarding
-
-### `templates/bo_client`
-
-Use as the default baseline for most client integrations.
-
-- same CLI/file contract
-- config-selected backend (`rbf_proxy` or optional `gp`)
-- stronger test coverage and modular backend code
-
-### `templates/bo_client_full`
-
-Use when you want the same contract with optional feature-flag GP behavior in
-the public template.
-
-- proxy fallback path
-- optional `--enable-botorch-gp` flag
-
-### Template Matrix (Feature Parity + Intended Use)
-
-| Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
-|---|---|---|---|---|
-| `templates/bo_client_demo` | Fastest path for contract validation and onboarding | `rbf_proxy` | none | full parity |
-| `templates/bo_client` | Recommended baseline for most production integrations | `rbf_proxy` | `gp` (config-selected) | full parity |
-| `templates/bo_client_full` | Same contract surface with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp`) | full parity |
-
-Parity scope:
-
-- Commands: `suggest`, `ingest`, `status`, `demo`
-- Lifecycle ops: `cancel`, `retire`, `heartbeat`
-- Support ops: `import-observations`, `export-observations`, `report`, `reset`,
-  `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`
-
-## Core Contract: `suggest -> evaluate -> ingest`
-
-### 1. Generate a Suggestion
-
-Example (repo root):
-
-```bash
-python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo --json-only
-```
-
-This emits one canonical suggestion containing:
-
-- `schema_version`
-- `trial_id`
-- `params`
-- `suggested_at`
-
-Batch example:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py suggest \
-  --project-root templates/bo_client_demo \
-  --count 3 \
-  --jsonl
-```
-
-Batch output rules:
-
-- `count == 1`: historical single-suggestion JSON object
-- `count > 1`: bundle JSON with `schema_version`, `count`, and `suggestions`
-- `--jsonl`: one canonical suggestion JSON object per line for worker fan-out
-- when `worker_leases.enabled` is true, each suggestion also includes
-  `lease_token`
-
-Important:
-
-- Treat `trial_id` and `params` as immutable for that trial.
-- The `suggest` command records pending trial state for every allocated
-  suggestion in the batch.
-- Use `--json-only` when piping/parsing output programmatically.
-- `max_pending_trials`, when configured, rejects the whole requested batch
-  before pending state is mutated.
-
-### Batch Suggest + Async Worker Handoff
-
-Recommended worker-oriented flow:
-
-1. controller runs `suggest --count N --jsonl`
-2. each worker consumes one JSON line (`trial_id`, `params`,
-   optional `lease_token`)
-3. worker sends `heartbeat --trial-id <id> --lease-token <token>` while work is
-   in progress when leases are enabled
-4. worker writes canonical result JSON
-5. controller or worker-side wrapper runs `ingest --results-file ...`
-   and echoes `--lease-token <token>` when required
-
-Operational notes:
-
-- `bo_config.batch_size` sets the default requested batch size; `--count`
-  overrides it per command
-- `lease_token` is opaque and user-facing only at the CLI boundary; it is not
-  part of the ingest payload JSON
-- lock contention fails the whole mutation, so Looptimum does not partially
-  allocate a batch
-
-Reference example pack:
-
-- `docs/examples/batch_async/README.md`
-
-Starter-kit examples for controller/worker wrappers, webhook-sidecar config,
-and tracker payloads:
-
-- `docs/examples/starterkit/README.md`
-
-### Warm-Start Import / Export
-
-Use this when you already have completed historical trials and want them to
-seed a fresh Looptimum campaign without replaying the evaluations.
-
-Import example:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py import-observations \
-  --project-root templates/bo_client_demo \
-  --input-file seed_observations.jsonl \
-  --import-mode permissive
-```
-
-Export example:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py export-observations \
-  --project-root templates/bo_client_demo \
-  --output-file exported_observations.csv
-```
-
-Warm-start rules:
-
-- import requires zero live pending trials in the target campaign
-- imported rows always get fresh local `trial_id` values; source-side ids stay
-  in `source_trial_id` as provenance only
-- permissive mode accepts valid rows, rejects invalid rows, and writes a
-  machine-readable report under `state/import_reports/`
-- export emits either canonical JSONL observation objects or flat CSV rows with
-  `param_*` / `objective_*` columns suitable for future import
-- imported rows are immediately part of authoritative state, manifests, best
-  selection, and later explicit `report` outputs
-
-Reference example pack:
-
-- `docs/examples/warm_start/README.md`
-
-### Parameter Types (Current Public Templates)
-
-Current public templates support:
-
-- `float`
-- `int`
-- `bool`
-- `categorical`
-
-Numeric parameters can also declare `scale`, and parameters may use `when` for
-conditional activation.
-
-### 2. Run One Evaluation
-
-You run your external system using the suggested `params`.
-
-This can be implemented as:
-
-- a Python function
-- a CLI/script
-- an API call
-- a scheduler job wrapper
-
-Use `client_harness_template/run_one_eval.py` as a starting adapter.
-
-Optional AWS path:
-
-- if the evaluator should submit one remote job to AWS Batch and wait for the
-  canonical result, use
-  [`docs/aws-batch-integration.md`](./aws-batch-integration.md)
-- AWS metadata stays out of canonical Looptimum state/report surfaces
-
-## Optional Local Service API Preview
-
-If you prefer an HTTP wrapper over the same runtime, the repo now includes a
-preview-only FastAPI layer under `service/`.
-
-Boundary rules:
-
-- it is local-first and file-backed, not a second optimizer authority
-- campaign roots must opt in with
-  `feature_flags.enable_service_api_preview = true`
-- coordinated preview additionally requires
-  `feature_flags.enable_multi_controller_preview = true` and explicit
-  `sqlite_lease` service config
-- the registry stores only campaign metadata; state remains inside each
-  registered campaign root
-- `report` is still explicit; the preview reads `state/report.json` but does
-  not generate it
-
-Detailed startup, registration, and endpoint guidance:
-
-- [`service-api-preview.md`](./service-api-preview.md)
-- [`auth-preview.md`](./auth-preview.md)
-- [`dashboard-preview.md`](./dashboard-preview.md)
-- [`coordination-preview.md`](./coordination-preview.md)
-- [`examples/service_api_preview/README.md`](./examples/service_api_preview/README.md)
-- [`examples/dashboard_preview/README.md`](./examples/dashboard_preview/README.md)
-- [`examples/coordination_preview/README.md`](./examples/coordination_preview/README.md)
-
-## Starter-Kit Sidecars and Safe Topology
-
-The optional starter-kit helpers under `client_harness_template/` sit on top of
-the same public contracts. They do not introduce a second runtime authority
-path.
-
-Use them when you want:
-
-- a queue-worker wrapper for `suggest -> run_one_eval.py -> ingest`
-- rendered Airflow or Slurm starter assets
-- an event-log-driven webhook sidecar
-- post-hoc MLflow or W&B synchronization based on canonical state/report files
-
-Safe boundary rules:
-
-- keep one controller per campaign root for `suggest`
-- let workers own only the trial they were handed
-- keep webhook delivery out of the mutating CLI path
-- keep tracker synchronization read-only with respect to optimizer state
-
-Detailed deployment and retry guidance:
-
-- [`docs/integration-starter-kit.md`](./integration-starter-kit.md)
-- [`docs/examples/starterkit/README.md`](./examples/starterkit/README.md)
-
-## Copy-Paste Evaluator Stub (Fuller Version)
-
-Use this as a starting point for `client_harness_template/objective.py`:
-
-```python
-#!/usr/bin/env python3
-from __future__ import annotations
-
-from typing import Any
-
-DEFAULT_FAILURE_PENALTY = 1e12  # for minimize objectives
-
-
-def _require_float(params: dict[str, Any], name: str) -> float:
-    value = params.get(name)
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"missing/invalid numeric param: {name}")
-    return float(value)
-
-
-def evaluate(params: dict[str, Any]) -> dict[str, Any]:
-    x1 = _require_float(params, "x1")
-    x2 = _require_float(params, "x2")
-    try:
-        # Replace this with your real evaluator call + metric parsing.
-        loss = (x1 - 0.3) ** 2 + (x2 - 0.7) ** 2
-        return {"status": "ok", "objective": float(loss)}
-    except TimeoutError:
-        return {
-            "status": "timeout",
-            "objective": None,
-            "terminal_reason": "timeout",
-            "penalty_objective": DEFAULT_FAILURE_PENALTY,
-        }
-    except Exception:
-        return {
-            "status": "failed",
-            "objective": None,
-            "terminal_reason": "evaluation_exception",
-            "penalty_objective": DEFAULT_FAILURE_PENALTY,
-        }
-```
-
-Notes:
-
-- For maximize objectives, use a directionally bad penalty (for example `-1e12`).
-- Keep `trial_id` and `params` unchanged; only return objective/status fields.
-- If you prefer automatic failure wrapping, raise exceptions and use
-  `run_one_eval.py --on-exception failed`.
-
-### 3. Write an Ingest-Compatible Result Payload
-
-Minimum payload shape:
+Start with the [portable quickstart](../quickstart/README.md), then replace its
+synthetic evaluator with your own workload. Looptimum selects settings and
+records results; your function, executable, scheduler or lab process runs the
+experiment in its own environment.
+
+## The evaluator boundary
+
+A campaign is a complete portable controller: configuration, parameter/objective
+contracts, runtime modules, schemas and local state. Keep one controller per
+campaign while establishing the integration. The
+[template map](../templates/README.md) describes backend choices;
+[installation routes](./packages.md#installation-routes) distinguish the portable
+controller from the service wheel.
+
+The loop has three responsibilities:
+
+1. `suggest --json-only` allocates a trial and emits its JSON identity/parameters.
+2. Your evaluator consumes that exact suggestion and produces a result file.
+3. `ingest --results-file` validates and records the completed result.
+
+For example, a suggestion may contain:
 
 ```json
-{
-  "schema_version": "0.3.0",
-  "trial_id": 3,
-  "params": {"x1": 0.31, "x2": 0.72},
-  "objectives": {"loss": 0.1182},
-  "status": "ok"
-}
+{"schema_version": "0.3.0", "trial_id": 7, "params": {"x1": 0.2, "x2": 0.7}, "suggested_at": 1738886400.0}
 ```
 
-Requirements:
+Its successful result preserves the ID and parameters:
 
-- `trial_id` must match the pending suggestion
-- `params` must exactly match the pending suggestion
-- `schema_version` should be forwarded from `suggest` output
-- status must be one of `ok`, `failed`, `killed`, `timeout`
-- for `status: ok`, all configured objective values must be numeric and finite
-- for non-`ok` statuses, all configured objective values should be `null`
-- for non-`ok` statuses, `terminal_reason` is recommended (short string)
-- optional `penalty_objective` can be included for non-`ok` statuses
-
-For multi-objective campaigns, include every configured objective key in the
-`objectives` map.
-
-### 4. Ingest the Result
-
-```bash
-python3 templates/bo_client_demo/run_bo.py ingest \
-  --project-root templates/bo_client_demo \
-  --results-file /path/to/result.json
+```json
+{"trial_id": 7, "params": {"x1": 0.2, "x2": 0.7}, "objectives": {"loss": 0.03}, "status": "ok"}
 ```
 
-If valid:
-
-- pending trial is cleared
-- observation is appended
-- best-so-far is updated
-- `state/observations.csv` is rewritten
-- per-trial manifest is updated under `state/trials/trial_<id>/manifest.json`
-- lifecycle events are appended to `state/event_log.jsonl`
-
-Schema path note:
-
-- canonical config key is `paths.ingest_schema_file`
-
-## Lifecycle and Runtime Ops
-
-Runtime control commands used during long-running integrations:
-
-- `cancel --trial-id <id>`: operator-cancel pending trial and record a terminal
-  `killed` observation (configured objectives `null`).
-- `retire --trial-id <id>`: retire a pending trial with an explicit reason.
-- `retire --stale [--max-age-seconds]`: retire pending trials beyond stale age
-  threshold.
-- `heartbeat --trial-id <id>`: update pending liveness metadata.
-- `import-observations --input-file <path> [--import-mode strict|permissive]`:
-  seed completed observations from canonical JSONL or flat CSV rows.
-- `export-observations --output-file <path>`: write canonical JSONL or flat CSV
-  observations from authoritative state.
-- `report`: write `state/report.json` and `state/report.md`.
-- `reset [--yes] [--no-archive]`: reset runtime artifacts; archives current
-  artifacts by default unless `--no-archive` is used.
-- `list-archives`: enumerate `state/reset_archives/` with archive metadata,
-  inventory summary, and integrity status.
-- `restore --archive-id <id> [--yes]`: restore archived runtime artifacts with
-  integrity validation and all-or-nothing overwrite behavior.
-- `prune-archives [--keep-last N] [--older-than-seconds S] [--yes]`: delete
-  reset archives matching explicit retention rules without manual filesystem
-  cleanup.
-- `health [--strict]`: read-only JSON health surface combining config/state
-  errors, path presence, lock visibility, and governance findings.
-- `metrics`: read-only JSON metrics surface for counts, pending age, suggest
-  latency, and governance totals.
-- `validate [--strict]`: run config/schema/state checks (`--strict` makes warnings fatal).
-- `doctor [--json]`: print environment/backend/state diagnostics.
-
-Operational notes:
-
-- Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
-  wait+timeout default behavior.
-- Use `--fail-fast` on mutating commands when your automation should fail
-  immediately under lock contention.
-- Governance/retention config is warn-first: configured archive/log/status
-  policy breaches are surfaced via `health`, `metrics`, and
-  `state/event_log.jsonl`, but Looptimum does not auto-prune or auto-rotate
-  artifacts.
-- For prescriptive interruption handling and "what to run next" flows, use
-  `docs/recovery-playbook.md`.
-- For platform-agnostic CI persistence/parallelism policy (with GitHub examples),
-  use `docs/ci-knob-tuning.md`.
-
-## Minimal Working Integration (Recommended Path)
-
-Start with `client_harness_template` (it usually saves time).
-
-### Step A: Implement `evaluate(params)`
-
-Edit:
-
-- `client_harness_template/objective.py`
-
-Replace the stubbed `evaluate(params)` function with your real evaluation logic.
-
-### Step B: Use the Adapter to Produce Result Payloads
-
-```bash
-python3 client_harness_template/run_one_eval.py \
-  /path/to/suggestion.json \
-  /path/to/result.json \
-  --objective-module client_harness_template/objective.py \
-  --objective-name loss
-```
-
-The adapter supports:
-
-- pure suggestion JSON, or
-- raw `suggest` stdout (it strips trailing non-JSON lines)
-
-### Step C: Ingest Result Payloads into the Optimization Template
-
-```bash
-python3 templates/bo_client_demo/run_bo.py ingest \
-  --project-root templates/bo_client_demo \
-  --results-file /path/to/result.json
-```
-
-## Parameter -> Evaluation -> Objective Mapping
-
-Define this mapping explicitly before running a pilot:
-
-1. Parameter mapping:
-   - How `params` values are injected into your system
-2. Execution:
-   - What process/job/function runs
-3. Raw outputs:
-   - What metrics/artifacts are produced
-4. Scalarization / ordering:
-   - How one scalar objective value is computed, or how multiple objective
-     values are combined/prioritized
-5. Failure representation:
-   - What happens when the run fails or is invalid
-
-Use `intake.md` to capture this precisely.
-
-## Objective Direction (Minimize vs Maximize)
-
-Objective direction is configured in `objective_schema.json` in your chosen
-template.
-
-For `client_harness_template/run_one_eval.py --objective-schema`, use the JSON
-contract file `objective_schema.json`.
-
-Examples:
-
-- `loss` + `minimize`
-- `score` + `maximize`
-
-Your evaluator should return the raw scalar in the same direction convention
-expected by the harness.
-
-- Do not silently negate values unless you intentionally changed the harness objective definition.
-
-## Multi-Objective Authoring
-
-`objective_schema.json` now supports:
-
-- `primary_objective`
-- optional `secondary_objectives`
-- optional `scalarization`
-
-Supported scalarization policies:
-
-- `weighted_sum`
-- `weighted_tchebycheff`
-- `lexicographic`
-
-Authoring rules:
-
-- `ingest` payloads must include all configured objective keys in `objectives`
-- `status: "ok"` requires numeric finite values for every configured objective
-- non-`ok` payloads require `null` for every configured objective
-- `best` and surrogate ranking use the configured scalarization / ordering
-  policy internally
-- reports and manifests preserve raw `objective_vector` values and scalarized
-  metadata for auditability
-
-Adapter note:
-
-- `client_harness_template/run_one_eval.py` is a single-objective starter
-  adapter; for multi-objective campaigns, build the result payload with the full
-  `objectives` map before calling `ingest`
-
-Reference example pack:
-
-- `docs/examples/multi_objective/README.md`
-
-## Failure Modes and Recommended Handling
-
-A failed evaluation should usually still produce an ingest payload so the loop
-can continue and the failure is recorded.
-
-### Recommended Failure Payload Strategy
-
-- Keep `trial_id` and `params` unchanged
-- Use non-`ok` status (`failed`, `killed`, or `timeout`) as appropriate
-- Set all configured objective values to `null`
-- Include `terminal_reason` as short failure context
-- Optionally include `penalty_objective` when numeric penalty ranking/reporting
-  is useful
-- `penalty_objective` is not used for best-trial ranking; `best` is computed
-  from `status: "ok"` observations under the configured objective policy
-
-### Common Failure Modes
-
-- invalid parameter region / infeasible configuration
-- solver or training crash
-- timeout / runtime limit exceeded
-- output parse failure
-- infrastructure interruption
-  (node failure, scheduler cancellation, transient service error)
-
-### What Happens if `ingest` Fails?
-
-Common `ingest` rejections include:
-
-- result schema violation
-- missing configured objective keys
-- objective/status policy mismatch (`ok` requires numeric finite; non-`ok`
-  requires `null`)
-- `trial_id` is not pending
-- `params` do not match the pending suggestion
-- conflicting duplicate replay (same `trial_id` with different payload fields)
-
-If `ingest` fails:
-
-1. Fix the payload (or regenerate it from the original suggestion)
-2. Re-run `ingest`
-3. Do not issue a new `suggest` for that same trial unless you intentionally
-   abandon the pending one in your own process
-
-## Resume Semantics (Important)
-
-The templates are restartable and file-backed.
-
-Default state files:
-
-- `state/bo_state.json`
-- `state/observations.csv`
-- `state/acquisition_log.jsonl`
-- `state/event_log.jsonl`
-- `state/trials/trial_<id>/manifest.json`
-- `state/report.json` and `state/report.md` (written when `report` is run)
-
-Behavior:
-
-- `suggest` creates a pending trial and increments `next_trial_id`
-- `state/bo_state.json` includes schema semver in `schema_version`
-- `ingest` consumes a matching pending trial
-- duplicate ingest with identical payload is accepted as explicit no-op
-- duplicate ingest with conflicting fields is rejected with diff details
-- if the budget is exhausted, `suggest` exits cleanly without creating a new pending trial
-- stale pending trials can be retired automatically during `suggest` (when
-  `max_pending_age_seconds` is configured/enabled)
-
-See:
-
-- `quickstart/README.md`
-- `docs/examples/state_snapshots/` (includes both `ok` and non-`ok`
-  ingest examples)
-
-## Optional Hard Constraints
-
-If your campaign has true feasibility rules, add an optional
-`constraints.json` next to the other contract files.
-
-Current behavior:
-
-- `validate` checks both schema shape and semantic consistency
-- `suggest` enforces constraints during warmup and surrogate candidate-pool
-  generation
-- partial feasible-pool collapse produces a warning on `stderr`
-- all-infeasible attempts fail clearly, create no pending trial, and write a
-  failure decision to `acquisition_log.jsonl`
-
-Use `constraints.json` only for hard feasibility. Keep soft tradeoffs in the
-scalar objective or evaluator-side penalty logic.
-
-References:
-
-- `docs/constraints.md`
-- `docs/examples/constraints/README.md`
-- `docs/decision-trace.md`
-
-## Reproducibility: Seeds and Determinism Boundaries
-
-What is designed to be reproducible:
-
-- persisted optimizer seed in `state.meta.seed`
-- trial id sequence (`next_trial_id`) in state
-- suggestion ordering for a stable config/state/backend path
-
-What is not fully deterministic:
-
-- wall-clock timestamps in state/log records
-- external evaluator randomness unless you control it
-- optional GP backends across dependency/runtime changes
-
-Recommended reproducibility checklist:
-
-1. Keep config, parameter space, and objective schema versioned for each pilot.
-2. Capture evaluator seed policy (fixed/derived/randomized) in intake notes.
-3. Record runtime dependency versions before starting a campaign.
-4. Preserve `bo_state.json` as canonical run state and keep
-   `acquisition_log.jsonl` + `event_log.jsonl` for decision/lifecycle audit.
-
-## Noisy Objectives and Repeated Evaluations
-
-If your objective is noisy or stochastic:
-
-- document likely noise sources in `intake.md`
-- decide whether repeated evaluations at the same params are allowed
-- define a policy for:
-  - single measurement
-  - repeated measurement + averaging
-  - repeated measurement + robust summary (median/trimmed mean)
-
-Start simple; refine the policy after an initial pilot.
-
-## Scaling to Batch / Cluster Execution (Pragmatic Path)
-
-The templates suggest one trial at a time. In practice, that is usually the safest integration surface.
-For large-model stacks, this usually means Looptimum stays outside the trainer
-and drives job-level parameter choices through `suggest -> evaluate -> ingest`.
-
-To scale in a cluster environment:
-
-1. `suggest` one trial
-2. submit one job
-3. wait for completion (or poll)
-4. build result payload
-5. `ingest`
-6. repeat
-
-Once stable, you can build a client-side scheduler wrapper that manages
-multiple pending suggestions carefully.
-
-Important concurrency rule:
-
-- run only one mutating controller process per state path at a time; evaluators
-  can execute remotely/in parallel, but state mutation should flow through the
-  locked CLI commands.
-
-## When Not To Use This (Trust-Building Scope Boundaries)
-
-This repo is a strong fit for expensive black-box evaluations, but it is not
-the right tool for every optimization problem.
-
-Poor fits:
-
-- problems with cheap gradients and standard gradient-based solvers
-- extremely high-dimensional search spaces without strong structure
-- hard real-time control loops requiring millisecond decisions
-- situations where no scalar objective or acceptable scalarization / ordering
-  policy can be defined
-
-## Suggested First Pilot Workflow
-
-1. Fill in `intake.md`
-2. Choose `templates/bo_client_demo` or `templates/bo_client`
-3. Implement `client_harness_template/objective.py`
-4. Validate one end-to-end `suggest -> run_one_eval -> ingest` cycle
-5. Run a small pilot budget (for example, 10-30 evaluations)
-6. Review results and adjust:
-   - parameter bounds
-   - objective definition
-   - failure handling policy
-
-## Related Docs
-
-- `quickstart/README.md`
-- `client_harness_template/README_INTEGRATION.md`
-- `docs/operational-semantics.md`
-- `docs/search-space.md`
-- `docs/decision-trace.md`
-- `docs/pilot-checklist.md`
-- `docs/faq.md`
-- `docs/security-data-handling.md`
-- `docs/use-cases.md`
-- `SECURITY.MD`
-- `intake.md`
+These illustrate the shape, not a payload to ingest into another campaign.
+Evaluate the actual suggestion. Do not round parameters or substitute an old
+example result. Runtime payload versions are separate from the package version;
+the ingest schema currently makes `schema_version` optional.
+
+The [quick reference](./quick-reference.md) owns the full command and payload
+summary. [Operational semantics](./operational-semantics.md) defines state,
+locking, duplicate ingest and lifecycle behavior.
+
+## Connect an evaluator
+
+Use the [client harness implementation guide](../client_harness_template/README_INTEGRATION.md)
+for `run_one_eval.py`, its local `evaluate(params)` interface, and failure
+options. The harness [file map](../client_harness_template/README.md) identifies
+optional scheduler, AWS and tracker helpers.
+
+The supplied `objective.py` is an unimplemented stub. Provide your own module
+before expecting successful evaluation. `run_one_eval.py` is a **single-objective**
+starter; `--objective-schema` reads the JSON `objective_schema.json` contract.
+For multiple objectives, construct a result containing the complete configured
+`objectives` map before ingesting. The
+[Python-function example](../examples/toy-objectives/01_python_function/README.md)
+and [subprocess example](../examples/toy-objectives/02_subprocess_cli/README.md)
+show alternative evaluator boundaries.
+
+Keep campaign files outside the reusable source templates. An evaluator may
+use its own dependencies or remote execution; the default proxy controller
+needs only Python's standard library. Keep result files until ingest succeeds.
+
+## Choose parameters and define the measurement
+
+Choose a small set of controllable settings that can plausibly change the
+measurement. Record units, safe bounds, categorical choices and conditional
+relationships in the [search-space contract](./search-space.md). Measured outputs
+belong in the objective, not among the proposed settings. General templates
+support `float`, `int`, `bool` and `categorical`; consult the
+[Ax support matrix](./ax-support-matrix.md) before selecting that backend.
+
+For the objective, define before running a campaign:
+
+- **Measurement:** the computation, evaluation coverage and units used for every
+  trial. A successful process exit alone need not mean the measurement is valid.
+- **Direction:** `minimize` or `maximize` in `objective_schema.json`. Return the
+  raw score in that convention; do not silently negate it in the adapter.
+- **Tradeoffs:** one primary objective, or explicit secondary objectives and a
+  scalarization/ordering policy. Keep the policy fixed during a comparison.
+  See the [multi-objective example](./examples/multi_objective/README.md) and
+  backend-specific limits; Ax does not provide all legacy scalarization modes.
+- **Feasibility:** distinguish forbidden parameter combinations from measured
+  outcome acceptance. [Constraints](./constraints.md) filter candidate settings;
+  they do not automatically enforce project-specific outcome or promotion gates.
+- **Noise:** record seeds and repeat policy, distinguish failed evaluation from
+  a valid poor score, and reserve enough evaluation budget for comparisons.
+  Compare against a fixed baseline or random search under matched budgets.
+
+A finite score describes the observation; it does not certify a good result.
+The evaluator owns domain validity and acceptance. The
+[pilot checklist](./pilot-checklist.md) helps freeze these decisions.
+
+## Results and failure handling
+
+Every result must keep the suggested `trial_id` and exact `params` and include
+all configured objective keys. Current statuses are `ok`, `failed`, `killed`
+and `timeout`; legacy `success` is normalized by ingest.
+
+| Outcome | Objective values | Additional handling |
+| --- | --- | --- |
+| Valid completed evaluation | Finite numeric values for every configured objective | Use `ok`, including valid poor scores |
+| Failed, killed or timed-out evaluation | `null` for every configured objective | Use the matching status and an optional concise `terminal_reason` |
+| Optional failure penalty | Finite `penalty_objective` on non-`ok` results only | Used for failure reporting; does not make failures eligible for `best` |
+
+`best` is ranked from successful observations under the configured objective
+policy. Do not encode infrastructure failures as apparently valid scores merely
+to keep the loop moving. Distinguish retrying an evaluator from retrying ingest.
+
+The generic harness preserves supplied parameters and supported reason text;
+its default exception handling can include the exception class/message in the
+result and stderr. Controller artifacts can retain supported metadata such as
+artifact paths and heartbeat information. Normalization is not a project-specific
+data filter. Construct your approved boundary explicitly and inspect both
+returned payloads and persisted artifacts; see
+[security and data handling](./security-data-handling.md).
+
+## Retry and resume
+
+If ingest fails, retain the completed result and compare it with the pending
+trial and contract. Correct a malformed payload without rerunning a completed
+expensive evaluation. Identical duplicate ingestion succeeds as a no-op;
+conflicting replay or mismatched parameters is rejected.
+
+After a restart, inspect `status` and pending work before allocating again.
+Use [operational semantics](./operational-semantics.md) for exact state rules and
+[the recovery playbook](./recovery-playbook.md) for interrupted or stale work.
+With optional worker leases enabled, supply the matching CLI lease token;
+see [batch/async examples](./examples/batch_async/README.md).
+
+## Expand only when the basic loop works
+
+| Need | Existing guide |
+| --- | --- |
+| Batched suggestions and worker handoff | [Batch/async](./examples/batch_async/README.md) |
+| Queue, Slurm, Airflow, webhook or tracker sidecars | [Integration starter kit](./integration-starter-kit.md) |
+| AWS Batch evaluator | [AWS Batch integration](./aws-batch-integration.md) |
+| Local API/dashboard with optional auth and coordination | [Service API preview](./service-api-preview.md) |
+| Import/export existing observations | [Warm-start examples](./examples/warm_start/README.md) |
+| Native Ax installation and exact recovery/rebuild | [Ax installation](./ax-installation.md), [Ax backend](./ax-backend.md) |
+| Inspect why a suggestion was selected | [Decision trace](./decision-trace.md) |
+| CI persistence, repeat policy and safe concurrency | [CI knob tuning](./ci-knob-tuning.md) |
+
+Keep canonical campaign mutation in the controller. Sidecars should consume the
+appropriate outputs rather than inventing a second state writer. See the
+[task map](./index.md) for specialist references and retained evidence.

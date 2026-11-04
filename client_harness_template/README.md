@@ -1,25 +1,21 @@
 # Client Harness Template
 
-Lean starter harness for client-side integration.
+Use [the integration guide](../docs/integration-guide.md) to define your evaluator
+boundary, then follow [adapter setup](./README_INTEGRATION.md) to implement it.
+The default `objective.py` is a stub; it does not run a successful evaluation
+until you supply an implementation.
 
-Use this as the default adapter for wiring external evaluators into Looptimum.
+## Files by task
 
-Contents:
+| Task | Files |
+| --- | --- |
+| Run one local evaluation and write an ingest payload | `objective.py`, `run_one_eval.py` |
+| Use AWS Batch | `objective_aws_batch_example.py`, `aws_config.py`, `aws_executor.py`, `aws_models.py`, `aws_batch_config.example.json` |
+| Dispatch queue, Airflow or Slurm work | `starterkit_scheduler.py`, `starterkit_queue_worker.py`, `starterkit_airflow.py`, `starterkit_slurm.py` |
+| Deliver event webhooks | `starterkit_config.py`, `starterkit_events.py` |
+| Export observations to optional trackers | `starterkit_tracking.py`, `starterkit_mlflow.py`, `starterkit_wandb.py` |
 
-- `objective.py`: client-fill stub (`evaluate(params)`)
-- `objective_aws_batch_example.py`: optional AWS Batch-backed example objective
-- `run_one_eval.py`: suggestion JSON -> ingest payload JSON adapter
-- `aws_config.py`: optional AWS Batch config loader
-- `aws_executor.py`: optional AWS Batch submit/poll/download helper
-- `aws_models.py`: typed request/config/recovery models for the AWS path
-- `starterkit_scheduler.py`: shared suggestion parsing and command-render helpers
-- `starterkit_queue_worker.py`: generic queue-worker starter for batch handoff
-- `starterkit_airflow.py`: Airflow DAG render helper for the canonical loop
-- `starterkit_slurm.py`: Slurm array-script render helper for the canonical loop
-- `starterkit_tracking.py`: shared canonical snapshot loader for tracker adapters
-- `starterkit_mlflow.py`: optional MLflow logger for state/report/artifact sync
-- `starterkit_wandb.py`: optional Weights & Biases logger with the same contract
-- `aws_batch_config.example.json`: committed example AWS config
-- `README_INTEGRATION.md`: implementation instructions and failure-mode guidance
-
-Start with `README_INTEGRATION.md` first.
+The local adapter is a single-objective starter. Optional executors and sidecars
+have their own dependencies and operating requirements; see
+[AWS Batch](../docs/aws-batch-integration.md) and the
+[integration starter kit](../docs/integration-starter-kit.md).

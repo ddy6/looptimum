@@ -22,8 +22,8 @@ without a hosted control plane.
 | Template | Default backend | Optional backend | Default acquisition |
 |---|---|---|---|
 | `templates/bo_client_demo` | `rbf_proxy` | none | `ucb` |
-| `templates/bo_client` | `rbf_proxy` | `gp` | `ei` |
-| `templates/bo_client_full` | `rbf_proxy` | `botorch_gp` (feature flag) | `ucb` |
+| `templates/bo_client` | `rbf_proxy` | `gp` or native `ax` | `ei` (legacy path) |
+| `templates/bo_client_full` | `rbf_proxy` | `botorch_gp` (feature flag) or native `ax` | `ucb` (legacy path) |
 
 Operational guidance:
 
@@ -35,9 +35,32 @@ Operational guidance:
 For `bo_client_full`, BoTorch GP is optional/feature-flagged and not the
 default path. Proxy fallback remains the primary baseline.
 
+Native Ax is selected with `optimizer.backend: "ax"`, independently of legacy
+`surrogate.type`. It owns initialization and model generation. It is available
+only in ordinary/full controllers; see the [Ax support matrix](./ax-support-matrix.md)
+and [backend guide](./ax-backend.md) for capabilities and recovery.
+
+## Effective and Ignored Configuration
+
+| Setting | Current consumer/effect |
+| --- | --- |
+| `max_trials`, `batch_size`, `max_pending_trials` | Controller allocation/budget limits |
+| `initial_random_trials`, `candidate_pool_size`, `surrogate`, `acquisition` | Legacy proxy/direct-GP initialization and suggestion policy |
+| `optimizer.backend`, `optimizer.ax` | Native Ax selection and its own initialization/generation settings |
+| Service/dashboard/auth/multi-controller feature flags | Active preview-service registry gates; do not start services inside the standalone CLI |
+| `stopping.min_improvement`, `stopping.patience_trials` | Ignored by the current runtime; still present in sample configurations |
+| Ordinary `surrogate.gp_model.kernel`, `surrogate.gp_model.ard` | Ignored; ordinary direct GP uses its hard-coded model |
+
+With Ax selected, existing optimizer diagnostics expose `inactive_legacy_settings`
+for supplied legacy surrogate/acquisition/initialization/pool settings. This does
+not mean ordinary diagnostics already warn about every ignored sample key.
+Do not rely on the inert stopping fields for a stopping policy; the evaluator
+or campaign operator must own any additional policy. Historical configurations
+remain accepted; this guide does not change their values or interpretation.
+
 ## Suggest Policy (Conceptual)
 
-Suggestion behavior has two phases:
+The legacy proxy/direct-GP suggestion path has two phases:
 
 1. Warmup (`initial_random`): bounded random sampling for the first
    `initial_random_trials`.

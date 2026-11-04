@@ -1,14 +1,17 @@
 # Type Safety
 
-This document defines the Phase 6 typing policy for public/shared runtime
-surfaces and the initial `mypy` enforcement model.
+This document describes the current typing policy and CI gate for canonical
+runtime, service, harness and selected tooling surfaces.
 
 ## Checker and Gate Scope
 
 Type-checking tool: `mypy`.
 
-Initial blocking CI gate scope (`v0.3.x` rollout phase 1):
+Current blocking CI gate scope, configured in `pyproject.toml`:
 
+- `benchmarks/backend_comparison/*.py`
+- `examples/ax_pipeline_tuning/*.py`
+- `scripts/check_release.py`
 - `service/*.py`
 - `templates/_shared/*.py`
 - `templates/bo_client/run_bo.py`
@@ -17,12 +20,14 @@ Initial blocking CI gate scope (`v0.3.x` rollout phase 1):
 - `client_harness_template/run_one_eval.py`
 - `client_harness_template/starterkit_*.py`
 
-Gate runtime for CI: Python `3.12`.
+Gate runtime for CI: Python `3.12`. Install from `requirements-dev.txt` in a
+lean environment without Torch, BoTorch or Ax. An optional numerical environment
+can hide missing-import errors and does not substitute for this gate.
 
-## Strictness Profile (Phase 6 Start)
+## Strictness Profile
 
-The first gate uses staged moderate strictness to catch high-value type errors
-without forcing immediate strict-mode purity.
+The configured flags require typed definitions and explicit boundary handling
+without applying global strict mode to every repository file.
 
 Current emphasis:
 
@@ -35,7 +40,9 @@ Current emphasis:
 - no implicit module re-export leakage (`no_implicit_reexport`)
 - no implicit `Any` returns from typed functions (`warn_return_any`)
 
-Strictness will ratchet tighter after the canonical scope is stable and green.
+The narrow overrides for legacy surrogate/acquisition modules and optional
+imports are recorded in `pyproject.toml`; they are not blanket permission to
+suppress new errors.
 
 ## `Any` Usage Policy
 

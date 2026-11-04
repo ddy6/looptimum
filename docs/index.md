@@ -1,105 +1,56 @@
-# Looptimum Docs
+# Documentation map
 
-Use this page as the launch point for integration, contract semantics, and
-pilot planning.
+Choose the task you need now. Start with a portable campaign, then follow the
+integration and recovery references as your evaluator becomes more demanding.
 
-## Quick Start
+## Run
 
-Run a local demo from repo root:
+- [Portable quickstart](../quickstart/README.md): one fresh ordinary proxy campaign.
+- [Template choices](../templates/README.md) and [installation routes](./packages.md#installation-routes).
+- [ETL/pipeline walkthrough](../quickstart/etl-pipeline-knob-tuning.md) for a worked application.
+- [Use cases and fit](./use-cases.md), [FAQ](./faq.md), and [pilot checklist](./pilot-checklist.md).
 
-```bash
-python3 templates/bo_client_demo/run_bo.py demo \
-  --project-root templates/bo_client_demo \
-  --steps 5
-```
+## Integrate
 
-For full command sequences and resume behavior:
+- [Integration guide](./integration-guide.md): evaluator boundary, measurement and result policy.
+- [Harness file map](../client_harness_template/README.md) and [adapter implementation](../client_harness_template/README_INTEGRATION.md).
+- [Quick reference](./quick-reference.md): CLI and payload contracts.
+- [Batch/async workers](./examples/batch_async/README.md), [starter kit](./integration-starter-kit.md), and [AWS Batch](./aws-batch-integration.md).
+- [Warm-start import/export](./examples/warm_start/README.md) and [multi-objective examples](./examples/multi_objective/README.md).
+- [Security and data handling](./security-data-handling.md).
 
-- [Integration Guide](./integration-guide.md)
-- [Integration Starter Kit](./integration-starter-kit.md)
-- [AWS Batch Integration](./aws-batch-integration.md)
-- [Operational Semantics](./operational-semantics.md)
-- [Recovery Playbook](./recovery-playbook.md)
-- [ETL/Pipeline Knob-Tuning Quickstart](../quickstart/etl-pipeline-knob-tuning.md)
+## Configure
 
-## Core Documentation
+- [Search space](./search-space.md): parameter selection, types, bounds and conditional settings.
+- [Constraints](./constraints.md) and [objective design](./integration-guide.md#choose-parameters-and-define-the-measurement).
+- [How it works](./how-it-works.md): backends and effective versus ignored configuration.
+- Native Ax: [backend semantics](./ax-backend.md), [CPU/offline installation](./ax-installation.md), [support matrix](./ax-support-matrix.md).
+- Preview surfaces: [service API](./service-api-preview.md), [dashboard](./dashboard-preview.md), [auth](./auth-preview.md), [coordination](./coordination-preview.md).
+- [CI knob tuning](./ci-knob-tuning.md): persistence, safe concurrency and repeat policy.
 
-- [Quick Reference](./quick-reference.md)
-- [Integration Guide](./integration-guide.md)
-- [Service API Preview](./service-api-preview.md)
-- [Dashboard Preview](./dashboard-preview.md)
-- [Auth Preview](./auth-preview.md)
-- [Coordination Preview](./coordination-preview.md)
-- [AWS Batch Integration](./aws-batch-integration.md)
-- [Operational Semantics](./operational-semantics.md)
-- [Recovery Playbook](./recovery-playbook.md)
-- [How It Works](./how-it-works.md)
-- [Ax Backend](./ax-backend.md)
-- [Ax CPU Installation and Offline Wheelhouses](./ax-installation.md)
-- [Ax Support Matrix](./ax-support-matrix.md)
-- [Type Safety](./type-safety.md)
-- [CI Knob Tuning](./ci-knob-tuning.md)
-- [Stability Guarantees](./stability-guarantees.md)
-- [Upgrade to v1.0.0](./migration-v1.md)
-- [Release Procedure](./release-guide.md)
-- [Feedback Loop](./feedback-loop.md)
-- [Search Space Contract](./search-space.md)
-- [Constraints Contract](./constraints.md)
-- [Decision Trace](./decision-trace.md)
-- [Pilot Checklist](./pilot-checklist.md)
-- [FAQ](./faq.md)
-- [Security and Data Handling](./security-data-handling.md)
-- [Use Cases and Fit](./use-cases.md)
-- [Working with Looptimum](./packages.md)
+## Recover
 
-## Integration Assets
+- [Recovery playbook](./recovery-playbook.md): operator decisions after interruption.
+- [Operational semantics](./operational-semantics.md): canonical state, locking and replay.
+- [GP fit recovery](./gp-fit-recovery.md) and [Ax snapshot recovery/rebuild](./ax-backend.md#state-and-recovery-boundaries).
+- [Stability guarantees](./stability-guarantees.md) and [v1 migration](./migration-v1.md).
 
-- [Docs Examples](./examples/README.md)
-- [Batch + Async Worker Example Pack](./examples/batch_async/README.md)
-- [Service API Preview Example Pack](./examples/service_api_preview/README.md)
-- [Dashboard Preview Example Pack](./examples/dashboard_preview/README.md)
-- [Auth Preview Example Pack](./examples/auth_preview/README.md)
-- [Coordination Preview Example Pack](./examples/coordination_preview/README.md)
-- [Multi-Objective Example Pack](./examples/multi_objective/README.md)
-- [Warm-Start Import/Export Example Pack](./examples/warm_start/README.md)
-- [Starter-Kit Integration Example Pack](./examples/starterkit/README.md)
-- [Constraints Examples](./examples/constraints/README.md)
-- [State Snapshot References](./examples/state_snapshots/README.md)
-- [Decision-Trace References](./examples/decision_trace/README.md)
-- [Benchmark Evidence Index](../benchmarks/README.md)
-- Tiny end-to-end loop:
-  `examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py`
+## Inspect evidence
 
-Repository paths used during integration:
+- [Decision trace](./decision-trace.md) and [trace reference artifacts](./examples/decision_trace/README.md).
+- [Benchmark index](../benchmarks/README.md) and [backend comparison](../benchmarks/backend_comparison/README.md).
+- Case studies: [engineering mesh](./examples/snappyhexmesh_campaign/README.md), [GPT training](./examples/gpt_training_campaign/README.md).
+- [Example index](./examples/README.md): specialist packs, state snapshots and preview references.
+- [Runnable examples](../examples/README.md).
+- [Historical reports](../reports/README.md): retained context, not current onboarding instructions.
 
-- `quickstart/README.md`
-- `docs/aws-batch-integration.md`
-- `client_harness_template/README.md`
-- `client_harness_template/README_INTEGRATION.md`
-- `client_harness_template/starterkit_queue_worker.py`
-- `client_harness_template/starterkit_tracking.py`
-- `client_harness_template/objective_aws_batch_example.py`
-- `client_harness_template/aws_batch_config.example.json`
-- `examples/README.md`
+Case studies retain their evaluation conditions and limitations. Integration
+examples demonstrate wiring; they do not establish performance on your workload.
 
-## Scope and Operating Model
+## Maintain
 
-The optimization loop is local-first and file-backed (`suggest -> evaluate -> ingest`),
-with lifecycle/ops controls for pending management and diagnostics.
-It does not require hosted orchestration and works in restricted/offline environments.
-This outer-loop pattern is especially useful for expensive evaluation campaigns,
-including long-running training or evaluation jobs.
-
-Integration note:
-
-- examples are wiring references for contract implementation, not benchmark
-  performance claims.
-
-## Next Action
-
-If you are evaluating fit for a pilot, start with:
-
-1. [Pilot and Service Options](../PILOT.md)
-2. Intake checklist (`intake.md`)
-3. [Pilot Checklist](./pilot-checklist.md)
-4. [Integration Guide](./integration-guide.md)
+- [Contributing](../CONTRIBUTING.md) and [type safety](./type-safety.md).
+- [Release procedure](./release-guide.md) and [v1 source release notes](./releases/v1.0.0.md).
+- [Feedback loop](./feedback-loop.md).
+- [Site maintenance](../site/README.md): email intake and Git-based publishing.
+- [Pilot overview](../PILOT.md), [intake](../intake.md), and [working with Looptimum](./packages.md).

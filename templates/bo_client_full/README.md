@@ -8,6 +8,11 @@ the numerical stack.
 
 Single-stage optimization harness with an optional BoTorch GP backend behind a feature flag.
 
+For a fresh campaign, follow the [portable quickstart](../../quickstart/README.md).
+See the [template map](../README.md) for the complete CLI/backend boundary and
+[effective configuration](../../docs/how-it-works.md#effective-and-ignored-configuration)
+for ignored sample settings.
+
 ## Path Guidance
 
 - Running this template directly means you are on the repo path.
@@ -25,13 +30,10 @@ Single-stage optimization harness with an optional BoTorch GP backend behind a f
 
 ## Files
 
-- `run_bo.py`: `suggest`, `ingest`, `import-observations`,
-  `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
-  `report`, `reset`, `list-archives`, `restore`, `prune-archives`,
-  `validate`, `doctor`
-- `bo_config.json`: includes shared `feature_flags`; only
-  `enable_botorch_gp` and `fallback_to_proxy_if_unavailable` are active in this
-  template today
+- `run_bo.py`: controller entrypoint; see the [CLI reference](../../docs/quick-reference.md).
+- `bo_config.json`: includes shared `feature_flags`; `enable_botorch_gp` and
+  `fallback_to_proxy_if_unavailable` control its optional direct-GP path.
+  Preview flags are consumed by the service registry
 - `parameter_space.json`: typed parameter bounds
 - `constraints.json` (optional): hard-feasibility rules for `suggest`
 - `objective_schema.json`: primary objective, optional secondary objectives,
@@ -66,8 +68,8 @@ Or set `feature_flags.enable_botorch_gp` to `true` in config.
 ## Notes
 
 - JSON (`.json`) is the required contract format.
-- preview flags in `feature_flags` are reserved scaffolding and no-op in the
-  current file-backed runtime.
+- preview flags in `feature_flags` are active service-registry gates; they
+  do not start services inside the standalone CLI.
 - Acquisition logs record selected backend and fallback reason when applicable.
 - Constrained decisions also record feasibility metadata; all-infeasible
   attempts are logged before `suggest` exits nonzero.

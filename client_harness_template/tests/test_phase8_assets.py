@@ -58,7 +58,7 @@ def test_ci_workflow_runs_benchmark_sanity_check() -> None:
 
 def test_readme_includes_evidence_links() -> None:
     text = TOP_LEVEL_README.read_text(encoding="utf-8")
-    assert "## Evidence" in text
-    assert "benchmarks/run_trial_efficiency_benchmark.py" in text
-    assert "benchmarks/summary.json" in text
-    assert "benchmarks/case_study.md" in text
+    assert "benchmarks/README.md" in text
+    index = BENCHMARK_README.read_text(encoding="utf-8")
+    for artifact in ("run_trial_efficiency_benchmark.py", "summary.json", "case_study.md"):
+        assert artifact in index

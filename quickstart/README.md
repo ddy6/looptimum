@@ -1,253 +1,89 @@
 # Quickstart
 
-Run all commands from the repository root.
+Run one trial with a fresh portable controller and a synthetic evaluator.
+You need Python **3.11 or newer**, a shell with `mktemp`, and a Looptimum source
+checkout. The default proxy backend uses the Python standard library; no
+numerical packages or service installation are required.
 
-This is the quickest path to running Looptimum templates locally.
+The published wheel packages the preview service, not the controller templates
+or a controller CLI. Use the complete portable source copy below. See
+[installation routes](../docs/packages.md#installation-routes) for alternatives.
 
-This quickstart uses explicit `--project-root` paths so each command is a
-single runnable line (easy copy/paste).
+## Create and run a portable campaign
 
-Opinionated mainstream scenario:
+Start at the **repository root**, using the stock `templates/bo_client` template
+and its default relative artifact paths. The first commands create an empty
+temporary directory and copy the runtime, configuration, schemas and license.
+The remaining commands run **inside that portable campaign**.
 
-- [ETL/pipeline knob tuning walkthrough](./etl-pipeline-knob-tuning.md)
-
-## Interpreter
-
-These templates run with standard `python3` for proxy/demo workflows.
-
-If you prefer a virtual environment, create one and swap `python3` for your venv interpreter.
-
-Check your Python version:
-
+<!-- portable-quickstart:start -->
 ```bash
-python3 --version
+set -eu
+LOOPTIMUM_CAMPAIGN="$(mktemp -d "${TMPDIR:-/tmp}/looptimum-quickstart.XXXXXX")"
+python3 templates/_shared/vendor_copy.py templates/bo_client "$LOOPTIMUM_CAMPAIGN"
+cp LICENSE "$LOOPTIMUM_CAMPAIGN/LICENSE"
+cd "$LOOPTIMUM_CAMPAIGN"
+python3 run_bo.py validate --project-root .
+python3 run_bo.py status --project-root .
+python3 run_bo.py suggest --project-root . --json-only > suggestion.json
+python3 scripts/synthetic_experiment.py suggestion.json result.json
+python3 run_bo.py ingest --project-root . --results-file result.json
+python3 run_bo.py status --project-root .
 ```
+<!-- portable-quickstart:end -->
 
-Parameter types currently supported by the public templates: `float`, `int`.
+The initial status has zero observations and zero pending trials. `suggest`
+allocates a pending trial and writes its actual `trial_id` and `params` to
+`suggestion.json`. The synthetic helper evaluates those settings and writes
+the matching result to `result.json`; it does not reuse a bundled sample result.
 
-Quickstart noise policy:
+Inspect the two files to see the boundary: the result keeps the same ID and
+parameters and supplies a finite `loss` with `status: "ok"`. After ingest,
+status reports one observation, zero pending trials, an advanced next trial ID,
+and that successful trial as `best`. This proves the wiring, not an optimization
+benefit on your workload. Coordinates and timestamps are not fixed expectations.
 
-- The commands in this guide use canonical JSON contract files/keys and should
-  run without compatibility/deprecation warnings on a clean template copy.
+Keep the directory path to resume this campaign. For persistent work, use an
+empty directory in your own project instead of temporary storage. Copying
+`run_bo.py` alone, or pointing `--project-root` at an empty directory without
+the rest of the bundle, does not create a usable campaign.
 
-## Variant Commands (Repo-Root Single Commands)
+## Connect your evaluator
 
-### `templates/bo_client_demo` (proxy-only, easiest path)
+Replace the synthetic evaluation step with your own function, command or job.
+Keep the suggested `trial_id` and `params` unchanged; return your configured
+objective names and direction. The [integration guide](../docs/integration-guide.md)
+explains the result contract, adapter and failure policy.
 
-```bash
-python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_client_demo
-python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo
-python3 templates/bo_client_demo/run_bo.py ingest \
-  --project-root templates/bo_client_demo \
-  --results-file templates/bo_client_demo/examples/example_results.json
-python3 templates/bo_client_demo/run_bo.py demo --project-root templates/bo_client_demo --steps 5
-```
+Public parameter types are `float`, `int`, `bool` and `categorical`. Conditional
+parameters and backend-specific limits are explained in the
+[search-space contract](../docs/search-space.md) and
+[Ax support matrix](../docs/ax-support-matrix.md).
 
-### `templates/bo_client` (baseline harness, config-selected backend)
+## Resume and inspect
 
-```bash
-python3 templates/bo_client/run_bo.py status --project-root templates/bo_client
-python3 templates/bo_client/run_bo.py suggest --project-root templates/bo_client
-python3 templates/bo_client/run_bo.py ingest \
-  --project-root templates/bo_client \
-  --results-file templates/bo_client/examples/example_results.json
-python3 templates/bo_client/run_bo.py demo --project-root templates/bo_client --steps 5
-```
+Campaign history lives under the copied controller's `state/` directory.
+If ingest is interrupted, retain the completed result and retry ingestion;
+identical replay is a no-op, while conflicting replay is rejected. Do not
+rerun a completed evaluation just because its ingest needs retrying.
+For a new trial, generate a new suggestion before evaluating again.
 
-Optional GP backend (after dependencies are installed and `surrogate.type` is
-set to `gp` in `templates/bo_client/bo_config.json`):
+Use the [recovery playbook](../docs/recovery-playbook.md) for interruptions,
+the [operational semantics](../docs/operational-semantics.md) for locking and
+lifecycle rules, and the [quick reference](../docs/quick-reference.md) for
+commands and artifact definitions. The generator omits named default histories;
+it does not sanitize arbitrary customized campaign paths.
 
-```bash
-python3 templates/bo_client/run_bo.py suggest --project-root templates/bo_client
-```
+## Other paths
 
-### `templates/bo_client_full` (optional BoTorch GP feature flag)
+| Task | Guide |
+| --- | --- |
+| Compare templates or run the demo variant | [Templates](../templates/README.md) |
+| Install optional native Ax | [Ax CPU installation](../docs/ax-installation.md), [backend semantics](../docs/ax-backend.md) |
+| Tune a pipeline | [ETL walkthrough](./etl-pipeline-knob-tuning.md) |
+| Use a local service | [Service API preview](../docs/service-api-preview.md) |
+| Run batch or cluster evaluations | [Batch examples](../docs/examples/batch_async/README.md), [starter kit](../docs/integration-starter-kit.md) |
+| Find another task | [Documentation map](../docs/index.md) |
 
-```bash
-python3 templates/bo_client_full/run_bo.py status --project-root templates/bo_client_full
-python3 templates/bo_client_full/run_bo.py suggest --project-root templates/bo_client_full
-python3 templates/bo_client_full/run_bo.py suggest --project-root templates/bo_client_full --enable-botorch-gp
-python3 templates/bo_client_full/run_bo.py ingest \
-  --project-root templates/bo_client_full \
-  --results-file templates/bo_client_full/examples/example_results.json
-python3 templates/bo_client_full/run_bo.py demo --project-root templates/bo_client_full --steps 5
-```
-
-Note: If BoTorch is unavailable and the template config allows fallback,
-`bo_client_full` falls back to proxy mode and records the reason in
-acquisition logs.
-
-## Tiny End-to-End Objective (<1 Minute)
-
-For a dedicated trust-building loop demo (separate from template `demo`), run:
-
-```bash
-python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 6
-```
-
-To regenerate the golden decision-trace sample:
-
-```bash
-python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py \
-  --steps 8 \
-  --write-acquisition-log docs/examples/decision_trace/golden_acquisition_log.jsonl \
-  --normalize-acquisition-timestamps
-```
-
-Equivalent one-command helper:
-
-```bash
-bash docs/examples/decision_trace/regenerate_golden_log.sh
-```
-
-Related artifacts:
-
-- `docs/examples/decision_trace/golden_acquisition_log.jsonl`
-- `docs/examples/decision_trace/golden_acquisition_log.md`
-- `docs/examples/decision_trace/cli_transcript.md`
-
-## Lifecycle and Ops Commands (All Variants)
-
-The same lifecycle/ops commands are available in each template:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py cancel --project-root templates/bo_client_demo --trial-id 3
-python3 templates/bo_client_demo/run_bo.py retire --project-root templates/bo_client_demo --trial-id 4
-python3 templates/bo_client_demo/run_bo.py retire --project-root templates/bo_client_demo --stale
-python3 templates/bo_client_demo/run_bo.py heartbeat --project-root templates/bo_client_demo --trial-id 5 --heartbeat-note "still running"
-python3 templates/bo_client_demo/run_bo.py report --project-root templates/bo_client_demo --top-n 5
-python3 templates/bo_client_demo/run_bo.py validate --project-root templates/bo_client_demo
-python3 templates/bo_client_demo/run_bo.py doctor --project-root templates/bo_client_demo --json
-```
-
-Mutating commands (`suggest`, `ingest`, `cancel`, `retire`, `heartbeat`,
-`report`) use an exclusive lock with wait+timeout defaults.
-Add `--fail-fast` to fail immediately on lock contention.
-For interruption recovery/teardown decisions, use `docs/recovery-playbook.md`.
-For CI persistence/parallelism and reproducible tuning policy, use
-`docs/ci-knob-tuning.md`.
-
-## First Clean-Run Flow (Practical Starting Path)
-
-On a clean template copy (no existing state), the bundled
-`example_results.json` matches the deterministic first suggestion for the
-default seed.
-
-```bash
-python3 templates/bo_client_demo/run_bo.py suggest --project-root templates/bo_client_demo
-python3 templates/bo_client_demo/run_bo.py ingest \
-  --project-root templates/bo_client_demo \
-  --results-file templates/bo_client_demo/examples/example_results.json
-python3 templates/bo_client_demo/run_bo.py status --project-root templates/bo_client_demo
-```
-
-If you already generated a different pending suggestion, generate a matching
-payload instead of reusing `example_results.json`.
-
-To test non-`ok` ingest semantics with the bundled sample payload:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py ingest \
-  --project-root templates/bo_client_demo \
-  --results-file templates/bo_client_demo/examples/example_results_timeout.json
-```
-
-## State Files and Resume Behavior
-
-State and logs are configured in each template's `bo_config.json` and default to:
-
-- `state/bo_state.json`: resumable run state
-  (`schema_version`, `observations`, `pending`, `next_trial_id`, `best`)
-- `state/observations.csv`: flattened observation history written after ingest
-- `state/acquisition_log.jsonl`: append-only suggestion decision trace
-- `state/event_log.jsonl`: append-only lifecycle/ops trace
-- `state/trials/trial_<id>/manifest.json`: per-trial audit manifest
-- `state/report.json` and `state/report.md`: explicit report outputs from `report`
-- `paths.ingest_schema_file` (default `../_shared/schemas/ingest_payload.schema.json`): payload structure for `ingest`
-
-Resume rules:
-
-1. `suggest` adds a pending trial and increments `next_trial_id`.
-2. External evaluation must return the same `trial_id` and exact `params`.
-3. `ingest` removes the matching pending trial, appends an observation, updates `best`, and rewrites `observations.csv`.
-4. Re-running `ingest` with identical payload is a no-op success; conflicting replay is rejected with mismatch details.
-5. If the budget is exhausted, `suggest` exits cleanly with no new pending trial.
-6. If `max_pending_age_seconds` is configured/enabled, stale pending trials can
-   be auto-retired during `suggest`.
-
-## State File Examples
-
-Reference snapshots (captured from a temp run of
-`templates/bo_client_demo`) are checked in under
-`docs/examples/state_snapshots/`:
-
-- `docs/examples/state_snapshots/status_empty.json`
-- `docs/examples/state_snapshots/suggestion_1.json`
-- `docs/examples/state_snapshots/bo_state_after_suggest.json`
-- `docs/examples/state_snapshots/acquisition_log_after_suggest.jsonl`
-- `docs/examples/state_snapshots/result_1_generated.json`
-- `docs/examples/state_snapshots/result_1_timeout_generated.json`
-- `docs/examples/state_snapshots/bo_state_after_ingest.json`
-- `docs/examples/state_snapshots/bo_state_after_timeout_ingest.json`
-- `docs/examples/state_snapshots/observations_after_ingest.csv`
-- `docs/examples/state_snapshots/observations_after_timeout_ingest.csv`
-- `docs/examples/state_snapshots/status_after_ingest.json`
-- `docs/examples/state_snapshots/status_after_timeout_ingest.json`
-
-## Synthetic Helper (Payload Generation Example)
-
-For local testing without an external system, the demo template includes a
-helper that converts a suggestion JSON into a valid result payload:
-
-```bash
-python3 templates/bo_client_demo/scripts/synthetic_experiment.py \
-  docs/examples/state_snapshots/suggestion_1.json \
-  /tmp/result.json
-```
-
-For a live run, pass the exact suggestion JSON produced by `suggest`
-(not full stdout with the trailing `Objective direction: ...` line).
-For strict machine-readable `suggest` output, use `--json-only`.
-
-## Test Command (Repo Root)
-
-```bash
-python3 -m pytest -q templates
-```
-
-## Release Smoke Checks (Automated + Manual)
-
-Canonical automated guardrail:
-
-```bash
-python3 scripts/release_smoke.py
-```
-
-Manual fallback checklist (run on a temporary copy to avoid mutating tracked
-template state):
-
-```bash
-TMP_ROOT="$(mktemp -d /tmp/looptimum_release_smoke.XXXXXX)"
-cp -R templates "$TMP_ROOT/templates"
-
-python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" status --project-root "$TMP_ROOT/templates/bo_client_demo"
-python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client_demo"
-python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" ingest --project-root "$TMP_ROOT/templates/bo_client_demo" --results-file "$TMP_ROOT/templates/bo_client_demo/examples/example_results.json"
-python3 "$TMP_ROOT/templates/bo_client_demo/run_bo.py" demo --project-root "$TMP_ROOT/templates/bo_client_demo" --steps 3
-
-python3 "$TMP_ROOT/templates/bo_client/run_bo.py" status --project-root "$TMP_ROOT/templates/bo_client"
-python3 "$TMP_ROOT/templates/bo_client/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client"
-python3 "$TMP_ROOT/templates/bo_client/run_bo.py" ingest --project-root "$TMP_ROOT/templates/bo_client" --results-file "$TMP_ROOT/templates/bo_client/examples/example_results.json"
-python3 "$TMP_ROOT/templates/bo_client/run_bo.py" demo --project-root "$TMP_ROOT/templates/bo_client" --steps 3
-
-python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" status --project-root "$TMP_ROOT/templates/bo_client_full"
-python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client_full"
-python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" suggest --project-root "$TMP_ROOT/templates/bo_client_full" --enable-botorch-gp
-python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" ingest --project-root "$TMP_ROOT/templates/bo_client_full" --results-file "$TMP_ROOT/templates/bo_client_full/examples/example_results.json"
-python3 "$TMP_ROOT/templates/bo_client_full/run_bo.py" demo --project-root "$TMP_ROOT/templates/bo_client_full" --steps 3
-
-python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 4
-```
-
-Also run the lifecycle/ops command checklist from the "Lifecycle and Ops
-Commands (All Variants)" section for each variant project root.
+Maintainer tests and release smoke procedures live in
+[CONTRIBUTING](../CONTRIBUTING.md) and the [release guide](../docs/release-guide.md).

@@ -4,6 +4,10 @@ Use this intake to define the optimization problem and the minimum integration d
 
 Fill in what you know. Unknown items can be marked `TBD`.
 
+Use the [parameter-selection guidance](docs/search-space.md#choose-a-useful-parameter-space)
+and [objective-design guidance](docs/integration-guide.md#choose-parameters-and-define-the-measurement)
+to frame the initial experiment before filling in implementation details.
+
 ## 1. Project Summary
 
 - Company / team:
@@ -29,12 +33,13 @@ For each parameter, provide name, type, and valid range/values.
 
 Current public template support:
 
-- native types in default templates: `float`, `int`
-- `categorical` may still be specified in intake for planning, but requires template extension before execution
+- supported types: `float`, `int`, `bool`, `categorical`
+- conditional settings and backend limits: [search-space contract](docs/search-space.md)
+  and [Ax support matrix](docs/ax-support-matrix.md)
 
 ### Parameter Table (copy/add rows)
 
-| name | type (`float`/`int`/`categorical`) | bounds or choices | default/current value | notes |
+| name | type (`float`/`int`/`bool`/`categorical`) | bounds or choices | default/current value | notes |
 |---|---|---|---|---|
 |  |  |  |  |  |
 
@@ -138,7 +143,7 @@ Describe the exact mapping path:
 
 ## 11. Pilot Scope and Deliverables Alignment
 
-- Desired engagement tier (if known): `Tier 1 / Tier 2 / Tier 3 / TBD`
+- Integration or support needed (if any):
 - Timeline target:
 - Stakeholders for readout/report:
 - Preferred deliverables format (PR, docs, notebook, report, slides):

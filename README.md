@@ -3,550 +3,111 @@
 [![CI](https://github.com/ddy6/looptimum/actions/workflows/ci.yml/badge.svg)](https://github.com/ddy6/looptimum/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/ddy6/looptimum?display_name=tag)](https://github.com/ddy6/looptimum/releases)
 
-Optimum trial targeting for expensive black-box evaluations improves sample efficiency and operational reliability while reducing wasted trials.
+Looptimum selects experiment settings and records results in local files.
+Your evaluator runs the simulation, training job, pipeline or lab workflow in
+its own environment. Saved history supports inspection and restart between
+expensive evaluations.
+
+Version in this checkout: `v1.0.0`. See
+[published releases](https://github.com/ddy6/looptimum/releases) for publication
+status and the [migration guide](docs/migration-v1.md) for existing campaigns.
+
+## Run a first campaign
+
+Follow the **[portable quickstart](quickstart/README.md)** to create a fresh
+ordinary controller, evaluate its actual suggestion and ingest the result.
+Python 3.11+ is required; the default proxy path needs no numerical packages.
+
+Controller users need the complete portable source bundle. The current wheel
+packages the preview service and optional dependency extras; it does not install
+controller templates or a controller CLI. See
+[installation routes](docs/packages.md#installation-routes) before choosing a setup.
+
+The loop is small:
+
+1. **Suggest:** select a trial from your parameter space and previous observations.
+2. **Evaluate:** run your own workload with those settings.
+3. **Ingest:** record its score or failure, then inspect or continue the campaign.
+
+Keep each campaign outside the reusable source templates. The quickstart
+creates its own runtime, schemas, configuration and state directory.
+
+## Connect your workload
+
+You define parameter bounds, an objective and the evaluator boundary.
+Looptimum allocates trial IDs, validates matching results and maintains local
+observations and decision traces. It does not run your domain workload or decide
+whether its outputs satisfy your project's acceptance policy.
+
+The [integration guide](docs/integration-guide.md) covers evaluator wiring,
+measurement design, failures and ingest retries. The
+[client harness](client_harness_template/README.md) is an optional adapter;
+its local objective is a stub until you supply an implementation.
+
+Public templates support numeric, boolean and categorical parameters, with
+conditional settings on supporting backends. Use the
+[search-space contract](docs/search-space.md) for types and bounds and the
+[constraints guide](docs/constraints.md) for feasible regions.
+
+## Choose a backend
+
+| Need | Starting point |
+| --- | --- |
+| Establish a lightweight, resumable loop | Ordinary `bo_client` with default `rbf_proxy` |
+| Use a direct Gaussian-process surrogate | Ordinary optional `gp`, or full controller's optional `botorch_gp` |
+| Use native Ax generation and optimizer snapshots | Optional `ax` in ordinary/full controllers |
+| Run the smaller proxy demonstration | `bo_client_demo` |
+
+Numerical backends add dependencies and have distinct capability and recovery
+boundaries. Demo is proxy-only. See the [template map](templates/README.md),
+[optimizer behavior](docs/how-it-works.md), [Ax support matrix](docs/ax-support-matrix.md)
+and [Ax CPU installation guide](docs/ax-installation.md).
+
+Backend selection does not establish an improvement for a particular workload.
+Choose a bounded objective, fixed comparison budget and baseline before making
+performance claims.
+
+## Inspect the evidence
+
+The retained examples show particular campaigns, not general guarantees:
+
+- [Engineering mesh](docs/examples/snappyhexmesh_campaign/README.md): a selected
+  smaller mesh was checked in a separate solver-validation pass; the case study
+  records its flow/pressure acceptance conditions.
+- [GPT training](docs/examples/gpt_training_campaign/README.md): the selected
+  model is compared with a fixed baseline under one seed and a small budget.
+  That observation does not establish statistical significance or global optimality.
+- [Backend comparison](benchmarks/backend_comparison/README.md): the corrected
+  reference covers 200 short synthetic campaigns with budget 12. Its declared
+  gates and the original failed reference remain available.
+
+Use the [benchmark index](benchmarks/README.md) for protocols, measured results
+and reproducibility artifacts. Keep modeled cost estimates separate from
+observed measurements. Wiring examples demonstrate interface use, not rankings
+of optimizers or proof of gains on another workload.
+
+## Find the next task
+
+| Task | Reference |
+| --- | --- |
+| Navigate the documentation | [Task map](docs/index.md) |
+| Look up commands and payloads | [Quick reference](docs/quick-reference.md) |
+| Resume or recover interrupted work | [Recovery playbook](docs/recovery-playbook.md), [operational semantics](docs/operational-semantics.md) |
+| Inspect suggestion decisions | [Decision trace](docs/decision-trace.md) |
+| Run batch or scheduler integrations | [Batch/async examples](docs/examples/batch_async/README.md), [starter kit](docs/integration-starter-kit.md) |
+| Work with a local service or dashboard | [Service API preview](docs/service-api-preview.md) |
+| Check data handling and compatibility | [Data handling](docs/security-data-handling.md), [stability policy](docs/stability-guarantees.md) |
+| Develop or prepare a release | [Contributing](CONTRIBUTING.md), [release procedure](docs/release-guide.md) |
+
+The file-backed template contracts are the stable surface; service, dashboard,
+auth and multi-controller coordination remain opt-in previews. Package, state,
+payload and snapshot versions have separate meanings; consult the stability
+and migration guides when upgrading.
+
+## Discuss a pilot
 
-Looptimum is a file-backed loop for optimum parameter targeting when each
-trial is costly (time, compute, money, or operational risk).
-You provide a parameter space and objective schema; Looptimum suggests the
-next trial, records decisions, and resumes cleanly after interruptions.
-Version in this checkout: `v1.0.0`. See [published releases](https://github.com/ddy6/looptimum/releases)
-for publication status and the [v1 upgrade guide](docs/migration-v1.md) for existing campaigns.
-For expensive black-box objectives, Looptimum starts with bounded exploration
-and then shifts to surrogate-guided suggestion ranking to reduce wasted trials.
-Its key differentiator is operational: a file-backed, resumable workflow that
-keeps state and decision trace local, which fits restricted and client-controlled
-environments. The usage model stays simple (`suggest -> evaluate -> ingest`,
-with optional locked batches);
-see [`docs/how-it-works.md`](docs/how-it-works.md) for algorithm behavior and
-tuning consequences.
-For a spec-style contract summary, use
-[`docs/quick-reference.md`](docs/quick-reference.md).
-
-## Evaluating Fit For A Pilot?
-
-- Private contact: [contact@looptimum.com](mailto:contact@looptimum.com)
-- Start here: [`PILOT.md`](PILOT.md), [`intake.md`](intake.md),
-  [`docs/pilot-checklist.md`](docs/pilot-checklist.md)
-- Repo path vs preview surfaces:
-  [`docs/packages.md`](docs/packages.md)
-- Best initial fit: bounded parameter spaces, one scalar objective or explicit
-  scalarization rule, and expensive evaluations in client-controlled
-  environments
-- Scope and delivery are tailored to the project; contact for scope
-
-## Common Triggers
-
-- "We're wasting time on parameter sweeps and manual tuning."
-- "Each run is expensive, so we need fewer total experiments."
-- "We can run evaluations, but we do not want to build optimization infra."
-- "Runs sometimes fail; we need resumable state and traceability."
-- "We have lots of knobs and no reliable way to tune them."
-
-## What Looptimum Does
-
-Looptimum replaces ad hoc sweep loops with a small, explicit workflow:
-
-1. Define parameter bounds, objective schema, and optional constraints.
-2. `suggest` one trial by default, or allocate a locked batch with `--count N`.
-3. Run that trial in your environment.
-4. `ingest` the result and repeat.
-
-Instead of broad grid/random sweeps, Looptimum uses prior observations to choose
-what to test next.
-
-
-## Trust Anchors
-
-Every core claim in this README has an auditable source:
-
-- contract semantics and payload/state definitions:
-  [`docs/quick-reference.md`](docs/quick-reference.md)
-- optimizer behavior, backend differences, and failure modes:
-  [`docs/how-it-works.md`](docs/how-it-works.md)
-- compatibility and breaking-change policy:
-  [`docs/stability-guarantees.md`](docs/stability-guarantees.md)
-- recovery and interruption handling:
-  [`docs/recovery-playbook.md`](docs/recovery-playbook.md)
-- CI operational policy for persistence/parallelism/robust best:
-  [`docs/ci-knob-tuning.md`](docs/ci-knob-tuning.md)
-- benchmark evidence and reproducibility artifacts:
-  [`benchmarks/README.md`](benchmarks/README.md),
-  [`benchmarks/summary.json`](benchmarks/summary.json),
-  [`benchmarks/case_study.md`](benchmarks/case_study.md)
-
-### What Runs Where
-
-| Component | Typical Location | Responsibility |
-|---|---|---|
-| Looptimum controller | Local machine, CI runner, or client host | `suggest`, `ingest`, `status`, lifecycle + ops commands, local state |
-| Evaluator | Your runtime (script, cluster job, lab workflow, API) | Execute one trial from suggested params |
-| State and logs | Local files under template `state/` | Resume, audit trail, best-so-far tracking |
-| Local service preview | Same host or nearby dev box | Preview-only FastAPI wrapper over registered campaign roots; metadata registry only |
-
-Preview note:
-
-- the optional Service API preview under `service/` is explicitly preview-scoped,
-  keeps campaign roots file-backed and authoritative, and is not part of the
-  stable `v1.x` compatibility surface
-- see [`docs/service-api-preview.md`](docs/service-api-preview.md) and
-  [`docs/dashboard-preview.md`](docs/dashboard-preview.md)
-- optional preview auth/RBAC/SSO guidance for that local service stack is in
-  [`docs/auth-preview.md`](docs/auth-preview.md)
-- optional preview multi-controller coordination for that local service stack
-  is in [`docs/coordination-preview.md`](docs/coordination-preview.md)
-- example packs:
-  [`docs/examples/service_api_preview/README.md`](docs/examples/service_api_preview/README.md)
-  and
-  [`docs/examples/dashboard_preview/README.md`](docs/examples/dashboard_preview/README.md)
-  and
-  [`docs/examples/auth_preview/README.md`](docs/examples/auth_preview/README.md)
-  and
-  [`docs/examples/coordination_preview/README.md`](docs/examples/coordination_preview/README.md)
-
-## Common Use Cases
-
-- Data/ETL pipelines: batch size, parallelism, retry/backoff, memory limits.
-- Infra/performance tuning: concurrency, cache TTLs, connection pools,
-  thread counts.
-- Search/recommendation knobs: threshold and weighting calibration.
-- Pricing/growth experiments: eligibility thresholds, ramp controls,
-  and guardrail tradeoffs.
-- Build and compile tuning: optimization flags, link-time settings,
-  and benchmark-driven runtime tradeoffs.
-- ML training loops: learning rate, batch size, regularization, early-stop
-  settings.
-- Large-model workflow tuning: training recipe knobs, evaluation-policy
-  settings, and runtime controls for long-running jobs.
-- Simulation and engineering workflows: solver tolerances, mesh controls,
-  calibration settings.
-- Operations/process tuning: throughput vs. quality/cost tradeoffs.
-
-For many small-to-moderate parameter spaces, teams can find competitive
-configurations in fewer runs than naive sweeps (problem dependent).
-
-## Quickstart (2 Minutes)
-
-From repo root:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py demo \
-  --project-root templates/bo_client_demo \
-  --steps 5
-python3 templates/bo_client_demo/run_bo.py status \
-  --project-root templates/bo_client_demo
-```
-
-Real captured `status` output (from `templates/bo_client_demo` on
-March 3, 2026):
-
-```json
-{
-  "observations": 3,
-  "pending": 0,
-  "next_trial_id": 4,
-  "best": {
-    "trial_id": 2,
-    "objective_name": "loss",
-    "objective_value": 0.03128341826910849,
-    "updated_at": 1772392830.7282188
-  }
-}
-```
-
-Key fields:
-
-- `observations`
-- `pending`
-- `next_trial_id`
-- `best`
-
-Quickstart note:
-
-- The default template files and commands above use canonical JSON contract
-  paths and run without compatibility/deprecation warnings on a clean copy.
-
-For full command sets and resume behavior, see `quickstart/README.md`.
-For an opinionated mainstream scenario, see
-[`quickstart/etl-pipeline-knob-tuning.md`](quickstart/etl-pipeline-knob-tuning.md).
-For interruption triage and recovery actions, see
-`docs/recovery-playbook.md`.
-For the local FastAPI wrapper over the same file-backed runtime, see
-[`docs/service-api-preview.md`](docs/service-api-preview.md).
-For the read-only operator shell mounted from that preview service, see
-[`docs/dashboard-preview.md`](docs/dashboard-preview.md).
-For optional preview auth and role separation on that same service stack, see
-[`docs/auth-preview.md`](docs/auth-preview.md).
-For optional preview multi-controller coordination on that same service stack,
-see [`docs/coordination-preview.md`](docs/coordination-preview.md).
-For the dedicated tiny end-to-end objective walkthrough, see
-`examples/toy_objectives/03_tiny_quadratic_loop/README.md`.
-
-## Evidence
-
-Evidence artifacts for optimization-credibility checks are published in
-`benchmarks/`:
-
-- benchmark runner script:
-  `benchmarks/run_trial_efficiency_benchmark.py`
-- committed compact summary (golden):
-  `benchmarks/summary.json`
-- generated compact case study (derived from summary):
-  `benchmarks/case_study.md`
-
-Canonical Phase 8 protocol in this repository:
-
-- objective: `tiny_quadratic`
-- baseline: random search
-- metric: best objective at fixed budget
-- reproducibility: 10 seeds with median + IQR reporting
-
-Re-run canonical evidence locally:
-
-```bash
-python3 benchmarks/run_trial_efficiency_benchmark.py \
-  --objective tiny_quadratic \
-  --budget 20 \
-  --seeds 17,29,41,53,67,79,97,113,131,149 \
-  --write-summary benchmarks/summary.json \
-  --write-case-study benchmarks/case_study.md
-```
-
-## Copy/Paste Evaluator Stub (Minimal)
-
-Drop this into `client_harness_template/objective.py` to get started quickly:
-
-```python
-def evaluate(params):
-    x1 = float(params["x1"])
-    x2 = float(params["x2"])
-    loss = (x1 - 0.3) ** 2 + (x2 - 0.7) ** 2
-    return {"status": "ok", "objective": loss}
-```
-
-Use this when your evaluator can return a scalar directly.
-For fuller failure handling (`failed`/`timeout` + `terminal_reason` +
-`penalty_objective`), use the
-expanded stub in
-[`docs/integration-guide.md#copy-paste-evaluator-stub-fuller-version`](docs/integration-guide.md#copy-paste-evaluator-stub-fuller-version).
-
-## When To Use Looptimum
-
-- Each evaluation is expensive enough that sample efficiency matters.
-- Your evaluator runs as external jobs and you want a thin outer loop above
-  training/evaluation infrastructure.
-- You can define one scalar objective or an explicit scalarization /
-  lexicographic rule for multiple objectives.
-- You have a bounded parameter set (commonly small-to-moderate dimensional).
-- You want resumable, file-backed operation in local/offline/restricted
-  environments.
-- You prefer a small integration contract over building custom BO orchestration.
-
-## When Not To Use Looptimum
-
-- Objective evaluation is cheap and simple random/grid search is sufficient.
-- Reliable gradients are available and gradient-based methods are a better fit.
-- Search space is extremely high-dimensional without useful structure.
-- You cannot define a scalar objective or acceptable scalarization rule.
-
-## Contract (Current)
-
-### Inputs
-
-- Parameter space definition (`float`, `int`, `bool`, and `categorical` in
-  public templates; numeric params can also declare `scale`, and params may use
-  `when` for conditional activation).
-- Objective schema (required `primary_objective`, optional
-  `secondary_objectives`, optional `scalarization` policy).
-- Trial budget and seed/config settings.
-
-### `suggest` Output
-
-Count `1` keeps the historical single-suggestion payload. Count `> 1` emits a
-bundle JSON object by default:
-
-- `schema_version`
-- `count`
-- `suggestions` (array of canonical suggestion payloads)
-
-Use `--jsonl` to emit one canonical suggestion JSON object per line for worker
-handoff.
-
-Each suggestion includes:
-
-- `schema_version` (semver string, emitted by runtime)
-- `trial_id`
-- `params`
-- `suggested_at`
-- `lease_token` (only when `worker_leases.enabled` is true)
-
-### `ingest` Required Fields
-
-- `trial_id` (must match a pending trial)
-- `params` (must match suggested params exactly)
-- `objectives`:
-  - `status: ok` -> all configured objective values must be numeric and finite
-  - non-`ok` status -> all configured objective values must be `null`
-- `status`: `ok`, `failed`, `killed`, `timeout`
-
-### `ingest` Optional Fields
-
-- `schema_version` (semver string, optional in schema and emitted by harness/runtime flows)
-- `terminal_reason` (short string for non-`ok` outcomes; recommended)
-- `penalty_objective` (number, only for non-`ok` statuses; reporting/compatibility only)
-
-### `status` Headline Fields
-
-- `schema_version`
-- `observations`
-- `pending`
-- `next_trial_id`
-- `best`
-- `stale_pending`
-- `observations_by_status`
-- `paths`
-
-Best ranking rule:
-
-- `best` is computed only from `status: "ok"` observations.
-- Single-objective campaigns rank by the primary objective value.
-- Multi-objective campaigns rank by the configured scalarization or
-  lexicographic policy while preserving raw objective vectors in status,
-  manifests, and reports.
-- `penalty_objective` is never used to rank `best`.
-
-### Local State Files
-
-- `state/bo_state.json`: source of truth for observations/pending/best and
-  required `schema_version`.
-- `state/observations.csv`: flattened observation export.
-- `state/acquisition_log.jsonl`: append-only decision trace.
-- `state/event_log.jsonl`: append-only lifecycle/operations trace, including
-  governance override/violation events.
-- `state/trials/trial_<id>/manifest.json`: per-trial audit manifest.
-- `state/report.json` and `state/report.md`: explicit report outputs from
-  `report`, including objective-config and Pareto summaries for multi-objective
-  campaigns.
-
-### Compatibility Notes
-
-- Canonical statuses are `ok`, `failed`, `killed`, and `timeout`.
-- For non-`ok` outcomes with no reason provided, ingest synthesizes
-  `terminal_reason` as `status=<status>`.
-- `v0.2.x` state without `schema_version` (or with `0.2.x`) upgrades in-memory
-  to `0.3.0` and persists on next mutating command.
-- Legacy campaigns retain state series `0.3.x`; Ax campaigns use explicitly
-  marked state series `0.4.x` and optimizer format `1`.
-- Evaluator payloads retain their existing `0.3.x` contract; Ax emits `0.3.0`.
-  Package version `1.0.0` does not renumber either surface.
-- Earlier `0.3.x` state loads transparently. Older released controllers reject
-  Ax state; use the [upgrade and rollback guide](docs/migration-v1.md).
-
-### Stability Promise (`v1.x`)
-
-- No breaking changes within the `v1.x` line for CLI command names/required
-  flags, ingest required fields/status vocabulary, and core state-file
-  compatibility.
-- Breaking stable-contract changes require `v2.0.0` or later, with explicit
-  migration notes. Optional Ax remains bounded by its supported feature matrix
-  and matching-environment recovery requirements.
-- Full policy: [`docs/stability-guarantees.md`](docs/stability-guarantees.md).
-
-### Duplicate Ingest Behavior
-
-- Identical replay of an already ingested trial: explicit no-op success.
-- Conflicting replay for an already ingested trial: rejected with field-level
-  diff details.
-
-### Runtime Ops Commands
-
-- `cancel --trial-id <id>`: operator-cancel a pending trial (recorded as terminal `killed` observation with reason).
-- `retire --trial-id <id>` or `retire --stale`: retire pending trials manually or by age policy.
-- `heartbeat --trial-id <id>`: update liveness metadata for long-running pending trials.
-- `import-observations --input-file <path> [--import-mode strict|permissive]`: seed terminal observations from canonical JSONL or flat CSV rows.
-- `export-observations --output-file <path>`: export canonical JSONL or flat CSV observations from authoritative state.
-- `report`: generate `state/report.json` + `state/report.md`.
-- `reset [--yes] [--no-archive]`: reset campaign runtime artifacts; archive is enabled by default.
-- `list-archives`: inspect reset archives and surface manifest/legacy integrity status.
-- `restore --archive-id <id> [--yes]`: restore archived runtime artifacts back into place.
-- `prune-archives [--keep-last N] [--older-than-seconds S] [--yes]`: remove older reset archives with explicit retention criteria.
-- `health [--strict]`: read-only runtime health snapshot with validate-aligned errors/warnings, lock visibility, and governance findings.
-- `metrics`: read-only runtime metrics snapshot with counts, pending-age buckets, suggest latency, and governance summaries.
-- `validate [--strict]`: sanity-check config/state; warnings are non-fatal unless `--strict`.
-- `doctor [--json]`: print environment/backend/state diagnostics.
-
-Lease note:
-
-- when `worker_leases.enabled` is true, `suggest` emits `lease_token` and
-  workers must echo it on `heartbeat` and `ingest`
-- `max_pending_trials`, when configured, rejects the whole requested batch
-  before any pending state is created
-- permissive warm-start imports write machine-readable reports under
-  `state/import_reports/` and preserve `source_trial_id` as provenance only
-
-Governance note:
-
-- `bo_config.json` can set `governance.allowed_statuses` plus warn-first
-  `retention.archives.*` / `retention.logs.*` limits.
-- Looptimum does not auto-prune archives or rotate logs when those limits are
-  exceeded; operators must act explicitly.
-- Mutating commands append `governance_override_used` when the runtime itself
-  creates a disallowed terminal status, and
-  `governance_violations_detected` when current state/log/archive footprints
-  breach configured policy.
-
-## Templates (Choose Your Starting Level)
-
-### Template Matrix (Feature Parity + Intended Use)
-
-| Template | Intended use | Default backend | Optional backend | CLI/lifecycle parity |
-|---|---|---|---|---|
-| `templates/bo_client_demo` | Fastest onboarding and contract validation | `rbf_proxy` | none | full parity (`suggest`, `ingest`, `import-observations`, `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`, `report`, `reset`, `list-archives`, `restore`, `prune-archives`, `validate`, `doctor`) |
-| `templates/bo_client` | Recommended baseline for most integrations | `rbf_proxy` | `gp` or native `ax` (config-selected) | full core/lifecycle parity; Ax recovery commands |
-| `templates/bo_client_full` | Same public contract with optional feature-flag GP path | `rbf_proxy` | `botorch_gp` (`--enable-botorch-gp` / config flag) or native `ax` | full core/lifecycle parity; Ax recovery commands |
-
-All template variants use the same canonical JSON contract file conventions and
-the same state/log artifact model under `state/`.
-
-Native Ax integration is available in `bo_client` and `bo_client_full`.
-See [Ax backend configuration and compatibility](docs/ax-backend.md)
-for the optional dependency setup, supported shapes, and recovery boundaries.
-Select one numerical backend; Ax cannot be combined with the direct-GP flag.
-Existing template defaults remain unchanged.
-
-## Examples and Case Studies
-
-The `examples/` folder shows integration patterns, not benchmark leaderboards.
-
-- `examples/toy-objectives/01_python_function/`: in-process evaluator pattern
-- `examples/toy-objectives/02_subprocess_cli/`: subprocess/CLI wrapper pattern
-- `examples/toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end
-  objective (`suggest -> evaluate -> ingest -> status`, typically under one minute)
-- `docs/examples/multi_objective/`: generated multi-objective report/state pack
-  with weighted-sum and lexicographic objective-schema examples
-- `docs/examples/batch_async/`: batch bundle, JSONL handoff, lease-token, and
-  pending-state example pack
-- `docs/examples/starterkit/`: webhook config/payload examples, rendered
-  Airflow/Slurm assets, queue-worker plan output, and tracker payload examples
-- [`docs/examples/warm_start/README.md`](docs/examples/warm_start/README.md):
-  permissive import report, JSONL/CSV export, and manifest/state example pack
-  for warm-start workflows
-
-Run the tiny end-to-end objective from repo root:
-
-```bash
-python3 examples/toy_objectives/03_tiny_quadratic_loop/run_tiny_loop.py --steps 6
-```
-
-### Case-Study Gallery (Mainstream-First)
-
-- **ETL throughput tuning**: optimize `batch_size`, worker count, and retry policy;
-  score = `cost_per_gb + latency_penalty`.
-- **API/service tuning**: optimize concurrency limits, cache TTL, and timeout knobs;
-  score = `p95_latency + error_rate_penalty`.
-- **Search/ranking calibration**: optimize blending weights and threshold gates;
-  score = `-relevance_metric + latency_penalty`.
-- **Simulation meshing (specialized)**: optimize mesh density/refinement controls;
-  score = `runtime + instability_penalty`.
-- **Assay/process protocol (specialized)**: optimize concentration/time/temperature;
-  score = `-yield + failure_penalty`.
-- **OpenFOAM-style workflow (specialized)**: optimize meshing/solver controls;
-  score = `wall_clock_time + nonconvergence_penalty`.
-
-Expanded gallery with equal mainstream/specialized coverage is in
-[`docs/use-cases.md`](docs/use-cases.md).
-
-### Decision-Trace and CLI Transcript Assets
-
-- `docs/examples/decision_trace/golden_acquisition_log.jsonl`
-- `docs/examples/decision_trace/golden_acquisition_log.md`
-- `docs/examples/decision_trace/cli_transcript.md`
-
-## Pilot and Service Options
-
-- Self-serve: use templates directly in your environment.
-- Assisted integration: wire your evaluator with the starter harness.
-- Managed execution support: run a pilot loop with clear deliverables.
-- Optional on-prem/offline support: operate entirely in client-controlled
-  infrastructure.
-
-If you are evaluating fit for a pilot, start with [`PILOT.md`](PILOT.md),
-[`intake.md`](intake.md), or contact
-[contact@looptimum.com](mailto:contact@looptimum.com).
-For first-impression and adoption feedback, use the GitHub Issues template at
-`.github/ISSUE_TEMPLATE/first-impressions.yml` (Issues are the primary
-feedback source of truth).
-
-## Deeper Docs
-
-- `docs/how-it-works.md`
-- `docs/integration-guide.md`
-- `docs/integration-starter-kit.md`
-- `docs/aws-batch-integration.md`
-- `docs/operational-semantics.md`
-- `docs/recovery-playbook.md`
-- `docs/ci-knob-tuning.md`
-- `docs/stability-guarantees.md`
-- `docs/type-safety.md`
-- `docs/feedback-loop.md`
-- `docs/search-space.md`
-- `docs/constraints.md`
-- `docs/decision-trace.md`
-- `docs/pilot-checklist.md`
-- `docs/faq.md`
-- `docs/security-data-handling.md`
-- `docs/use-cases.md`
-- `client_harness_template/README_INTEGRATION.md`
-- `quickstart/README.md`
-- `reports/phase8_release_readiness.md`
-- `reports/v0.2.0_release_execution_checklist.md`
-
-## Testing
-
-Install test dependencies:
-
-```bash
-python3 -m pip install -r requirements-dev.txt
-```
-
-For local work on the optional AWS Batch executor path, also install:
-
-```bash
-python3 -m pip install ".[aws]"
-```
-
-Run repo test suites:
-
-```bash
-python3 -m pytest -q templates client_harness_template/tests service/tests
-```
-
-Optional GP backend validation for `bo_client`:
-
-```bash
-RUN_GP_TESTS=1 python3 -m pytest -q \
-  templates/bo_client/tests/test_suggest.py::test_suggest_works_with_gp_backend
-```
-
-## Automation Note (Machine-Readable Suggest)
-
-For machine parsing of `suggest` output, use:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py suggest \
-  --project-root templates/bo_client_demo \
-  --json-only
-```
-
-For worker fan-out, use line-delimited output:
-
-```bash
-python3 templates/bo_client_demo/run_bo.py suggest \
-  --project-root templates/bo_client_demo \
-  --count 3 \
-  --jsonl
-```
-
-Bundle JSON, JSONL handoff, `max_pending_trials`, and lease-token examples are
-captured in `docs/examples/batch_async/README.md`.
-Starter webhook, scheduler, and tracker adapter examples are captured in
-`docs/examples/starterkit/README.md`.
+For research or engineering integration questions, contact
+[contact@looptimum.io](mailto:contact@looptimum.io). The
+[pilot overview](PILOT.md), [intake](intake.md) and
+[pilot checklist](docs/pilot-checklist.md) help define the objective, evaluator,
+budget and operating constraints before a campaign begins.

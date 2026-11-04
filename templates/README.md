@@ -1,51 +1,60 @@
 # Templates
 
-Public runnable optimization harness variants copied from the current workspace (cleaned for release).
+Start with the [portable ordinary-controller quickstart](../quickstart/README.md).
+Each campaign needs its configuration, runtime modules and schemas; copying only
+`run_bo.py` is insufficient. The service wheel does not include these templates.
 
-Each variant below is part of the Looptimum template surface.
+## Backend choices
 
-- `bo_client_demo/`: proxy-only, dependency-light demo path
-- `bo_client/`: baseline client harness with config-selected backend (`rbf_proxy` or optional `gp`)
-- `bo_client_full/`: proxy + optional BoTorch GP behind feature flag
+| Template | Default backend | Optional backends |
+| --- | --- | --- |
+| `bo_client_demo` | `rbf_proxy` | none |
+| `bo_client` | `rbf_proxy` | `gp`, `ax` |
+| `bo_client_full` | `rbf_proxy` | `botorch_gp`, `ax` |
 
-Each template exposes the same CLI surface:
+Ordinary direct GP uses `surrogate.type: "gp"`. Full BoTorch GP uses
+`--enable-botorch-gp` or its configuration flag. Native Ax uses
+`optimizer.backend: "ax"` on ordinary/full controllers, not `surrogate.type`.
+See [optimizer behavior](../docs/how-it-works.md), the
+[Ax support matrix](../docs/ax-support-matrix.md) and
+[Ax CPU installation](../docs/ax-installation.md) for dependencies and limits.
+Demo remains proxy-only. All defaults stay dependency-light.
 
-- `status`
-- `suggest`
-- `ingest`
-- `demo`
+## Commands and preview consumers
 
-## Shared Contract Runtime
+The core loop is `suggest`, external evaluation, `ingest`, then `status`;
+`demo` provides a synthetic loop. Lifecycle, archive, import/export, health,
+metrics and diagnostic commands are listed in the
+[quick reference](../docs/quick-reference.md). Ordinary/full controllers also
+provide Ax allocation recovery and optimizer rebuild commands.
 
-Canonical shared contract components live under:
+The standalone CLI does not start preview services. These feature flags are
+active gates enforced by `service/registry.py` when the corresponding service
+routes are used:
 
-- `templates/_shared/contract.py`
-- `templates/_shared/schemas/`
+| Flag | Consumer |
+| --- | --- |
+| `enable_service_api_preview` | Campaign registration/service API |
+| `enable_dashboard_preview` | Dashboard routes |
+| `enable_auth_preview` | Auth-protected preview routes |
+| `enable_multi_controller_preview` | Coordinated preview routes |
 
-Template-local `schemas/` directories are compatibility copies for standalone
-use:
+See [service startup](../docs/service-api-preview.md) before using preview
+surfaces. The [effective configuration table](../docs/how-it-works.md#effective-and-ignored-configuration)
+distinguishes these external consumers from genuinely ignored sample settings.
 
-- canonical: `ingest_payload.schema.json`, `search_space.schema.json`,
-  `suggestion_payload.schema.json`
+## Portable copies and shared contracts
 
-Template-local `bo_config.json` files now share a common `feature_flags`
-scaffold:
+The [quickstart](../quickstart/README.md) demonstrates the supported generator
+from stock `bo_client` into an empty directory outside the source templates.
+It vendors runtime helpers and schemas under `vendor/looptimum_shared/` and
+rewrites controller/schema paths. Copy the root license as shown there.
+Named default histories and caches are omitted; arbitrary customized campaign
+paths require separate inspection.
 
-- active today:
-  `enable_botorch_gp`,
-  `fallback_to_proxy_if_unavailable` (`bo_client_full` only),
-  `enable_service_api_preview`,
-  `enable_dashboard_preview`
-- reserved no-op preview flag:
-  `enable_auth_preview`
+Canonical contracts live in `templates/_shared/contract.py` and
+`templates/_shared/schemas/`. Template-local `schemas/` directories are
+compatibility copies. Keep the full generated bundle with each campaign.
 
-To create a self-contained portable copy of the full controller template:
-
-```bash
-python3 templates/_shared/vendor_copy.py templates/bo_client_full /tmp/looptimum-controller
-```
-
-The portable copy places every runtime helper and schema under
-`vendor/looptimum_shared/`, rewrites `run_bo.py` to load those local modules,
-and rewrites all schema paths in `bo_config.json`. The destination must be
-empty and contains no local controller state or generated demo result.
+Variant references: [ordinary](./bo_client/README.md),
+[full](./bo_client_full/README.md), [demo](./bo_client_demo/README.md).

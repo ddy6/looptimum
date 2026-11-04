@@ -7,7 +7,24 @@ That same structure turned out to transfer well into adjacent layers of computat
 The repo shows the core of that system; in some settings it stands on its own, and in others it becomes the starting point for a more specific discussion about fit, constraints, and deployment context.
 
 If you want to talk through fit or timing, reach out at
-[contact@looptimum.com](mailto:contact@looptimum.com).
+[contact@looptimum.io](mailto:contact@looptimum.io).
+
+## Installation routes
+
+| Route | Provides | Run it through |
+| --- | --- | --- |
+| Portable ordinary controller / default proxy | Complete controller, local runtime and schemas; no numerical stack | [Portable quickstart](../quickstart/README.md) |
+| Portable controller with native Ax | Same controller interface plus optional numerical dependencies | [Ax CPU/offline installation](./ax-installation.md) and [backend guide](./ax-backend.md) |
+| `looptimum` wheel and optional extras | Preview `service` package and selected dependencies; no controller templates or installed controller CLI | [Service API preview](./service-api-preview.md) |
+
+A raw controller script is not a complete portable campaign. Use the supported
+generator with stock templates and keep the copied runtime, configuration,
+schemas and license together. See [templates](../templates/README.md).
+
+`pip install '.[ax]'` requests optional dependencies from a source checkout;
+it does not replace the matching-target CPU wheelhouse workflow, complete hash
+inventory and installation receipt in the Ax guide. Snapshot continuation
+version checks and full installation provenance serve different purposes.
 
 ---
 

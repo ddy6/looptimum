@@ -2,6 +2,11 @@
 
 Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration and restartable state.
 
+For a fresh campaign, follow the [portable quickstart](../../quickstart/README.md).
+See the [template map](../README.md) for the complete CLI/backend boundary and
+[effective configuration](../../docs/how-it-works.md#effective-and-ignored-configuration)
+for ignored sample settings.
+
 ## Path Guidance
 
 - Running this template directly means you are on the repo path.
@@ -14,10 +19,7 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 
 ## Files
 
-- `run_bo.py`: `suggest`, `ingest`, `import-observations`,
-  `export-observations`, `status`, `demo`, `cancel`, `retire`, `heartbeat`,
-  `report`, `reset`, `list-archives`, `restore`, `prune-archives`,
-  `validate`, `doctor`
+- `run_bo.py`: controller entrypoint; see the [CLI reference](../../docs/quick-reference.md).
 - `bo_config.json`: budget, surrogate/acquisition, shared `feature_flags`,
   seed, paths
 - `parameter_space.json`: typed parameter bounds
@@ -34,8 +36,9 @@ Proxy-surrogate optimization harness (`rbf_proxy`) with explicit configuration a
 ## Notes
 
 - JSON (`.json`) is the required contract format.
-- `feature_flags` exists in all templates; preview flags are reserved scaffolding
-  and no-op in the current file-backed runtime.
+- `feature_flags` exists in all templates; preview flags are enforced by the
+  service registry when using the corresponding preview routes. They do not
+  start services inside the standalone CLI.
 - This demo variant intentionally leaves out BoTorch.
 - Mutating commands use an exclusive lock (`state/.looptimum.lock`) with
   wait+timeout behavior and optional `--fail-fast`.

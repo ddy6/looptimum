@@ -6,6 +6,11 @@ responsibilities, realistic evaluation budgets, and auditable deliverables.
 This checklist complements `intake.md` and the integration docs. It is intended
 for implementation planning, not marketing collateral.
 
+Use the existing [parameter-selection guidance](./search-space.md#choose-a-useful-parameter-space)
+and [measurement/objective guidance](./integration-guide.md#choose-parameters-and-define-the-measurement)
+to complete the entry checklist. Freeze comparison budgets, repeat policy and
+domain acceptance criteria before running the pilot.
+
 ## 1. Entry Checklist (Before Any Run)
 
 Required before pilot execution:
