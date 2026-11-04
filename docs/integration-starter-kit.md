@@ -10,7 +10,7 @@ The source of truth remains the same:
 1. controller runs `suggest`
 2. evaluator runs externally
 3. controller or worker wrapper runs `ingest`
-4. state, reports, and logs stay local under `state/`
+4. state, reports, and logs stay local at configured paths (`state/` by default)
 
 ## What Ships
 
@@ -33,6 +33,12 @@ Current starter-kit modules:
 
 These helpers are optional. They wrap existing public contracts instead of
 adding a second runtime path.
+
+Tracking follows the controller's configured artifact paths. Complete portable
+controllers include the shared path helper; copied harnesses reading artifact-only
+campaigns need that helper beside the tracker. See the
+[harness copying guidance](../client_harness_template/README.md). Webhook sidecars
+use their own explicitly configured event-log path.
 
 ## Safe Topology
 

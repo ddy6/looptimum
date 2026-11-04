@@ -49,8 +49,11 @@ The [quickstart](../quickstart/README.md) demonstrates the supported generator
 from stock `bo_client` into an empty directory outside the source templates.
 It vendors runtime helpers and schemas under `vendor/looptimum_shared/` and
 rewrites controller/schema paths. Copy the root license as shown there.
-Named default histories and caches are omitted; arbitrary customized campaign
-paths require separate inspection.
+Default and configured runtime histories, reset archives and caches are omitted.
+Runtime paths must stay relative to and inside the campaign; source symlinks
+and paths overlapping controller code are rejected before copying. Generated
+module inventories follow each template's supported backends. Use archive
+restore when you intend to resume an existing campaign.
 
 Canonical contracts live in `templates/_shared/contract.py` and
 `templates/_shared/schemas/`. Template-local `schemas/` directories are

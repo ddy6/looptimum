@@ -23,6 +23,9 @@ Current blocking CI gate scope, configured in `pyproject.toml`:
 Gate runtime for CI: Python `3.12`. Install from `requirements-dev.txt` in a
 lean environment without Torch, BoTorch or Ax. An optional numerical environment
 can hide missing-import errors and does not substitute for this gate.
+Inherited `PYTHONPATH`, `PYTHONHOME` or `PYTHONUSERBASE` settings can also select
+packages outside an activated environment. Clear those overrides for local
+validation and any child processes it launches.
 
 ## Strictness Profile
 
@@ -76,7 +79,7 @@ new suppressions.
 From repo root:
 
 ```bash
-python3 -m mypy
+env -u PYTHONPATH -u PYTHONHOME -u PYTHONUSERBASE python3 -m mypy
 ```
 
 Before opening a PR, run full validation from `CONTRIBUTING.md`.
