@@ -102,6 +102,7 @@ load_trial_manifest = _RUNTIME.load_trial_manifest
 pending_age_seconds = _RUNTIME.pending_age_seconds
 resolve_lock_timeout_seconds = _RUNTIME.resolve_lock_timeout_seconds
 resolve_max_pending_age_seconds = _RUNTIME.resolve_max_pending_age_seconds
+resolve_retire_max_age_seconds = _RUNTIME.resolve_retire_max_age_seconds
 resolve_max_pending_trials = _RUNTIME.resolve_max_pending_trials
 resolve_worker_leases_enabled = _RUNTIME.resolve_worker_leases_enabled
 resolve_runtime_paths = _RUNTIME.resolve_runtime_paths
@@ -2549,6 +2550,9 @@ def cmd_retire(args: argparse.Namespace) -> None:
     obj_cfg = _load_objective_config(root, cfg)
     paths = _runtime_paths(root, cfg)
     lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
+    max_age_for_stale = (
+        resolve_retire_max_age_seconds(cfg, args.max_age_seconds) if args.stale else None
+    )
 
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
@@ -2565,18 +2569,7 @@ def cmd_retire(args: argparse.Namespace) -> None:
             now = time.time()
 
             stale_ids: set[int] = set()
-            max_age_for_stale: float | None = None
-            if args.stale:
-                if args.max_age_seconds is not None:
-                    max_age_for_stale = float(args.max_age_seconds)
-                    if max_age_for_stale <= 0:
-                        raise ValueError("--max-age-seconds must be > 0 when provided")
-                else:
-                    max_age_for_stale = resolve_max_pending_age_seconds(cfg)
-                if max_age_for_stale is None:
-                    raise ValueError(
-                        "retire --stale requires max_pending_age_seconds in config or --max-age-seconds"
-                    )
+            if max_age_for_stale is not None:
                 stale_ids = {
                     int(pending["trial_id"])
                     for pending in state["pending"]
@@ -3130,6 +3123,11 @@ def cmd_validate(args: argparse.Namespace) -> None:
         obj_cfg = _load_objective_config(root, cfg)
     except Exception as exc:
         hard_errors.append(f"objective_schema validation failure: {exc}")
+
+    try:
+        resolve_lock_timeout_seconds(cfg)
+    except Exception as exc:  # pragma: no cover
+        hard_errors.append(f"config validation failure: {exc}")
 
     try:
         max_pending_age = resolve_max_pending_age_seconds(cfg)

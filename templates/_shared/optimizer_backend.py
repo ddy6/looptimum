@@ -137,9 +137,26 @@ def optimizer_diagnostics(
             versions.values()
         )
         result["supported_ax_version"] = AX_TESTED_VERSION
-        result["inactive_legacy_settings"] = [
+    inactive: list[str] = []
+    if optimizer["backend"] == "ax":
+        inactive.extend(
             key
             for key in ("surrogate", "acquisition", "initial_random_trials", "candidate_pool_size")
             if key in cfg
-        ]
+        )
+    stopping = cfg.get("stopping")
+    if isinstance(stopping, dict):
+        inactive.extend(
+            f"stopping.{key}" for key in ("min_improvement", "patience_trials") if key in stopping
+        )
+    surrogate = cfg.get("surrogate")
+    if (
+        optimizer["backend"] == "legacy"
+        and template == "bo_client"
+        and isinstance(surrogate, dict)
+        and "gp_model" in surrogate
+    ):
+        inactive.append("surrogate.gp_model")
+    if inactive or optimizer["backend"] == "ax":
+        result["inactive_legacy_settings"] = inactive
     return result

@@ -48,15 +48,18 @@ and [backend guide](./ax-backend.md) for capabilities and recovery.
 | `initial_random_trials`, `candidate_pool_size`, `surrogate`, `acquisition` | Legacy proxy/direct-GP initialization and suggestion policy |
 | `optimizer.backend`, `optimizer.ax` | Native Ax selection and its own initialization/generation settings |
 | Service/dashboard/auth/multi-controller feature flags | Active preview-service registry gates; do not start services inside the standalone CLI |
-| `stopping.min_improvement`, `stopping.patience_trials` | Ignored by the current runtime; still present in sample configurations |
+| `stopping.min_improvement`, `stopping.patience_trials` | Ignored by the current runtime; removed from current sample configurations |
 | Ordinary `surrogate.gp_model.kernel`, `surrogate.gp_model.ard` | Ignored; ordinary direct GP uses its hard-coded model |
 
-With Ax selected, existing optimizer diagnostics expose `inactive_legacy_settings`
-for supplied legacy surrogate/acquisition/initialization/pool settings. This does
-not mean ordinary diagnostics already warn about every ignored sample key.
-Do not rely on the inert stopping fields for a stopping policy; the evaluator
-or campaign operator must own any additional policy. Historical configurations
-remain accepted; this guide does not change their values or interpretation.
+`doctor --json` exposes supplied ignored controls in
+`optimizer.inactive_legacy_settings`: the two stopping fields in every template,
+and `surrogate.gp_model` in the ordinary legacy controller. With Ax selected,
+the same list also identifies supplied legacy surrogate/acquisition/initialization/
+pool settings; the `surrogate` entry covers its entire ignored subtree.
+Clean legacy configurations omit the list. This is a diagnostic, not an
+implementation of those controls or validation of every unknown configuration key.
+Historical configurations remain accepted with the same ignored behavior.
+The evaluator or campaign operator must own any additional stopping policy.
 
 ## Suggest Policy (Conceptual)
 

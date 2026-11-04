@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import time
@@ -141,10 +142,20 @@ def payload_schema_version(state: dict[str, Any]) -> str:
     return STATE_SCHEMA_VERSION if (major, minor) == AX_STATE_SCHEMA_SERIES else persisted
 
 
-def _as_positive_float(value: Any, *, field_name: str) -> float:
+def _as_finite_float(value: Any, *, field_name: str) -> float:
+    try:
+        out = float(value)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError(f"{field_name} must be finite and numeric") from None
+    if not math.isfinite(out):
+        raise ValueError(f"{field_name} must be finite")
+    return out
+
+
+def _as_nonnegative_float(value: Any, *, field_name: str) -> float:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise ValueError(f"{field_name} must be numeric, got: {value!r}")
-    out = float(value)
+    out = _as_finite_float(value, field_name=field_name)
     if out < 0.0:
         raise ValueError(f"{field_name} must be >= 0, got: {value!r}")
     return out
@@ -168,19 +179,33 @@ def resolve_runtime_paths(project_root: Path, paths_cfg: dict[str, Any]) -> dict
 
 def resolve_lock_timeout_seconds(cfg: dict[str, Any], cli_override: float | None = None) -> float:
     if cli_override is not None:
-        return _as_positive_float(cli_override, field_name="--lock-timeout-seconds")
+        return _as_nonnegative_float(cli_override, field_name="--lock-timeout-seconds")
     raw = cfg.get("lock_timeout_seconds", DEFAULT_LOCK_TIMEOUT_SECONDS)
-    return _as_positive_float(raw, field_name="lock_timeout_seconds")
+    return _as_nonnegative_float(raw, field_name="lock_timeout_seconds")
 
 
 def resolve_max_pending_age_seconds(cfg: dict[str, Any]) -> float | None:
     raw = cfg.get("max_pending_age_seconds", DEFAULT_MAX_PENDING_AGE_SECONDS)
     if raw is None:
         return None
-    value = _as_positive_float(raw, field_name="max_pending_age_seconds")
+    value = _as_nonnegative_float(raw, field_name="max_pending_age_seconds")
     if value == 0.0:
         return None
     return value
+
+
+def resolve_retire_max_age_seconds(cfg: dict[str, Any], cli_override: float | None = None) -> float:
+    if cli_override is not None:
+        value = _as_nonnegative_float(cli_override, field_name="--max-age-seconds")
+        if value == 0.0:
+            raise ValueError("--max-age-seconds must be > 0 when provided")
+        return value
+    configured = resolve_max_pending_age_seconds(cfg)
+    if configured is None:
+        raise ValueError(
+            "retire --stale requires max_pending_age_seconds in config or --max-age-seconds"
+        )
+    return configured
 
 
 def resolve_max_pending_trials(cfg: dict[str, Any]) -> int | None:
@@ -329,9 +354,13 @@ class ExclusiveFileLock:
         poll_interval_seconds: float = 0.1,
     ) -> None:
         self.path = path
-        self.timeout_seconds = max(0.0, float(timeout_seconds))
+        self.timeout_seconds = max(
+            0.0, _as_finite_float(timeout_seconds, field_name="timeout_seconds")
+        )
         self.fail_fast = bool(fail_fast)
-        self.poll_interval_seconds = max(0.01, float(poll_interval_seconds))
+        self.poll_interval_seconds = max(
+            0.01, _as_finite_float(poll_interval_seconds, field_name="poll_interval_seconds")
+        )
         self._handle: Any | None = None
         self.wait_seconds = 0.0
 

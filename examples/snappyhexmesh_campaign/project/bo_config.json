@@ -5,11 +5,7 @@
   "candidate_pool_size": 300,
   "surrogate": {
     "type": "rbf_proxy",
-    "length_scale": 0.22,
-    "gp_model": {
-      "kernel": "matern_2.5",
-      "ard": true
-    }
+    "length_scale": 0.22
   },
   "acquisition": {
     "type": "ei",
@@ -17,10 +13,6 @@
     "xi": 0.01
   },
   "batch_size": 1,
-  "stopping": {
-    "min_improvement": 0.0001,
-    "patience_trials": 6
-  },
   "paths": {
     "state_file": "state/bo_state.json",
     "observations_csv": "state/observations.csv",
