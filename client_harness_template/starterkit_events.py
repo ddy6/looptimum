@@ -24,7 +24,10 @@ def _require_object(value: Any, *, field_name: str) -> dict[str, Any]:
 def _require_finite_float(value: Any, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field_name} must be numeric")
-    normalized = float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{field_name} must be finite") from exc
     if not math.isfinite(normalized):
         raise ValueError(f"{field_name} must be finite")
     return normalized

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any
@@ -38,9 +39,12 @@ def _optional_string(value: Any, *, field_name: str) -> str | None:
 def _positive_float(value: Any, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field_name} must be numeric")
-    normalized = float(value)
-    if normalized <= 0.0:
-        raise ValueError(f"{field_name} must be > 0")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{field_name} must be finite and > 0") from exc
+    if not math.isfinite(normalized) or normalized <= 0.0:
+        raise ValueError(f"{field_name} must be finite and > 0")
     return normalized
 
 

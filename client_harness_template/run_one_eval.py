@@ -98,7 +98,10 @@ def _load_objective_module(path: Path) -> ModuleType:
 def _require_finite_number(value: Any, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field_name} must be a finite number")
-    out = float(value)
+    try:
+        out = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{field_name} must be a finite number") from exc
     if not math.isfinite(out):
         raise ValueError(f"{field_name} must be a finite number")
     return out

@@ -17,6 +17,8 @@ RUNTIME_MODULES = {
     "archives.py",
     "governance.py",
     "runtime.py",
+    "runtime_paths.py",
+    "controller_operations.py",
     "search_space.py",
     "observations_io.py",
     "optimizer_backend.py",
@@ -56,7 +58,12 @@ def test_portable_copy_is_self_contained_and_validates_from_an_empty_destination
     assert "Created portable Looptimum controller" in copied.stdout
 
     vendor_root = destination / "vendor" / "looptimum_shared"
-    assert {path.name for path in vendor_root.glob("*.py")} == RUNTIME_MODULES
+    expected_modules = RUNTIME_MODULES - (
+        {"optimizer_ax.py", "optimizer_ax_worker.py", "gp_fit.py"}
+        if variant == "bo_client_demo"
+        else set()
+    )
+    assert {path.name for path in vendor_root.glob("*.py")} == expected_modules
     assert {path.name for path in (vendor_root / "schemas").glob("*.json")} == SCHEMAS
 
     controller_source = (destination / "run_bo.py").read_text(encoding="utf-8")

@@ -63,6 +63,10 @@ parameters and backend-specific limits are explained in the
 ## Resume and inspect
 
 Campaign history lives under the copied controller's `state/` directory.
+For customized templates, the copy tool also omits configured runtime paths
+and reset archives. Fresh copies require relative artifact paths contained
+within the campaign and reject source symlinks or paths overlapping controller
+code. Use archive restore to resume history; a fresh copy starts empty.
 If ingest is interrupted, retain the completed result and retry ingestion;
 identical replay is a no-op, while conflicting replay is rejected. Do not
 rerun a completed evaluation just because its ingest needs retrying.

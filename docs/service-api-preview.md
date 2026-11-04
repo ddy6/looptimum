@@ -159,6 +159,11 @@ Reference docs:
 
 ## Operational Caveats
 
+- campaign reads and mutations execute in fresh child processes using the
+  service's Python environment; customized campaign imports and command output
+  are isolated between requests
+- malformed command output or an unexpectedly terminated worker is an error;
+  neither is reported as a successful empty suggestion
 - one controller/writer per campaign root still applies
 - the service does not bypass file locks or create a second mutation path
 - mutating endpoints fail whole-command, matching CLI/runtime boundaries

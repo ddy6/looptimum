@@ -19,3 +19,10 @@ The local adapter is a single-objective starter. Optional executors and sidecars
 have their own dependencies and operating requirements; see
 [AWS Batch](../docs/aws-batch-integration.md) and the
 [integration starter kit](../docs/integration-starter-kit.md).
+
+Tracking uses the controller's configured artifact paths, including custom
+state, reports and trial manifests. A complete portable controller provides the
+shared path helper. When copying the harness alone to read an artifact-only
+campaign, also copy `templates/_shared/runtime_paths.py` beside
+`starterkit_tracking.py`. A zero event limit returns no events; malformed event
+history still raises an error.

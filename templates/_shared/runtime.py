@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import math
 import os
@@ -9,7 +10,7 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Iterator
+from typing import Any, Iterator, cast
 
 fcntl: ModuleType | None
 try:
@@ -32,18 +33,23 @@ _STATE_SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-
 _STATE_SCHEMA_UPGRADE_FLAG = "_looptimum_schema_upgrade_pending"
 _WARNED_LEGACY_STATE_KEYS: set[str] = set()
 
-DEFAULT_PATHS = {
-    "state_file": "state/bo_state.json",
-    "observations_csv": "state/observations.csv",
-    "acquisition_log_file": "state/acquisition_log.jsonl",
-    "event_log_file": "state/event_log.jsonl",
-    "import_reports_dir": "state/import_reports",
-    "trials_dir": "state/trials",
-    "optimizer_dir": "state/optimizer",
-    "lock_file": "state/.looptimum.lock",
-    "report_json_file": "state/report.json",
-    "report_md_file": "state/report.md",
-}
+
+def _load_path_helpers() -> ModuleType:
+    path = Path(__file__).with_name("runtime_paths.py")
+    spec = importlib.util.spec_from_file_location("looptimum_runtime_paths", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load runtime path helpers: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_PATH_HELPERS = _load_path_helpers()
+DEFAULT_PATHS: dict[str, str] = _PATH_HELPERS.DEFAULT_PATHS
+
+
+def resolve_runtime_paths(project_root: Path, paths_cfg: dict[str, Any]) -> dict[str, Path]:
+    return cast(dict[str, Path], _PATH_HELPERS.resolve_runtime_paths(project_root, paths_cfg))
 
 
 def _parse_semver(value: Any, *, field_name: str) -> tuple[int, int, int]:
@@ -167,14 +173,6 @@ def _as_positive_int(value: Any, *, field_name: str) -> int:
     if value <= 0:
         raise ValueError(f"{field_name} must be >= 1, got: {value!r}")
     return int(value)
-
-
-def resolve_runtime_paths(project_root: Path, paths_cfg: dict[str, Any]) -> dict[str, Path]:
-    resolved: dict[str, Path] = {}
-    for key, default_rel in DEFAULT_PATHS.items():
-        rel = paths_cfg.get(key, default_rel)
-        resolved[key] = (project_root / str(rel)).resolve()
-    return resolved
 
 
 def resolve_lock_timeout_seconds(cfg: dict[str, Any], cli_override: float | None = None) -> float:

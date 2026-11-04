@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 from typing import Any
@@ -32,19 +33,44 @@ def _load_optional_json_object(path: Path, *, field_name: str) -> JSONDict | Non
 
 
 def _runtime_paths(project_root: Path) -> dict[str, Path]:
-    state_dir = project_root / "state"
-    return {
-        "bo_state": state_dir / "bo_state.json",
-        "report_json": state_dir / "report.json",
-        "report_md": state_dir / "report.md",
-        "event_log": state_dir / "event_log.jsonl",
-        "acquisition_log": state_dir / "acquisition_log.jsonl",
-        "trials_dir": state_dir / "trials",
+    # A copied harness can carry this small stdlib helper beside the tracker;
+    # complete controllers provide it in their shared or vendored runtime.
+    candidates = (
+        Path(__file__).with_name("runtime_paths.py"),
+        project_root / "vendor/looptimum_shared/runtime_paths.py",
+        project_root.parent / "_shared/runtime_paths.py",
+        Path(__file__).resolve().parents[1] / "templates/_shared/runtime_paths.py",
+        project_root / "vendor/looptimum_shared/runtime.py",  # older portable copies
+        project_root.parent / "_shared/runtime.py",
+    )
+    module_path = next((path for path in candidates if path.is_file()), None)
+    if module_path is None:
+        raise ValueError(
+            "Tracking requires the controller runtime or runtime_paths.py beside the harness"
+        )
+    spec = importlib.util.spec_from_file_location("looptimum_tracking_paths", module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load runtime paths: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    config_path = project_root / "bo_config.json"
+    config = _load_json_object(config_path, field_name="bo_config") if config_path.exists() else {}
+    configured = _require_object(config.get("paths", {}), field_name="bo_config.paths")
+    resolved = module.resolve_runtime_paths(project_root, configured)
+    labels = {
+        "bo_state": "state_file",
+        "report_json": "report_json_file",
+        "report_md": "report_md_file",
+        "event_log": "event_log_file",
+        "acquisition_log": "acquisition_log_file",
+        "trials_dir": "trials_dir",
+        "optimizer_dir": "optimizer_dir",
     }
+    return {label: resolved[key] for label, key in labels.items()}
 
 
 def _trial_manifest_path(project_root: Path, trial_id: int) -> Path:
-    return project_root / "state" / "trials" / f"trial_{int(trial_id)}" / "manifest.json"
+    return _runtime_paths(project_root)["trials_dir"] / f"trial_{int(trial_id)}" / "manifest.json"
 
 
 def _relative_or_absolute_path(project_root: Path, raw: Any) -> Path | None:
@@ -206,7 +232,10 @@ def load_tracking_snapshot(
 
     manifests = _load_manifest_summaries(root, sorted(set(trial_ids)))
     recent_events, _ = consume_starter_events(paths["event_log"])
-    event_payloads = [build_webhook_payload(event) for event in recent_events[-max_events:]]
+    event_payloads = [
+        build_webhook_payload(event)
+        for event in (recent_events[-max_events:] if max_events else [])
+    ]
 
     best_trial_id = None
     if best_record is not None:

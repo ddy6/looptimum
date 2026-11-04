@@ -98,7 +98,10 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 def _require_finite_number(value: Any, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field_name} must be a finite number")
-    normalized = float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{field_name} must be a finite number") from exc
     if not math.isfinite(normalized):
         raise ValueError(f"{field_name} must be a finite number")
     return normalized
@@ -374,38 +377,10 @@ def evaluate_via_batch(
         if record.status in _TERMINAL_RECORD_STATUSES and record.canonical_result is not None:
             return cast(CanonicalEvalResult, dict(record.canonical_result))
 
-    if record.status == "succeeded":
-        try:
-            result = download_trial_result(
-                s3_client,
-                output_s3_uri=record.output_s3_uri,
-                local_sidecar_path=_remote_result_sidecar_path(config, request.trial_id),
-            )
-        except Exception as exc:
-            failed_result = _terminal_result(
-                "failed",
-                f"Failed to load remote result from {record.output_s3_uri}: {exc}",
-            )
-            return _finalize_record(
-                config,
-                record,
-                status="failed",
-                aws_status=record.aws_status,
-                canonical_result=failed_result,
-                terminal_reason=failed_result["terminal_reason"],
-            )
-        return _finalize_record(
-            config,
-            record,
-            status="succeeded",
-            aws_status=record.aws_status,
-            canonical_result=result,
-            terminal_reason=result.get("terminal_reason"),
-        )
-
-    _, terminal_result = wait_for_batch_job(batch_client, record, config)
-    if terminal_result is not None:
-        return terminal_result
+    if record.status != "succeeded":
+        _, terminal_result = wait_for_batch_job(batch_client, record, config)
+        if terminal_result is not None:
+            return terminal_result
 
     try:
         result = download_trial_result(

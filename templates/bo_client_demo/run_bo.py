@@ -11,15 +11,49 @@ import json
 import math
 import os
 import random
-import secrets
-import shutil
 import sys
 import time
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+SUPPORTED_OPTIMIZER_BACKENDS = ("legacy",)
+
 _TEMPLATE_DIR = Path(__file__).resolve().parent
+
+
+def _controller_hooks() -> SimpleNamespace:
+    return SimpleNamespace(
+        _append_event=_append_event,
+        _append_governance_override_events_for_observations=_append_governance_override_events_for_observations,
+        _append_governance_violation_event=_append_governance_violation_event,
+        _build_health_payload=_build_health_payload,
+        _build_metrics_payload=_build_metrics_payload,
+        _build_report_payload=_build_report_payload,
+        _ensure_terminal_manifest=_ensure_terminal_manifest,
+        _load_objective_config=_load_objective_config,
+        _new_terminal_observation=_new_terminal_observation,
+        _pop_pending=_pop_pending,
+        _render_report_markdown=_render_report_markdown,
+        _runtime_paths=_runtime_paths,
+        _save_state_and_rows=_save_state_and_rows,
+        atomic_write_json=atomic_write_json,
+        atomic_write_text=atomic_write_text,
+        build_reset_archive_manifest=build_reset_archive_manifest,
+        copy_path_to_archive=copy_path_to_archive,
+        hold_exclusive_lock=hold_exclusive_lock,
+        list_reset_archives=list_reset_archives,
+        load_contract_document=load_contract_document,
+        load_state=load_state,
+        render_reset_archive_listing=render_reset_archive_listing,
+        reset_archives_root=reset_archives_root,
+        reset_artifact_paths=reset_artifact_paths,
+        resolve_lock_timeout_seconds=resolve_lock_timeout_seconds,
+        restore_reset_archive=restore_reset_archive,
+        update_best=update_best,
+        write_archive_manifest=write_archive_manifest,
+    )
 
 
 def _load_shared_module(module_name: str, filename: str):
@@ -42,10 +76,10 @@ _OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py"
 _ARCHIVES = _load_shared_module("looptimum_shared_archives", "archives.py")
 _GOVERNANCE = _load_shared_module("looptimum_shared_governance", "governance.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
+_COMMON = _load_shared_module("looptimum_controller_operations", "controller_operations.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space", "search_space.py")
 _OBSERVATIONS_IO = _load_shared_module("looptimum_shared_observations_io", "observations_io.py")
 _OPTIMIZER = _load_shared_module("looptimum_optimizer_backend", "optimizer_backend.py")
-_AX = _load_shared_module("looptimum_optimizer_ax", "optimizer_ax.py")
 
 build_observation_contract = _CONTRACT.build_observation_contract
 diff_contract_records = _CONTRACT.diff_contract_records
@@ -471,11 +505,7 @@ def _runtime_paths(root: Path, cfg: dict) -> dict[str, Path]:
     return resolve_runtime_paths(root, raw)
 
 
-def _relative_path(root: Path, path: Path) -> str:
-    try:
-        return str(path.relative_to(root))
-    except ValueError:
-        return str(path)
+_relative_path = _COMMON._relative_path
 
 
 def _append_event(paths: dict[str, Path], event: str, **fields: Any) -> None:
@@ -563,55 +593,16 @@ def _append_governance_override_events_for_observations(
         )
 
 
-def _confirm_reset(args: argparse.Namespace, *, root: Path, archive_enabled: bool) -> None:
-    if args.yes:
-        return
-    if not sys.stdin.isatty():
-        raise ValueError("reset is destructive; re-run with --yes for non-interactive use")
-
-    archive_label = "enabled" if archive_enabled else "disabled"
-    print(f"Reset will remove runtime artifacts under {root} (archive={archive_label}).")
-    print("Type RESET to continue: ", end="", flush=True)
-    token = sys.stdin.readline().strip()
-    if token != "RESET":
-        raise ValueError("reset aborted: confirmation token mismatch")
+_confirm_reset = _COMMON._confirm_reset
 
 
-def _confirm_restore(args: argparse.Namespace, *, root: Path, archive_id: str) -> None:
-    if args.yes:
-        return
-    if not sys.stdin.isatty():
-        raise ValueError("restore is destructive; re-run with --yes for non-interactive use")
-
-    print(f"Restore will overwrite runtime artifacts under {root} from archive {archive_id}.")
-    print("Type RESTORE to continue: ", end="", flush=True)
-    token = sys.stdin.readline().strip()
-    if token != "RESTORE":
-        raise ValueError("restore aborted: confirmation token mismatch")
+_confirm_restore = _COMMON._confirm_restore
 
 
-def _confirm_prune(args: argparse.Namespace, *, root: Path) -> None:
-    if args.yes:
-        return
-    if not sys.stdin.isatty():
-        raise ValueError("prune-archives is destructive; re-run with --yes for non-interactive use")
-
-    print(
-        f"Prune will permanently delete reset archives under {root / 'state' / 'reset_archives'}."
-    )
-    print("Type PRUNE to continue: ", end="", flush=True)
-    token = sys.stdin.readline().strip()
-    if token != "PRUNE":
-        raise ValueError("prune-archives aborted: confirmation token mismatch")
+_confirm_prune = _COMMON._confirm_prune
 
 
-def _require_finite_number(value: Any, *, field_name: str, trial_id: int) -> float:
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise ValueError(f"trial_id {trial_id}: {field_name} must be a finite number")
-    out = float(value)
-    if not math.isfinite(out):
-        raise ValueError(f"trial_id {trial_id}: {field_name} must be a finite number")
-    return out
+_require_finite_number = _COMMON._require_finite_number
 
 
 def _load_heartbeat_fields(payload: dict, trial_id: int) -> dict[str, Any]:
@@ -1668,27 +1659,7 @@ def _build_metrics_payload(args: argparse.Namespace) -> tuple[dict, int]:
     return payload, exit_code
 
 
-def _validate_jsonl_file_hard(path: Path, *, label: str) -> list[str]:
-    if not path.exists():
-        return []
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except Exception as exc:
-        return [f"{label} unreadable: {exc}"]
-
-    errors: list[str] = []
-    for idx, raw_line in enumerate(lines, start=1):
-        line = raw_line.strip()
-        if not line:
-            continue
-        try:
-            payload = json.loads(line)
-        except Exception as exc:
-            errors.append(f"{label} line {idx} invalid JSON: {exc}")
-            continue
-        if not isinstance(payload, dict):
-            errors.append(f"{label} line {idx} must be a JSON object")
-    return errors
+_validate_jsonl_file_hard = _COMMON._validate_jsonl_file_hard
 
 
 def _validate_trial_manifests_hard(trials_dir: Path, objective_cfg: dict) -> list[str]:
@@ -1800,20 +1771,13 @@ def _parse_heartbeat_meta(raw: str | None) -> dict | None:
     return parsed
 
 
-def _normalize_lease_token(value: Any, *, field_name: str) -> str | None:
-    if value is None:
-        return None
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field_name} must be a non-empty string when present")
-    return value.strip()
+_normalize_lease_token = _COMMON._normalize_lease_token
 
 
-def _parse_cli_lease_token(raw: str | None) -> str | None:
-    return _normalize_lease_token(raw, field_name="--lease-token")
+_parse_cli_lease_token = _COMMON._parse_cli_lease_token
 
 
-def _build_lease_token() -> str:
-    return secrets.token_hex(16)
+_build_lease_token = _COMMON._build_lease_token
 
 
 def _require_matching_lease_token(
@@ -1865,8 +1829,6 @@ def cmd_suggest(args: argparse.Namespace) -> None:
     optimizer_cfg = _OPTIMIZER.normalize_optimizer_config(
         cfg, template="bo_client_demo", enable_botorch_gp=False
     )
-    if optimizer_cfg["backend"] == "ax":
-        _OPTIMIZER.validate_ax_capabilities(params, obj_cfg, constraints)
 
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
@@ -1969,43 +1931,24 @@ def cmd_suggest(args: argparse.Namespace) -> None:
             )
 
             planning_state = copy.deepcopy(state)
-            ax_plan = None
-            ax_latency_per_trial = 0.0
-            if optimizer_cfg["backend"] == "ax":
-                ax_started = time.perf_counter()
-                ax_plan = _AX.prepare_batch(
-                    root,
-                    paths,
-                    planning_state,
-                    cfg,
-                    params,
-                    obj_cfg,
-                    constraints,
-                    requested_count,
-                    optimizer_cfg,
-                )
-                ax_latency_per_trial = (time.perf_counter() - ax_started) / requested_count
             planned_suggestions: list[dict] = []
             planned_decisions: list[tuple[int, dict, float]] = []
             try:
                 for _ in range(requested_count):
-                    suggest_started = time.perf_counter() - ax_latency_per_trial
+                    suggest_started = time.perf_counter()
                     seed = int(planning_state["meta"]["seed"]) + int(
                         planning_state["next_trial_id"]
                     )
                     rng = random.Random(seed)
                     trial_id = int(planning_state["next_trial_id"])
-                    if ax_plan is not None:
-                        cand, decision = ax_plan[len(planned_suggestions)]
-                    else:
-                        cand, decision = propose(
-                            rng,
-                            planning_state,
-                            cfg,
-                            params,
-                            obj_cfg,
-                            constraints,
-                        )
+                    cand, decision = propose(
+                        rng,
+                        planning_state,
+                        cfg,
+                        params,
+                        obj_cfg,
+                        constraints,
+                    )
                     suggestion = {
                         "schema_version": state_schema_version(planning_state),
                         "trial_id": trial_id,
@@ -2474,69 +2417,7 @@ def cmd_export_observations(args: argparse.Namespace) -> None:
 
 
 def cmd_cancel(args: argparse.Namespace) -> None:
-    if args.trial_id is None:
-        raise ValueError("cancel requires --trial-id")
-
-    root = Path(args.project_root).resolve()
-    cfg, _ = load_contract_document(root, "bo_config")
-    if not isinstance(cfg, dict):
-        raise ValueError("bo_config must be an object")
-    obj_cfg = _load_objective_config(root, cfg)
-    paths = _runtime_paths(root, cfg)
-    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
-
-    with hold_exclusive_lock(
-        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
-    ) as lock:
-        _append_event(
-            paths,
-            "lock_acquired",
-            command="cancel",
-            pid=os.getpid(),
-            wait_seconds=lock.wait_seconds,
-        )
-        try:
-            state = load_state(paths["state_file"])
-            pending_entry = _pop_pending(state, int(args.trial_id))
-            if pending_entry is None:
-                raise ValueError(f"trial_id {args.trial_id} is not pending")
-
-            now = time.time()
-            terminal_reason = args.reason or "canceled"
-            observation = _new_terminal_observation(
-                pending_entry,
-                objective_cfg=obj_cfg,
-                terminal_reason=terminal_reason,
-                now=now,
-            )
-            state["observations"].append(observation)
-            update_best(state, obj_cfg)
-            _ensure_terminal_manifest(
-                root,
-                paths,
-                observation,
-                objective_cfg=obj_cfg,
-                payload_copy_path=None,
-                now=now,
-            )
-            _save_state_and_rows(paths, state)
-            _append_event(
-                paths,
-                "trial_canceled",
-                trial_id=observation["trial_id"],
-                reason=terminal_reason,
-            )
-            _append_governance_override_events_for_observations(
-                paths,
-                cfg,
-                command="cancel",
-                observations=[observation],
-                source="manual_cancel",
-            )
-            _append_governance_violation_event(root, paths, state, cfg, command="cancel")
-            print(f"Canceled trial_id={observation['trial_id']}. Pending={len(state['pending'])}")
-        finally:
-            _append_event(paths, "lock_released", command="cancel", pid=os.getpid())
+    _COMMON.cmd_cancel(args, api=_controller_hooks())
 
 
 def cmd_retire(args: argparse.Namespace) -> None:
@@ -2729,269 +2610,19 @@ def cmd_status(args: argparse.Namespace) -> None:
 
 
 def cmd_report(args: argparse.Namespace) -> None:
-    root = Path(args.project_root).resolve()
-    cfg, _ = load_contract_document(root, "bo_config")
-    if not isinstance(cfg, dict):
-        raise ValueError("bo_config must be an object")
-    obj_cfg = _load_objective_config(root, cfg)
-    paths = _runtime_paths(root, cfg)
-    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
-
-    with hold_exclusive_lock(
-        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
-    ) as lock:
-        _append_event(
-            paths,
-            "lock_acquired",
-            command="report",
-            pid=os.getpid(),
-            wait_seconds=lock.wait_seconds,
-        )
-        try:
-            state = load_state(paths["state_file"])
-            report = _build_report_payload(
-                state=state, objective_cfg=obj_cfg, top_n=max(1, int(args.top_n))
-            )
-            atomic_write_json(paths["report_json_file"], report, indent=2)
-            atomic_write_text(paths["report_md_file"], _render_report_markdown(report))
-            _append_event(
-                paths,
-                "report_generated",
-                report_json=_relative_path(root, paths["report_json_file"]),
-                report_md=_relative_path(root, paths["report_md_file"]),
-            )
-            _append_governance_violation_event(root, paths, state, cfg, command="report")
-            print(
-                "Generated report files:\n"
-                f"- {paths['report_json_file']}\n"
-                f"- {paths['report_md_file']}"
-            )
-        finally:
-            _append_event(paths, "lock_released", command="report", pid=os.getpid())
+    _COMMON.cmd_report(args, api=_controller_hooks())
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
-    root = Path(args.project_root).resolve()
-    cfg, _ = load_contract_document(root, "bo_config")
-    if not isinstance(cfg, dict):
-        raise ValueError("bo_config must be an object")
-
-    paths = _runtime_paths(root, cfg)
-    archive_enabled = True if args.archive is None else bool(args.archive)
-    _confirm_reset(args, root=root, archive_enabled=archive_enabled)
-
-    targets = reset_artifact_paths(root, paths)
-    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
-
-    with hold_exclusive_lock(
-        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
-    ) as lock:
-        _append_event(
-            paths,
-            "lock_acquired",
-            command="reset",
-            pid=os.getpid(),
-            wait_seconds=lock.wait_seconds,
-        )
-        try:
-            archive_root: Path | None = None
-            archived: list[tuple[str, str]] = []
-            archived_sources: list[tuple[str, Path]] = []
-            if archive_enabled:
-                archive_stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-                archive_root = (
-                    paths["state_file"].parent
-                    / "reset_archives"
-                    / f"reset-{archive_stamp}-{time.time_ns()}"
-                ).resolve()
-                archive_root.mkdir(parents=True, exist_ok=False)
-                for label, path in targets:
-                    if not path.exists():
-                        continue
-                    rel = _relative_path(root, path)
-                    dst = archive_root / rel
-                    copy_path_to_archive(path, dst)
-                    archived.append((rel, _relative_path(root, dst)))
-                    archived_sources.append((label, path))
-                manifest = build_reset_archive_manifest(
-                    root,
-                    archive_root,
-                    archived_sources,
-                    created_at=time.time(),
-                )
-                write_archive_manifest(archive_root, manifest)
-
-            removed: list[str] = []
-            missing: list[str] = []
-            for _, path in targets:
-                rel = _relative_path(root, path)
-                if not path.exists():
-                    missing.append(rel)
-                    continue
-                if path.is_dir() and not path.is_symlink():
-                    shutil.rmtree(path)
-                else:
-                    path.unlink()
-                removed.append(rel)
-
-            archive_rel = _relative_path(root, archive_root) if archive_root is not None else None
-            _append_event(
-                paths,
-                "campaign_reset",
-                archive_enabled=archive_enabled,
-                archive_path=archive_rel,
-                removed_count=len(removed),
-                missing_count=len(missing),
-            )
-            _append_governance_violation_event(
-                root,
-                paths,
-                load_state(paths["state_file"]),
-                cfg,
-                command="reset",
-            )
-
-            print("Campaign reset completed.")
-            if archive_enabled:
-                print(f"Archive: {archive_rel}")
-            else:
-                print("Archive: disabled")
-
-            if archived:
-                print("Archived artifacts:")
-                for src_rel, dst_rel in archived:
-                    print(f"- {src_rel} -> {dst_rel}")
-            elif archive_enabled:
-                print("Archived artifacts:")
-                print("- (none)")
-
-            print("Removed artifacts:")
-            if removed:
-                for rel in removed:
-                    print(f"- {rel}")
-            else:
-                print("- (none)")
-
-            if missing:
-                print("Already absent:")
-                for rel in missing:
-                    print(f"- {rel}")
-
-            if archive_root is not None:
-                print("Restore hint:")
-                print(
-                    f"- python3 run_bo.py restore --project-root {root} "
-                    f"--archive-id {archive_root.name} --yes"
-                )
-        finally:
-            _append_event(paths, "lock_released", command="reset", pid=os.getpid())
+    _COMMON.cmd_reset(args, api=_controller_hooks())
 
 
 def cmd_list_archives(args: argparse.Namespace) -> None:
-    root = Path(args.project_root).resolve()
-    cfg, _ = load_contract_document(root, "bo_config")
-    if not isinstance(cfg, dict):
-        raise ValueError("bo_config must be an object")
-
-    paths = _runtime_paths(root, cfg)
-    archives = list_reset_archives(root, paths)
-    archives_root_rel = _relative_path(root, reset_archives_root(paths))
-    for line in render_reset_archive_listing(archives, archives_root_rel=archives_root_rel):
-        print(line)
+    _COMMON.cmd_list_archives(args, api=_controller_hooks())
 
 
 def cmd_restore(args: argparse.Namespace) -> None:
-    if args.archive_id is None:
-        raise ValueError("restore requires --archive-id")
-
-    root = Path(args.project_root).resolve()
-    cfg, _ = load_contract_document(root, "bo_config")
-    if not isinstance(cfg, dict):
-        raise ValueError("bo_config must be an object")
-
-    paths = _runtime_paths(root, cfg)
-    _confirm_restore(args, root=root, archive_id=args.archive_id)
-    lock_timeout = resolve_lock_timeout_seconds(cfg, args.lock_timeout_seconds)
-
-    with hold_exclusive_lock(
-        paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
-    ) as lock:
-        lock_logged = False
-        try:
-            restore_result = restore_reset_archive(
-                args.archive_id,
-                project_root=root,
-                runtime_paths=paths,
-            )
-
-            _append_event(
-                paths,
-                "lock_acquired",
-                command="restore",
-                pid=os.getpid(),
-                wait_seconds=lock.wait_seconds,
-            )
-            lock_logged = True
-            _append_event(
-                paths,
-                "campaign_restored",
-                archive_id=restore_result["archive_id"],
-                archive_path=restore_result["archive_rel"],
-                legacy_archive=restore_result["legacy"],
-                restored_count=len(restore_result["restored_paths"]),
-                overwritten_count=len(restore_result["overwritten_paths"]),
-                ignored_count=len(restore_result["ignored_paths"]),
-            )
-            _append_governance_violation_event(
-                root,
-                paths,
-                load_state(paths["state_file"]),
-                cfg,
-                command="restore",
-            )
-
-            print("Campaign restore completed.")
-            print(f"Archive: {restore_result['archive_rel']}")
-            if restore_result["legacy"]:
-                print("Archive kind: legacy")
-
-            print("Restored artifacts:")
-            for rel in restore_result["restored_paths"]:
-                print(f"- {rel}")
-
-            print("Overwritten artifacts:")
-            if restore_result["overwritten_paths"]:
-                for rel in restore_result["overwritten_paths"]:
-                    print(f"- {rel}")
-            else:
-                print("- (none)")
-
-            if restore_result["ignored_paths"]:
-                print("Ignored archived artifacts:")
-                for rel in restore_result["ignored_paths"]:
-                    print(f"- {rel}")
-        except Exception as exc:
-            try:
-                _append_event(
-                    paths,
-                    "lock_acquired",
-                    command="restore",
-                    pid=os.getpid(),
-                    wait_seconds=lock.wait_seconds,
-                )
-                lock_logged = True
-                _append_event(
-                    paths,
-                    "campaign_restore_failed",
-                    archive_id=str(args.archive_id),
-                    error=str(exc),
-                )
-            except Exception:
-                pass
-            raise
-        finally:
-            if lock_logged:
-                _append_event(paths, "lock_released", command="restore", pid=os.getpid())
+    _COMMON.cmd_restore(args, api=_controller_hooks())
 
 
 def cmd_prune_archives(args: argparse.Namespace) -> None:
@@ -3151,10 +2782,6 @@ def cmd_validate(args: argparse.Namespace) -> None:
         optimizer_cfg = _OPTIMIZER.normalize_optimizer_config(
             cfg, template="bo_client_demo", enable_botorch_gp=False
         )
-        if optimizer_cfg["backend"] == "ax" and params is not None:
-            _OPTIMIZER.validate_ax_capabilities(
-                params, obj_cfg, _load_constraints(root, cfg, params)
-            )
     except Exception as exc:
         hard_errors.append(f"optimizer validation failure: {exc}")
 
@@ -3172,7 +2799,6 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
     try:
         _OPTIMIZER.assert_backend_matches_state(state, optimizer_cfg)
-        _AX.inspect_snapshot(root, paths, state)
     except Exception as exc:
         hard_errors.append(f"optimizer state validation failure: {exc}")
 
@@ -3205,17 +2831,11 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
 
 def cmd_health(args: argparse.Namespace) -> None:
-    payload, exit_code = _build_health_payload(args)
-    print(json.dumps(payload, indent=2))
-    if exit_code != 0:
-        raise SystemExit(exit_code)
+    _COMMON.cmd_health(args, api=_controller_hooks())
 
 
 def cmd_metrics(args: argparse.Namespace) -> None:
-    payload, exit_code = _build_metrics_payload(args)
-    print(json.dumps(payload, indent=2))
-    if exit_code != 0:
-        raise SystemExit(exit_code)
+    _COMMON.cmd_metrics(args, api=_controller_hooks())
 
 
 def cmd_doctor(args: argparse.Namespace) -> None:

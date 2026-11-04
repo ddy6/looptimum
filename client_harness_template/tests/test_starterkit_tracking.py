@@ -5,12 +5,52 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HARNESS_DIR = REPO_ROOT / "client_harness_template"
 if str(HARNESS_DIR) not in sys.path:
     sys.path.insert(0, str(HARNESS_DIR))
 
 starterkit_tracking = importlib.import_module("starterkit_tracking")
+
+
+@pytest.mark.parametrize(
+    "limit, expected", [(0, []), (1, ["ingested"]), (10, ["suggested", "ingested"])]
+)
+def test_tracking_event_limits(tmp_path: Path, limit: int, expected: list[str]) -> None:
+    _write_tracker_fixture(tmp_path)
+    snapshot = starterkit_tracking.load_tracking_snapshot(tmp_path, max_events=limit)
+    assert [event["topic"] for event in snapshot["recent_events"]] == expected
+
+
+def test_zero_events_still_detects_corrupt_event_history(tmp_path: Path) -> None:
+    _write_tracker_fixture(tmp_path)
+    with (tmp_path / "state/event_log.jsonl").open("a") as handle:
+        handle.write("not-json\n")
+    with pytest.raises(ValueError):
+        starterkit_tracking.load_tracking_snapshot(tmp_path, max_events=0)
+
+
+def test_tracking_honors_custom_paths_and_manifests(tmp_path: Path) -> None:
+    _write_tracker_fixture(tmp_path)
+    (tmp_path / "state").rename(tmp_path / "custom")
+    paths = {
+        "state_file": "custom/bo_state.json",
+        "report_json_file": "custom/report.json",
+        "report_md_file": "custom/report.md",
+        "event_log_file": "custom/event_log.jsonl",
+        "acquisition_log_file": "custom/acquisition_log.jsonl",
+        "trials_dir": "custom/trials",
+        "optimizer_dir": "custom/optimizer",
+    }
+    (tmp_path / "bo_config.json").write_text(json.dumps({"paths": paths}))
+    snapshot = starterkit_tracking.load_tracking_snapshot(tmp_path)
+    assert snapshot["counts"]["observations"] == 1
+    assert snapshot["manifests"]["2"]["trial_id"] == 2
+    assert snapshot["paths"]["bo_state"] == str(tmp_path / paths["state_file"])
+    assert snapshot["paths"]["optimizer_dir"] == str(tmp_path / paths["optimizer_dir"])
+    assert [event["topic"] for event in snapshot["recent_events"]] == ["suggested", "ingested"]
 
 
 def _write_tracker_fixture(project_root: Path) -> None:

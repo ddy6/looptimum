@@ -15,6 +15,19 @@ if str(HARNESS_DIR) not in sys.path:
 aws_config = importlib.import_module("aws_config")
 
 
+@pytest.mark.parametrize("field", ["poll_interval_seconds", "max_wait_seconds"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf"), 10**400, True])
+def test_nonfinite_timing_config_is_rejected(tmp_path: Path, field: str, value: object) -> None:
+    path = tmp_path / "config.json"
+    _write_config(path)
+    payload = json.loads(path.read_text())
+    payload["timeouts"][field] = value
+    path.write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match=field):
+        aws_config.load_aws_batch_config(path)
+    assert not (tmp_path / "sidecars").exists()
+
+
 def _write_config(path: Path, *, include_job_queue: bool = True) -> None:
     payload = {
         "region": "us-east-1",

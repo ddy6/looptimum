@@ -564,7 +564,10 @@ def build_observation_contract(observation: JSONDict, *, objective_cfg: JSONDict
         "objectives": dict(observation.get("objectives", {})),
         "status": status,
     }
-    if "penalty_objective" in observation:
+    # Stored non-ok observations use null for an absent optional penalty.
+    # Incoming payloads remain strict; only canonical-state reconstruction
+    # translates that representation back to an omitted field for replay.
+    if observation.get("penalty_objective") is not None:
         payload_like["penalty_objective"] = observation["penalty_objective"]
     if "terminal_reason" in observation:
         payload_like["terminal_reason"] = observation["terminal_reason"]

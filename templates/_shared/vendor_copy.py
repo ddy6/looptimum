@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import shutil
 from collections.abc import Callable
 from pathlib import Path
+
+from runtime_paths import DEFAULT_PATHS, resolve_runtime_paths
 
 RUNTIME_MODULES = (
     "contract.py",
@@ -16,6 +19,8 @@ RUNTIME_MODULES = (
     "archives.py",
     "governance.py",
     "runtime.py",
+    "runtime_paths.py",
+    "controller_operations.py",
     "search_space.py",
     "observations_io.py",
     "optimizer_backend.py",
@@ -44,6 +49,23 @@ RUNTIME_ARTIFACTS = frozenset(
 _CACHE_NAMES = frozenset({"__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache"})
 
 
+def _runtime_modules(template_dir: Path) -> tuple[str, ...]:
+    # Read an explicit literal capability declaration without executing campaign code.
+    tree = ast.parse((template_dir / "run_bo.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "SUPPORTED_OPTIMIZER_BACKENDS"
+            for target in node.targets
+        ):
+            backends = ast.literal_eval(node.value)
+            if backends == ("legacy",):
+                optional = {"optimizer_ax.py", "optimizer_ax_worker.py", "gp_fit.py"}
+                return tuple(name for name in RUNTIME_MODULES if name not in optional)
+            if backends != ("legacy", "ax"):
+                raise SystemExit("Unsupported portable optimizer capability declaration")
+    return RUNTIME_MODULES
+
+
 def _schema_filenames(shared_root: Path) -> tuple[str, ...]:
     schemas = tuple(sorted(path.name for path in (shared_root / "schemas").glob("*.schema.json")))
     if not schemas:
@@ -51,7 +73,48 @@ def _schema_filenames(shared_root: Path) -> tuple[str, ...]:
     return schemas
 
 
-def _template_copy_ignore(template_dir: Path) -> Callable[[str, list[str]], set[str]]:
+def _configured_artifacts(template_dir: Path) -> frozenset[str]:
+    cfg = json.loads((template_dir / "bo_config.json").read_text(encoding="utf-8"))
+    paths = cfg.get("paths", {})
+    if not isinstance(paths, dict):
+        raise SystemExit("Config paths must be an object")
+    resolved = resolve_runtime_paths(template_dir, paths)
+    protected = (
+        list(template_dir.glob("*.py"))
+        + list((template_dir / "vendor").rglob("*.py"))
+        + [
+            template_dir / name
+            for name in ("bo_config.json", "parameter_space.json", "objective_schema.json")
+        ]
+    )
+    artifacts = set(RUNTIME_ARTIFACTS)
+    for key, path in resolved.items():
+        raw = paths.get(key, DEFAULT_PATHS[key])
+        if not isinstance(raw, str) or not raw.strip() or Path(raw).is_absolute():
+            raise SystemExit(f"Fresh copy requires a relative runtime path: paths.{key}")
+        if path == template_dir or not path.is_relative_to(template_dir):
+            raise SystemExit(f"Fresh copy runtime path escapes the campaign: paths.{key}")
+        if any(
+            source == path or path in source.parents or source in path.parents
+            for source in protected
+        ):
+            raise SystemExit(f"Runtime artifact overlaps controller source: paths.{key}")
+        artifacts.add(path.relative_to(template_dir).as_posix())
+    artifacts.add(
+        (resolved["state_file"].parent / "reset_archives").relative_to(template_dir).as_posix()
+    )
+    # Following aliases can reintroduce excluded history or external files.
+    for source in template_dir.rglob("*"):
+        if source.is_symlink():
+            raise SystemExit(
+                f"Fresh copy does not follow source symlinks: {source.relative_to(template_dir)}"
+            )
+    return frozenset(artifacts)
+
+
+def _template_copy_ignore(
+    template_dir: Path, artifacts: frozenset[str]
+) -> Callable[[str, list[str]], set[str]]:
     def ignore(directory: str, names: list[str]) -> set[str]:
         ignored: set[str] = set()
         relative_dir = Path(directory).resolve().relative_to(template_dir)
@@ -59,7 +122,7 @@ def _template_copy_ignore(template_dir: Path) -> Callable[[str, list[str]], set[
             relative_path = (relative_dir / name).as_posix()
             if name in _CACHE_NAMES or name.endswith((".pyc", ".pyo")):
                 ignored.add(name)
-            elif relative_path in RUNTIME_ARTIFACTS:
+            elif relative_path in artifacts:
                 ignored.add(name)
         return ignored
 
@@ -74,13 +137,16 @@ def _require_empty_destination(destination: Path) -> None:
 
 
 def _vendor_runtime(
-    shared_root: Path, destination: Path, schema_filenames: tuple[str, ...]
+    shared_root: Path,
+    destination: Path,
+    schema_filenames: tuple[str, ...],
+    modules: tuple[str, ...],
 ) -> None:
     vendor_root = destination / VENDORED_SHARED_RELATIVE_DIR
     vendor_schemas = destination / VENDORED_SCHEMA_RELATIVE_DIR
     vendor_schemas.mkdir(parents=True, exist_ok=True)
 
-    for filename in RUNTIME_MODULES:
+    for filename in modules:
         source = shared_root / filename
         if not source.is_file():
             raise SystemExit(f"Required shared runtime module not found: {source}")
@@ -149,15 +215,17 @@ def main() -> None:
         raise SystemExit("Destination must not be the template directory or one of its children")
 
     _require_empty_destination(destination_dir)
+    modules = _runtime_modules(template_dir)
+    artifacts = _configured_artifacts(template_dir)
     schema_filenames = _schema_filenames(shared_root)
     destination_dir.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(
         template_dir,
         destination_dir,
         dirs_exist_ok=True,
-        ignore=_template_copy_ignore(template_dir),
+        ignore=_template_copy_ignore(template_dir, artifacts),
     )
-    _vendor_runtime(shared_root, destination_dir, schema_filenames)
+    _vendor_runtime(shared_root, destination_dir, schema_filenames, modules)
     if (destination_dir / "requirements-ax.txt").is_file():
         # Installation tooling is separate from the runtime and has no third-party imports.
         for filename in ("ax_install.py", "ax-constraints.txt"):

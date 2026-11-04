@@ -354,14 +354,18 @@ def test_evaluate_via_batch_malformed_remote_result_maps_to_failed(
     assert "Failed to load remote result" in result["terminal_reason"]
 
 
+@pytest.mark.parametrize("saved_status", ["submitted", "succeeded"])
+@pytest.mark.parametrize("valid_result", [True, False])
 def test_evaluate_via_batch_resumes_from_existing_recovery_record_without_resubmit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, saved_status: str, valid_result: bool
 ) -> None:
     config = _config(tmp_path)
     store: dict[tuple[str, str], str] = {}
     output_s3_uri = "s3://client-looptimum-runs/outputs/trial_7/result.json"
     bucket, key = _parse_s3_uri(output_s3_uri)
-    store[(bucket, key)] = json.dumps({"status": "ok", "objective": 1.5})
+    store[(bucket, key)] = (
+        json.dumps({"status": "ok", "objective": 1.5}) if valid_result else "broken-json"
+    )
 
     record = AWSRecoveryRecord(
         trial_id=7,
@@ -369,7 +373,7 @@ def test_evaluate_via_batch_resumes_from_existing_recovery_record_without_resubm
         batch_job_id="job-777",
         job_name="looptimum-trial-trial-7",
         submitted_at=1_000.0,
-        status="submitted",
+        status=saved_status,
         input_s3_uri="s3://client-looptimum-runs/inputs/trial_7/request.json",
         output_s3_uri=output_s3_uri,
     )
@@ -392,5 +396,13 @@ def test_evaluate_via_batch_resumes_from_existing_recovery_record_without_resubm
 
     result = aws_executor.evaluate_via_batch(_request(), config=config)
 
-    assert result == {"status": "ok", "objective": 1.5}
+    if valid_result:
+        assert result == {"status": "ok", "objective": 1.5}
+    else:
+        assert result["status"] == "failed"
+        assert "Failed to load remote result" in result["terminal_reason"]
     assert batch_client.submit_calls == []
+    assert batch_client.describe_calls == (1 if saved_status == "submitted" else 0)
+    get_count = len(s3_client.get_calls)
+    assert aws_executor.evaluate_via_batch(_request(), config=config) == result
+    assert len(s3_client.get_calls) == get_count

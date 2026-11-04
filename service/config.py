@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -87,12 +88,14 @@ def resolve_coordination_sqlite_file(registry_file: Path, path: str | Path | Non
 
 
 def _as_positive_float(value: Any, *, field_name: str) -> float:
+    if isinstance(value, bool):
+        raise ServiceConfigError(f"{field_name} must be a finite positive number")
     try:
         normalized = float(value)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         raise ServiceConfigError(f"{field_name} must be a positive number") from exc
-    if normalized <= 0.0:
-        raise ServiceConfigError(f"{field_name} must be > 0")
+    if not math.isfinite(normalized) or normalized <= 0.0:
+        raise ServiceConfigError(f"{field_name} must be finite and > 0")
     return normalized
 
 

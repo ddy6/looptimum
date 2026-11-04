@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sqlite3
 import time
 import uuid
@@ -8,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Protocol
 
-from service.config import ServiceCoordinationConfig
+from service.config import ServiceCoordinationConfig, _as_positive_float
 from service.models import ServiceCoordinationMode
 from service.registry import ServiceRegistryError
 
@@ -60,6 +61,9 @@ class SQLiteLeaseCoordinationBackend:
     mode: ServiceCoordinationMode = "sqlite_lease"
     requires_campaign_opt_in: bool = True
 
+    def __post_init__(self) -> None:
+        _as_positive_float(self.lease_ttl_seconds, field_name="lease_ttl_seconds")
+
     def _connect(self) -> sqlite3.Connection:
         self.sqlite_file.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(
@@ -85,7 +89,16 @@ class SQLiteLeaseCoordinationBackend:
 
     def _lease_duration_seconds(self, timeout_seconds: float | None) -> float:
         effective_timeout = self.lease_ttl_seconds if timeout_seconds is None else timeout_seconds
-        return max(self.lease_ttl_seconds, effective_timeout) + self.lease_ttl_seconds
+        try:
+            timeout = float(effective_timeout)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("lease timeout must be finite and >= 0") from exc
+        if isinstance(effective_timeout, bool) or not math.isfinite(timeout) or timeout < 0:
+            raise ValueError("lease timeout must be finite and >= 0")
+        duration = max(self.lease_ttl_seconds, timeout) + self.lease_ttl_seconds
+        if not math.isfinite(duration):
+            raise ValueError("lease duration must be finite")
+        return duration
 
     def _try_acquire(
         self,
