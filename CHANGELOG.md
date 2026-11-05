@@ -20,6 +20,13 @@ Earlier entries retain their historical `0.x` compatibility policy.
   proof assets, accessible figure context and internal CTA destinations.
 - Negative site-validation fixtures and a locked Node.js 24 CI lane.
 
+### Fixed
+- Prune exactly provable forbidden finite choices before Ax generation while
+  preserving typed public parameter identities and bounded remaining rejection.
+  Affected existing campaigns require explicit rebuild or a new campaign.
+- Retain saved benchmark restore checkpoints when a later campaign command fails;
+  reconcile the original receipts separately from its unchanged failed matrix.
+
 ## [1.0.0] - 2026-10-26
 
 Prepared release; publication is identified by the GitHub tag/release.

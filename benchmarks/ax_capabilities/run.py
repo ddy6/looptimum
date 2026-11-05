@@ -392,6 +392,9 @@ def run_case(output: Path, workload: str, arm: str, seed: int, plan: JSON) -> JS
         )
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
+    # A later failure must not erase an already completed restore checkpoint.
+    if (directory / "restart.json").exists():
+        result["restart"] = read(directory / "restart.json")
     # Include already charged slots even if ingest or final verification failed.
     trials = [read(path) for path in sorted((directory / "trials").glob("*.json"))]
     result.update(

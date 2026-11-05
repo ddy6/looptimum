@@ -110,7 +110,21 @@ capacity accounts for active fields, constraints, pending work and distinct
 completed points. `allow_completed_repeats` permits completed repeats without
 forcing the strategy to propose them; pending duplicates are always excluded.
 
-Forbidden rules are enforced by bounded post-filtering. Rejected arms supply no
+Eligible forbidden finite choices are removed from the Ax generation space when
+the choice's activation ancestors prove every other term of the forbidden rule.
+For example, if `flag` is active only under integer `kind=1`, forbidding
+`{kind: 1, flag: false}` removes `false` from that branch. This preserves the
+public parameter codec, typed token positions and every feasible point. Values
+that own dependent children, exclusions that empty a choice domain, range values,
+and rules requiring sibling conditions retain bounded post-filtering. Every
+decoded proposal still passes the canonical feasibility checks.
+
+The compiled generation space is included in the configuration fingerprint and
+snapshot. Existing affected campaigns require an explicit validated rebuild with
+no outstanding work, or a new campaign; their old snapshots are not silently
+continued under the changed generation space.
+
+Remaining forbidden rules use bounded post-filtering. Rejected arms supply no
 objective measurements, so Ax can keep proposing a forbidden branch even when
 feasible points remain. In that case generation stops at the configured attempt
 limit and publishes no partial batch. The [recorded capability run](../benchmarks/ax_capabilities/readout.md)

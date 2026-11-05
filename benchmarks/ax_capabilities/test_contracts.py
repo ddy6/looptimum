@@ -143,6 +143,35 @@ def test_evaluation_failure_consumes_one_slot_without_replacement_or_rerun(
     assert calls == [1, 2, 3, 4]
 
 
+def test_a_later_failure_preserves_a_completed_restore_checkpoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from benchmarks.ax_capabilities import run
+
+    plan = protocol(budget=4, initialization=2, seeds=[17], selected=["noisy_scalar"], workers=1)
+    checkpoint = {
+        "ordinal": 3,
+        "trial_id_agrees": True,
+        "parameters_agree": True,
+        "absolute_float_tolerance": 1e-7,
+        "shadow_evaluations": 0,
+    }
+
+    def fail_after_checkpoint(controller: Path, *args: Any) -> None:
+        run.write(controller.parent / "restart.json", checkpoint)
+        raise RuntimeError("failure after a completed restore checkpoint")
+
+    monkeypatch.setattr(run, "prepare_controller", fail_after_checkpoint)
+    results = [
+        run.run_case(tmp_path, "noisy_scalar", arm, 17, plan) for arm in W.arms("noisy_scalar")
+    ]
+    assert all(row["status"] == "failed" and row["restart"] == checkpoint for row in results)
+    summary = run.summarize(tmp_path, plan, results)
+    assert summary["hard_gates"]["seeded_restore"] is True
+    assert summary["hard_gates"]["all_cases_complete"] is False
+    assert summary["slots_consumed"] == 0
+
+
 def test_independent_loss_sweep_volume_matches_manual_union() -> None:
     from benchmarks.ax_capabilities.audit import volume
 

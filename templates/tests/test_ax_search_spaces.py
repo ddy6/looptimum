@@ -30,11 +30,13 @@ if os.environ.get("LOOPTIMUM_REQUIRE_AX_TESTS") == "1" and not AVAILABLE:
 
 @pytest.mark.skipif(not AVAILABLE, reason="optional Ax stack is not installed")
 @pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
-def test_real_typed_tree_raw_linear_forbidden_and_seeded_model_restore(tmp_path, variant):
+@pytest.mark.parametrize("seed", [17, 41])
+def test_real_typed_tree_raw_linear_forbidden_and_seeded_model_restore(tmp_path, variant, seed):
     from test_ax_integration import campaign, invoke, state
 
     project = campaign(tmp_path, variant)
     settings = json.loads((project / "bo_config.json").read_text())
+    settings["seed"] = seed
     settings["optimizer"]["ax"].update(contract_version=2)
     (project / "bo_config.json").write_text(json.dumps(settings))
     parameters = [
@@ -62,6 +64,9 @@ def test_real_typed_tree_raw_linear_forbidden_and_seeded_model_restore(tmp_path,
     (project / "parameter_space.json").write_text(json.dumps({"parameters": parameters}))
     (project / "constraints.json").write_text(json.dumps(rules))
     c = codec(parameters, rules)
+    assert next(p for p in c["generation_parameters"] if p.get("raw_name") == "flag")["values"] == [
+        True
+    ]
     for step in range(4):
         suggestion = json.loads(invoke(project, "suggest", "--json-only").stdout)
         raw = suggestion["params"]
@@ -92,6 +97,10 @@ def test_real_typed_tree_raw_linear_forbidden_and_seeded_model_restore(tmp_path,
         for line in (project / "state/acquisition_log.jsonl").read_text().splitlines()
     ]
     assert decisions[-1]["decision"]["generation_node"] == "MBM"
+    assert all(
+        "forbidden_combinations[0]" not in row["decision"]["constraint_status"]["reject_counts"]
+        for row in decisions
+    )
     twin = tmp_path / "restored"
     shutil.copytree(project, twin)
     a = json.loads(invoke(project, "suggest", "--json-only").stdout)

@@ -184,6 +184,7 @@ jobs:
           templates/tests/test_ax_rebuild.py
           templates/tests/test_ax_measurements.py
           templates/tests/test_ax_search_spaces.py
+          templates/tests/test_ax_forbidden_generation.py
           templates/tests/test_ax_outcomes.py
           benchmarks/ax_capabilities/test_contracts.py
           templates/tests/test_gp_fit.py

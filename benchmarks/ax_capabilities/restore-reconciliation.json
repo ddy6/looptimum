@@ -1,0 +1,267 @@
+{
+  "absolute_float_tolerance": 1e-07,
+  "benchmark_evaluator_calls": 0,
+  "cases": [
+    {
+      "arm": "reported_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "23b6c9d814bb5323ccf2b3ce560b0aa650ae400f610427394a5b21ef25b600ec",
+      "seed": 17,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "reported_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "25b0578a8cd4048db540f0c07ce160f6617f65fabb69cca2e7a4add970f7e8c2",
+      "seed": 23,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "reported_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "1c1491dd87a36806d00ba9d2c3a6de66d09c56bdabed7d84fda00d9740c21929",
+      "seed": 41,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "reported_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "0a03ea4d152fa05bfb0b479b9633417ebd5cea1efd458dba855b75497c7bcb45",
+      "seed": 67,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "reported_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "e1f87fd880e788b2788a3ae1e74659018c0e31b999ebe9a283c260e76365ed3a",
+      "seed": 97,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "unknown_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "97ac3e7270227d7ece2db9c5adc7c098bc9404107d01ac3212877b56ffcbec8f",
+      "seed": 17,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "unknown_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "e915480d47a2a95f230f9cf3e4f046c3f73683d646f415d719dbd0abffd8c7ea",
+      "seed": 23,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "unknown_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "6667ec05f170d5bc35565f68045ebb688a6e367cd4cd97f0269941e596af1405",
+      "seed": 41,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "unknown_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "5de0f70c9e49f25ac6a971acdccafc7bee55a993b9b10d0c2ccb13fe7b90c5f9",
+      "seed": 67,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "unknown_sem",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "f79188d2f88d326c4bc72eb50e4002671dfd519f3f9d3c2ee95a6e4233d104fc",
+      "seed": 97,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "noisy_scalar"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "590e81ffc7a8e0fa435066a13d6fc239ec36a9b47cd2a7cf7f2b0475ed9defb9",
+      "seed": 17,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "typed_conditional"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "ac980928eb40598d025e28550d93c0efd687ecee7e1af9151222f7f3f684b199",
+      "seed": 23,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "typed_conditional"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "cf6cfa23b015595faaa159851042589a6abda16a581d95158dcf149396b1d44d",
+      "seed": 41,
+      "summary_checkpoint_missing": true,
+      "trial_id_agrees": true,
+      "workload": "typed_conditional"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "7b950ff03aff08b1ff713331ec688e9223bf7520bfad86f6eb6639add98ef6b7",
+      "seed": 67,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "typed_conditional"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "cbc2280f546311a2b4636519b2be4e15ff65e8dae3ce6ba8d750ae6a4916f7d7",
+      "seed": 97,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "typed_conditional"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "04dabc6f94c9d19c84624204c40cdd9170ff443c6133501cc73e7e704f93584a",
+      "seed": 17,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "measured_scalar"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "202f9f72dc9ba78b57bd20ed5df13224d468359f333afd92f7ef6bb10c229b32",
+      "seed": 23,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "measured_scalar"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "7940d075d95463916975a6571aae99675615769e5287272fdf39300c902c49ac",
+      "seed": 41,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "measured_scalar"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "5d6867a4a305de0f99c0cafeea145678c905a40ba617ef7746ebe292f7d89341",
+      "seed": 67,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "measured_scalar"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "294227898053a98d7b1cf27cb0d5c68e1301432d645275caa1e03ddf83048db5",
+      "seed": 97,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "measured_scalar"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "7cc183ae9a750aaa1585254090716063bb43cdfa518156d73fbdc4ee264d8521",
+      "seed": 17,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "pareto_tradeoff"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "18f2e8aee13a018a81e385bd5f2bff79640ab69b4d1a858b7a4df2593d4c5fbe",
+      "seed": 23,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "pareto_tradeoff"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "60c87ebe90f58e2efa64dfaad7f4ecdcd1ce8af80ddd9e0a182dc1d5a4402820",
+      "seed": 41,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "pareto_tradeoff"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "16212516c1c38cfbfe34a43686b1f64b9673fd4c7b7050d552c6e3b328b57ddf",
+      "seed": 67,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "pareto_tradeoff"
+    },
+    {
+      "arm": "ax",
+      "ordinal": 13,
+      "parameters_agree": true,
+      "receipt_sha256": "a73b4efe358d52fc7dabdf60b79c3dffdb33e02c3f941bbd62df2eed7b13c2db",
+      "seed": 97,
+      "summary_checkpoint_missing": false,
+      "trial_id_agrees": true,
+      "workload": "pareto_tradeoff"
+    }
+  ],
+  "exact_trial_id_and_typed_choice_match": true,
+  "independently_recomputed_matching_checkpoints": 25,
+  "kind": "read_only_restore_receipt_reconciliation",
+  "method": "Compare each saved restart receipt with its original canonical observation and restore-shadow pending trial; exact typed/discrete values and absolute float tolerance 1e-7. Preserve original summary and completion failure.",
+  "missing_aggregate_checkpoints": 1,
+  "original_aggregate_seeded_restore": false,
+  "original_completion_gates_passed": false,
+  "original_manifest_sha256": "21657db4fa96b2d243c3e0efd1ce5c7b2d54249090b4f6ea78544c3532a1e986",
+  "original_matrix_modified": false,
+  "original_summary_sha256": "53347e2e710d5c4bfb344de132af7539e1ef0d88836627edfe6f8343489b6393",
+  "saved_checkpoints": 25
+}

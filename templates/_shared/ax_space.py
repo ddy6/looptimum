@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import math
@@ -28,6 +29,52 @@ CONSTRAINTS = _load("constraints")
 
 def key(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _generation_choices(
+    parameters: list[JSONDict],
+    parents: dict[str, tuple[str, Any]],
+    constraints: JSONDict | None,
+) -> list[JSONDict] | None:
+    """Prune finite values only when activation proves every other forbidden term.
+
+    Keep the public codec intact, including categorical token positions. Values
+    with dependent children and exclusions that empty a domain retain bounded
+    post-filtering; removing them would require a different hierarchy.
+    """
+    generated = copy.deepcopy(parameters)
+    for original, parameter in zip(parameters, generated, strict=True):
+        name = original.get("raw_name")
+        if name is None or "values" not in original:
+            continue
+        ancestors: JSONDict = {}
+        ancestor = name
+        while ancestor in parents:
+            ancestor, value = parents[ancestor]
+            ancestors[ancestor] = value
+        raw_values: list[Any] = (
+            original["raw_values"] if "raw_values" in original else original["values"]
+        )
+        choices = dict(zip((key(value) for value in original["values"]), raw_values, strict=True))
+        controlling = {key(item["value"]) for item in original.get("dependents", [])}
+        for rule in (constraints or {}).get("forbidden_combinations", []):
+            when = rule["when"]
+            if name not in when or any(
+                other not in ancestors
+                or key(ancestors[other]) not in {key(value) for value in allowed}
+                for other, allowed in when.items()
+                if other != name
+            ):
+                continue
+            forbidden = {key(value) for value in when[name]}
+            kept = [
+                value
+                for value in parameter["values"]
+                if key(value) in controlling or key(choices[key(value)]) not in forbidden
+            ]
+            if kept:
+                parameter["values"] = kept
+    return generated if generated != parameters else None
 
 
 def build_codec(params: list[JSONDict], constraints: JSONDict | None) -> JSONDict:
@@ -171,7 +218,7 @@ def build_codec(params: list[JSONDict], constraints: JSONDict | None) -> JSONDic
             {"linear_inequalities": [rule]},
         )["feasible"]:
             raise ValueError("No feasible point satisfies the fixed linear rule")
-    return {
+    codec = {
         "codec_version": 1,
         "definitions": definitions,
         "parameters": parameters,
@@ -180,6 +227,10 @@ def build_codec(params: list[JSONDict], constraints: JSONDict | None) -> JSONDic
         "parameter_constraints": linear,
         "constraints": constraints,
     }
+    generation = _generation_choices(parameters, parents, constraints)
+    if generation is not None:
+        codec["generation_parameters"] = generation
+    return codec
 
 
 def encode(codec: JSONDict, values: JSONDict) -> JSONDict:

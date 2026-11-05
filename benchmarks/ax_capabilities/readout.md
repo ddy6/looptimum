@@ -39,3 +39,20 @@ post-filtering mechanism can stall on a forbidden branch; any exact generation
 repair requires its own source/design and validation evidence. No failed attempt
 was automatically retried, and the original or amended completion gates are
 not reported as passed.
+
+## Restore receipt reconciliation and generation repair
+
+A later [read-only reconciliation](restore-reconciliation.json) independently
+compared all 25 saved restore checkpoints with the original canonical observation
+and restore-shadow pending trial. All trial IDs and typed choices agree, with
+absolute float tolerance `1e-7`. The sole omitted aggregate checkpoint is
+typed-conditional Ax seed 41. This used zero evaluator calls and leaves the
+original summary, strict completion flags and failed case unchanged. The runner
+now retains a completed checkpoint even if a later command fails.
+
+Repaired source prunes eligible forbidden finite choices from the Ax generation
+space by proving their activation context. Exhaustive small-space equivalence
+tests and real modeled generation/restore for both controllers at seeds 17 and 41
+pass. This is separate correctness evidence, not a completed benchmark rerun.
+The [proposed repaired-source protocol](repaired-validation.md) requires a new
+explicit execution budget; no repaired matrix has started.

@@ -201,7 +201,7 @@ def run_request_v2(request: JSONDict) -> JSONDict:
         if request["snapshot"] is None:
             client = Client()
             parameters = []
-            for param in codec["parameters"]:
+            for param in codec.get("generation_parameters", codec["parameters"]):
                 if "bounds" in param and param["bounds"][0] != param["bounds"][1]:
                     parameters.append(
                         RangeParameterConfig(
