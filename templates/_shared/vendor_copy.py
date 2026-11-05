@@ -13,6 +13,8 @@ from pathlib import Path
 from runtime_paths import DEFAULT_PATHS, resolve_runtime_paths
 
 RUNTIME_MODULES = (
+    "ax_contract.py",
+    "ax_space.py",
     "contract.py",
     "constraints.py",
     "objectives.py",

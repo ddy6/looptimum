@@ -109,6 +109,16 @@ def _fallback_trial_summaries(bo_state: JSONDict, *, max_trials: int) -> list[JS
                 "objective_vector": dict(objective_vector),
                 "scalarized_objective": observation.get("scalarized_objective"),
                 "penalty_objective": observation.get("penalty_objective"),
+                **{
+                    field: observation[field]
+                    for field in (
+                        "objective_sems",
+                        "measurements",
+                        "measurement_sems",
+                        "scalarized_sem",
+                    )
+                    if field in observation
+                },
                 "suggested_at": observation.get("suggested_at"),
                 "completed_at": observation.get("completed_at"),
                 "artifact_path": observation.get("artifact_path"),
@@ -256,6 +266,20 @@ def load_tracking_snapshot(
         "best": best_record,
         "best_params": report.get("best_params") if report is not None else None,
         "top_trials": top_trials,
+        **{
+            field: report[field]
+            for field in (
+                "acquisition_mode",
+                "scalar_summary_role",
+                "best_feasible",
+                "outcome_feasibility_counts",
+                "outcome_constraint_status",
+                "feasible_pareto_front",
+                "pareto_reference",
+                "feasible_hypervolume",
+            )
+            if report is not None and field in report
+        },
         "recent_events": event_payloads,
         "manifests": {str(trial_id): payload for trial_id, payload in manifests.items()},
         "artifacts": _artifact_inventory(

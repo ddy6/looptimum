@@ -6,8 +6,69 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN_ONE_EVAL = REPO_ROOT / "client_harness_template" / "run_one_eval.py"
+
+
+def test_extended_callback_preserves_vector_zero_noise_and_measured_outcome(tmp_path: Path) -> None:
+    suggestion, objective, result = (
+        tmp_path / name for name in ("suggestion.json", "objective.py", "result.json")
+    )
+    suggestion.write_text(
+        json.dumps({"trial_id": 7, "params": {"kind": 1.0}, "schema_version": "0.4.0"})
+    )
+    returned = {
+        "objectives": {"loss": 0.2, "gain": 1.5},
+        "objective_sems": {"loss": 0},
+        "measurements": {"resource": 2},
+        "measurement_sems": {"resource": 0.03},
+        "scalarized_sem": 0.04,
+    }
+    objective.write_text(f"def evaluate(params):\n    return {returned!r}\n")
+    _run_cmd(
+        str(suggestion),
+        str(result),
+        "--objective-module",
+        str(objective),
+        "--on-exception",
+        "raise",
+    )
+    payload = json.loads(result.read_text())
+    for field, value in returned.items():
+        assert payload[field] == value
+    assert payload["schema_version"] == "0.4.0"
+    assert type(payload["params"]["kind"]) is float
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"objective": 2, "objectives": {"loss": 1}},
+        {"objective": 1, "objective_sems": {"loss": -0.1}},
+        {"status": "failed", "objective": None, "measurements": {"resource": 1}},
+    ],
+)
+def test_contradictory_extended_callback_fails_without_a_result_file(
+    tmp_path: Path, fields: dict
+) -> None:
+    suggestion, objective, result = (
+        tmp_path / name for name in ("suggestion.json", "objective.py", "result.json")
+    )
+    _write_suggestion(suggestion)
+    objective.write_text(f"def evaluate(params):\n    return {fields!r}\n")
+    out = _run_cmd(
+        str(suggestion),
+        str(result),
+        "--objective-module",
+        str(objective),
+        "--on-exception",
+        "raise",
+        expect_ok=False,
+    )
+    assert out.returncode != 0
+    assert not result.exists()
 
 
 def _run_cmd(

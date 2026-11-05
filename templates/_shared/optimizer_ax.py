@@ -35,6 +35,9 @@ _BACKEND = _shared("optimizer_backend")
 _OBJECTIVES = _shared("objectives")
 _CONSTRAINTS = _shared("constraints")
 _RUNTIME = _shared("runtime")
+_SPACE = _shared("ax_space")
+_MEASUREMENTS = _shared("ax_contract")
+_CONTRACT = _shared("contract")
 
 
 def _allocation_path(paths: dict[str, Path]) -> Path:
@@ -315,13 +318,21 @@ def inspect_snapshot(root: Path, paths: dict[str, Path], state: JSONDict) -> JSO
     metadata = state.get("optimizer")
     if metadata is None:
         return None
+    if metadata.get("format_version") == 2 and metadata.get("initialized") is False:
+        if "snapshot" in metadata:
+            raise ValueError("Uninitialized Ax contract2 state cannot claim a snapshot")
+        return None
     try:
         reference = metadata["snapshot"]
         path = _snapshot_path(root, paths, reference)
         snapshot = json.loads(path.read_text())
         if _BACKEND.canonical_digest(snapshot) != reference["sha256"]:
             raise ValueError("Ax snapshot digest mismatch")
-        if snapshot["format_version"] != _BACKEND.AX_FORMAT_VERSION:
+        if (
+            type(snapshot["format_version"]) is not int
+            or snapshot["format_version"] not in (1, 2)
+            or snapshot["format_version"] != metadata.get("format_version")
+        ):
             raise ValueError("Unsupported Ax snapshot format")
         for key in ("fingerprint", "lineage", "generation", "last_rebuild"):
             if key in metadata and metadata[key] != snapshot.get(key):
@@ -415,6 +426,19 @@ def _prepare_projection(
     rebuild: JSONDict | None = None,
 ) -> list[tuple[JSONDict, JSONDict]]:
     """Stage a complete Ax allocation in planning state; caller owns the state commit."""
+    if optimizer["ax"].get("contract_version", 1) == 2:
+        return _prepare_projection_v2(
+            root,
+            paths,
+            state,
+            cfg,
+            params,
+            objective_cfg,
+            constraints,
+            count,
+            optimizer,
+            rebuild=rebuild,
+        )
     _BACKEND.assert_backend_matches_state(state, optimizer)
     _BACKEND.validate_ax_capabilities(params, objective_cfg, constraints)
     parameters = _parameters(_CONSTRAINTS.apply_bound_tightening(params, constraints))
@@ -577,6 +601,304 @@ def _prepare_projection(
     return planned
 
 
+def configuration_v2(
+    params: list[JSONDict],
+    objective_cfg: JSONDict,
+    constraints: JSONDict | None,
+    options: JSONDict,
+    state: JSONDict,
+) -> tuple[JSONDict, str]:
+    if objective_cfg.get("ax_contract_version") != 2 or options.get("contract_version") != 2:
+        raise ValueError("Ax contract2 configuration and objective contract disagree")
+    if objective_cfg["scalarization"]["policy"] == "lexicographic":
+        raise ValueError("Ax does not yet support lexicographic objectives")
+    codec = _SPACE.build_codec(params, constraints)
+    fingerprint = _BACKEND.canonical_digest(
+        {
+            "codec": codec,
+            "objectives": _OBJECTIVES.objective_config_snapshot(objective_cfg),
+            "options": {
+                k: v
+                for k, v in options.items()
+                if k not in ("generation_timeout_seconds", "max_generation_attempts")
+            },
+            "seed": state["meta"]["seed"],
+        }
+    )
+    return codec, fingerprint
+
+
+def validate_v2_context(
+    root: Path,
+    paths: dict[str, Path],
+    state: JSONDict,
+    params: list[JSONDict],
+    objective_cfg: JSONDict,
+    constraints: JSONDict | None,
+    optimizer: JSONDict,
+) -> tuple[JSONDict | None, str | None]:
+    if objective_cfg.get("ax_contract_version") != 2:
+        _MEASUREMENTS.require_campaign_format(state, objective_cfg)
+        return None, None
+    _MEASUREMENTS.require_campaign_format(state, objective_cfg)
+    codec, fingerprint = configuration_v2(
+        params, objective_cfg, constraints, optimizer["ax"], state
+    )
+    metadata = state.get("optimizer") or {}
+    if metadata.get("fingerprint") and metadata["fingerprint"] != fingerprint:
+        raise ValueError(
+            "Ax contract2 configuration changed; restore it or use an explicit rebuild/new campaign"
+        )
+    # Terminal records are authoritative and must remain deliverable when this
+    # derived cache is lost. Generation checks the snapshot's digest/configuration;
+    # terminal ingest/import checks the canonical fingerprint and full history.
+    _MEASUREMENTS.validate_measurement_coverage(state["observations"], objective_cfg)
+    return codec, fingerprint
+
+
+def canonical_parameters(codec: JSONDict, values: JSONDict) -> JSONDict:
+    return cast(JSONDict, _SPACE.decode(codec, _SPACE.encode(codec, values)))
+
+
+def parameter_identity(values: JSONDict) -> str:
+    return cast(str, _SPACE.key(values))
+
+
+def _prepare_projection_v2(
+    root: Path,
+    paths: dict[str, Path],
+    state: JSONDict,
+    cfg: JSONDict,
+    params: list[JSONDict],
+    objective_cfg: JSONDict,
+    constraints: JSONDict | None,
+    count: int,
+    optimizer: JSONDict,
+    *,
+    rebuild: JSONDict | None = None,
+) -> list[tuple[JSONDict, JSONDict]]:
+    _BACKEND.assert_backend_matches_state(state, optimizer)
+    if rebuild is None:
+        _MEASUREMENTS.require_campaign_format(state, objective_cfg)
+    _BACKEND.validate_ax_capabilities(params, objective_cfg, constraints)
+    options = optimizer["ax"]
+    codec, fingerprint = configuration_v2(params, objective_cfg, constraints, options, state)
+    if rebuild is None and (state.get("optimizer") or {}).get("fingerprint") not in (
+        None,
+        fingerprint,
+    ):
+        raise ValueError(
+            "Ax contract2 configuration changed; use explicit rebuild or a new campaign"
+        )
+    previous = inspect_snapshot(root, paths, state) if rebuild is None else None
+    versions = _BACKEND.dependency_versions()
+    if previous is not None:
+        if previous["format_version"] != 2 or previous["fingerprint"] != fingerprint:
+            raise ValueError(
+                "Ax contract2 configuration changed; use explicit rebuild or a new campaign"
+            )
+        if previous["versions"] != versions:
+            raise ValueError("Ax dependency versions changed; restore the recorded environment")
+    _MEASUREMENTS.validate_measurement_coverage(state["observations"], objective_cfg)
+    records = []
+    raw_records = []
+    for pending, rows in ((False, state["observations"]), (True, state["pending"])):
+        for row in rows:
+            encoded = _SPACE.encode(codec, row["params"])
+            if not _SPACE.feasible(codec, row["params"])["feasible"]:
+                raise ValueError(
+                    "Canonical history violates current parameter constraints; start a new campaign"
+                )
+            status = "pending" if pending else row["status"]
+            if pending:
+                signature_fields = {"params": encoded, "status": "pending", "objectives": None}
+                metrics = None
+            else:
+                if status not in ("ok", "failed", "killed", "timeout"):
+                    raise ValueError("Unsupported canonical trial status")
+                signature_fields = _CONTRACT.build_observation_contract(
+                    row, objective_cfg=objective_cfg
+                )
+                signature_fields.pop("trial_id")
+                signature_fields["params"] = encoded
+                metrics = (
+                    _MEASUREMENTS.project_metrics(
+                        row,
+                        objective_cfg,
+                        float(_OBJECTIVES.scalarize_objectives(row["objectives"], objective_cfg)),
+                    )
+                    if status == "ok"
+                    else None
+                )
+            records.append(
+                {
+                    "trial_id": row["trial_id"],
+                    "params": encoded,
+                    "status": status,
+                    "metrics": metrics,
+                    "signature": _BACKEND.canonical_digest(signature_fields),
+                }
+            )
+            raw_records.append({"params": row["params"], "status": status})
+    _SPACE.check_capacity(
+        codec, raw_records, count, allow_completed_repeats=options["allow_completed_repeats"]
+    )
+    generation = 0 if previous is None else previous["generation"]
+    request = {
+        "protocol": 2,
+        "operation": "rebuild" if rebuild is not None else "generate",
+        "codec": codec,
+        "options": options,
+        "objective_config": _OBJECTIVES.objective_config_snapshot(objective_cfg),
+        "direction": _OBJECTIVES.scalarized_direction(objective_cfg),
+        "records": records,
+        "snapshot": None if previous is None else previous["ax"],
+        "mapping": {} if previous is None else previous["mapping"],
+        "signatures": {} if previous is None else previous["signatures"],
+        "seed": state["meta"]["seed"],
+        "generation": generation,
+        "next_trial_id": state["next_trial_id"],
+        "count": count,
+    }
+    env = dict(os.environ)
+    for key in (
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        env[key] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(Path(__file__).with_name("optimizer_ax_worker.py"))],
+            input=json.dumps(request, allow_nan=False),
+            text=True,
+            capture_output=True,
+            timeout=options["generation_timeout_seconds"],
+            check=False,
+            env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError("Ax generation timed out; no trials were allocated") from exc
+    if completed.returncode:
+        raise ValueError(f"Ax worker exited unsuccessfully: {completed.stderr[-2000:]}")
+    try:
+        response = json.loads(completed.stdout)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Ax worker returned invalid JSON") from exc
+    if not isinstance(response, dict):
+        raise ValueError("Ax worker returned invalid response object")
+    if not response.get("ok"):
+        raise ValueError(
+            f"Ax generation failed ({response.get('error_type')}): {response.get('error')}"
+        )
+    result = response["result"]
+    if (
+        type(result.get("attempts")) is not int
+        or not count <= result["attempts"] <= options["max_generation_attempts"] * count
+        or not isinstance(result.get("reject_counts"), dict)
+        or any(
+            not isinstance(k, str) or type(v) is not int or v < 0
+            for k, v in result["reject_counts"].items()
+        )
+        or any(type(value) is not int or value < 0 for value in result["mapping"].values())
+    ):
+        raise ValueError("Ax returned invalid generation accounting or trial mapping")
+    if len(result["candidates"]) != count or result["versions"] != versions:
+        raise ValueError("Ax returned an incomplete batch or different runtime versions")
+    expected_signatures = {str(row["trial_id"]): row["signature"] for row in records}
+    planned = []
+    blocked = {
+        _SPACE.key(row["params"])
+        for row in raw_records
+        if row["status"] == "pending" or not options["allow_completed_repeats"]
+    }
+    for index, candidate in enumerate(result["candidates"]):
+        raw = _SPACE.decode(codec, candidate["params"])
+        identity = _SPACE.key(raw)
+        if identity in blocked or not _SPACE.feasible(codec, raw)["feasible"]:
+            raise ValueError("Ax candidate violates canonical feasibility or duplicate policy")
+        blocked.add(identity)
+        public_id = str(int(state["next_trial_id"]) + index)
+        expected_signatures[public_id] = _BACKEND.canonical_digest(
+            {"params": candidate["params"], "status": "pending", "objectives": None}
+        )
+        if result["mapping"].get(public_id) != candidate["ax_trial_index"]:
+            raise ValueError("Ax candidate mapping disagrees with the complete batch")
+        planned.append(
+            (
+                raw,
+                {
+                    "strategy": "ax_generation",
+                    "surrogate_backend": "ax",
+                    "acquisition": objective_cfg["acquisition"],
+                    "ax_trial_index": candidate["ax_trial_index"],
+                    "generation_node": candidate["generation_node"],
+                    "generation": generation,
+                    "versions": versions,
+                    "ax_generation_attempts": result["attempts"],
+                    "constraint_status": _CONSTRAINTS.build_constraint_status(
+                        constraints,
+                        {
+                            "reject_counts": result["reject_counts"],
+                            "attempts": result["attempts"],
+                            "candidates": result["candidates"],
+                            "infeasible_attempts": result["attempts"] - count,
+                        },
+                        phase="ax-generation",
+                        requested=count,
+                    ),
+                },
+            )
+        )
+    if (
+        result["signatures"] != expected_signatures
+        or set(result["mapping"]) != set(expected_signatures)
+        or len(set(result["mapping"].values())) != len(expected_signatures)
+    ):
+        raise ValueError("Ax projection did not preserve every canonical trial exactly once")
+    last_rebuild = rebuild if rebuild is not None else (previous or {}).get("last_rebuild")
+    envelope = {
+        "format_version": 2,
+        "fingerprint": fingerprint,
+        "lineage": rebuild["lineage"]
+        if rebuild is not None
+        else previous["lineage"]
+        if previous
+        else uuid.uuid4().hex,
+        "generation": 0 if rebuild is not None else generation + 1,
+        "versions": versions,
+        "mapping": result["mapping"],
+        "signatures": result["signatures"],
+        "ax": result["snapshot"],
+        "codec": codec,
+        "objective_config": _OBJECTIVES.objective_config_snapshot(objective_cfg),
+        "metric_aliases": _MEASUREMENTS.metric_aliases(objective_cfg),
+        "optimizer_options": options,
+        "seed": state["meta"]["seed"],
+        **({"last_rebuild": last_rebuild} if last_rebuild is not None else {}),
+    }
+    digest = _BACKEND.canonical_digest(envelope)
+    path = paths["optimizer_dir"] / "ax" / "snapshots" / f"{digest}.json"
+    relative = path.resolve().relative_to(root.resolve()).as_posix()
+    _RUNTIME.atomic_write_json(path, envelope)
+    for _, decision in planned:
+        decision.update(optimizer_snapshot=digest, optimizer_lineage=envelope["lineage"])
+    state["schema_version"] = "0.5.0"
+    state["optimizer"] = {
+        "backend": "ax",
+        "format_version": 2,
+        "snapshot": {"path": relative, "sha256": digest},
+        "lineage": envelope["lineage"],
+        "generation": envelope["generation"],
+        "fingerprint": fingerprint,
+        **({"last_rebuild": last_rebuild} if last_rebuild is not None else {}),
+    }
+    return planned
+
+
 def rebuild_diagnostics(state: JSONDict) -> JSONDict | None:
     event = (state.get("optimizer") or {}).get("pending_rebuild_event")
     if event is None:
@@ -655,10 +977,24 @@ def rebuild_optimizer(
     if recovered is not None:
         return {"status": "recovered_rebuild", "rebuild": recovered, "allocated_trials": 0}
     _BACKEND.validate_ax_capabilities(params, objective_cfg, constraints)
-    parameters = _parameters(_CONSTRAINTS.apply_bound_tightening(params, constraints))
-    fingerprint = _fingerprint(parameters, objective_cfg, optimizer["ax"], state)
-    source_path = _snapshot_path(root, paths, state["optimizer"]["snapshot"])
-    source_bytes = source_path.read_bytes() if source_path.exists() else None
+    target_format = optimizer["ax"].get("contract_version", 1)
+    source_format = state["optimizer"]["format_version"]
+    if source_format == 2 and target_format != 2:
+        raise ValueError(
+            "Ax contract2 cannot be downgraded; restore the matched pre-upgrade backup"
+        )
+    if target_format == 2:
+        _, fingerprint = configuration_v2(
+            params, objective_cfg, constraints, optimizer["ax"], state
+        )
+    else:
+        parameters = _parameters(_CONSTRAINTS.apply_bound_tightening(params, constraints))
+        fingerprint = _fingerprint(parameters, objective_cfg, optimizer["ax"], state)
+    reference = state["optimizer"].get("snapshot")
+    source_path = _snapshot_path(root, paths, reference) if reference is not None else None
+    source_bytes = (
+        source_path.read_bytes() if source_path is not None and source_path.exists() else None
+    )
     prior = None
     source_error = None
     try:
@@ -666,10 +1002,79 @@ def rebuild_optimizer(
     except ValueError as exc:
         source_error = str(exc)
     known_fingerprint = state["optimizer"].get("fingerprint") or (prior or {}).get("fingerprint")
-    if known_fingerprint is not None and known_fingerprint != fingerprint:
+    if source_format == 2 and known_fingerprint is None:
+        raise ValueError(
+            "Cannot validate contract2 source configuration without a fingerprint or readable snapshot; restore the backup or start a new campaign"
+        )
+    upgrading = source_format == 1 and target_format == 2
+    configuration_changed = known_fingerprint is not None and known_fingerprint != fingerprint
+    if target_format == 2 and (upgrading or configuration_changed) and state["pending"]:
+        raise ValueError("Contract upgrades/configuration changes require no outstanding work")
+    source_configuration = None
+    if upgrading:
+        legacy_objectives = {
+            k: v
+            for k, v in objective_cfg.items()
+            if k not in ("ax_contract_version", "acquisition", *_MEASUREMENTS.OUTCOME_CONFIG_FIELDS)
+        }
+        legacy_options = {
+            k: v for k, v in optimizer["ax"].items() if k not in ("contract_version", "acquisition")
+        }
+        parameters = _parameters(_CONSTRAINTS.apply_bound_tightening(params, constraints))
+        legacy_fingerprint = _fingerprint(parameters, legacy_objectives, legacy_options, state)
+        if known_fingerprint is None or legacy_fingerprint != known_fingerprint:
+            raise ValueError(
+                "Cannot validate the version1 source configuration; restore it before upgrading "
+                "or start a new campaign"
+            )
+        source_configuration = {
+            "parameters": parameters,
+            "objectives": _OBJECTIVES.objective_config_snapshot(legacy_objectives),
+            "options": legacy_options,
+        }
+    elif target_format == 1 and configuration_changed:
         raise ValueError(
             "Ax campaign configuration changed; restore it before rebuilding, or create a new campaign"
         )
+    elif prior is not None and source_format == 2:
+        if configuration_changed and ("optimizer_options" not in prior or "seed" not in prior):
+            raise ValueError(
+                "Source snapshot lacks its complete configuration; restore the original configuration or start a new campaign"
+            )
+        source_configuration = {
+            "codec": prior["codec"],
+            "objectives": prior["objective_config"],
+            "options": prior.get("optimizer_options", optimizer["ax"]),
+            "seed": prior.get("seed", state["meta"]["seed"]),
+        }
+        source_fingerprint = _BACKEND.canonical_digest(
+            {
+                **source_configuration,
+                "options": {
+                    k: v
+                    for k, v in source_configuration["options"].items()
+                    if k not in ("generation_timeout_seconds", "max_generation_attempts")
+                },
+            }
+        )
+        if source_fingerprint != known_fingerprint:
+            raise ValueError(
+                "Source configuration does not match its recorded fingerprint; preserve the backup and start a new campaign"
+            )
+    elif source_format == 2 and configuration_changed:
+        raise ValueError(
+            "Cannot change configuration while the source snapshot is invalid; restore the original configuration/backup or start a new campaign"
+        )
+    elif source_format == 2:
+        source_codec, _ = configuration_v2(
+            params, objective_cfg, constraints, optimizer["ax"], state
+        )
+        source_configuration = {
+            "codec": source_codec,
+            "objectives": _OBJECTIVES.objective_config_snapshot(objective_cfg),
+            "options": optimizer["ax"],
+            "seed": state["meta"]["seed"],
+        }
     rebuild_id = uuid.uuid4().hex
     directory = paths["optimizer_dir"] / "ax" / "rebuilds" / rebuild_id
     relative = directory.resolve().relative_to(root.resolve()).as_posix()
@@ -680,7 +1085,10 @@ def rebuild_optimizer(
         "timestamp": time.time(),
         "lineage": uuid.uuid4().hex,
         "previous_lineage": state["optimizer"].get("lineage") or (prior or {}).get("lineage"),
-        "previous_snapshot": state["optimizer"]["snapshot"],
+        "previous_snapshot": reference,
+        "source_format": source_format,
+        "target_format": target_format,
+        "configuration_changed": configuration_changed,
         "previous_versions": (prior or {}).get("versions"),
         "versions": _BACKEND.dependency_versions(),
         "configuration_verified": known_fingerprint is not None,
@@ -716,6 +1124,7 @@ def rebuild_optimizer(
             "snapshot": planning["optimizer"]["snapshot"],
             "versions": _BACKEND.dependency_versions(),
             "fingerprint": fingerprint,
+            "source_configuration": source_configuration,
         },
     )
     event = {

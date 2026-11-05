@@ -1,0 +1,10 @@
+{
+  "cases": 40,
+  "errors": [
+    "typed_conditional/ax/41: incomplete/failed case retained"
+  ],
+  "evaluator_invocations": 0,
+  "method": "raw receipt count, observed inclusive bounds, scalar latent regret, independent loss-sweep 2D hypervolume",
+  "passed": false,
+  "slots_consumed": 958
+}

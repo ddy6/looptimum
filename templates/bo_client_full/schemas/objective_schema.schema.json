@@ -3,7 +3,9 @@
   "title": "Objective Schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["primary_objective"],
+  "required": [
+    "primary_objective"
+  ],
   "properties": {
     "primary_objective": {
       "$ref": "#/$defs/objective"
@@ -17,11 +19,17 @@
     "scalarization": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["policy"],
+      "required": [
+        "policy"
+      ],
       "properties": {
         "policy": {
           "type": "string",
-          "enum": ["weighted_sum", "weighted_tchebycheff", "lexicographic"]
+          "enum": [
+            "weighted_sum",
+            "weighted_tchebycheff",
+            "lexicographic"
+          ]
         },
         "weights": {
           "type": "object",
@@ -37,13 +45,58 @@
           }
         }
       }
+    },
+    "measurement_metrics": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "outcome_constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "op",
+          "bound"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string",
+            "minLength": 1
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "<=",
+              ">="
+            ]
+          },
+          "bound": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "pareto_reference": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
     }
   },
   "$defs": {
     "objective": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "direction"],
+      "required": [
+        "name",
+        "direction"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -51,7 +104,10 @@
         },
         "direction": {
           "type": "string",
-          "enum": ["minimize", "maximize"]
+          "enum": [
+            "minimize",
+            "maximize"
+          ]
         },
         "tolerance": {
           "type": "number"

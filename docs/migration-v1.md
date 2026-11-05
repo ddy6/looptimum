@@ -98,3 +98,15 @@ warm start, not rollback with preserved trial IDs, leases or generation state.
 Preview service/dashboard/auth/coordination deployments retain preview scope.
 Their metadata changes to `1.0.0-preview`; this release does not change their
 registry schema or make their APIs part of the stable template contract.
+
+## Unreleased opt-in Ax contract 2
+
+The current source adds state `0.5.x`/optimizer format2 and evaluator `0.4.0`
+only for explicit `optimizer.ax.contract_version: 2`. It does not change package
+`1.0.0`, the published release, legacy `0.3.x` or existing Ax `0.4.x` campaigns.
+Reading old state preserves its fingerprint. Upgrade requires no outstanding
+work, validated source history, an explicit rebuild, exact backups and a new
+lineage. Missing historical outcomes/SEMs cannot be manufactured. Restore the
+matched old code/configuration/state/environment for rollback; do not lower a
+schema version or strip extended fields. See the complete
+[upgrade and rollback rules](ax-contract2.md#state-rebuild-and-rollback).

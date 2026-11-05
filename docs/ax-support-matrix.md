@@ -1,6 +1,6 @@
 # Ax support and verification
 
-This is the supported native Ax surface in v1.0.0. It
+The first table describes the released contract-1 Ax surface in v1.0.0. It
 applies to `bo_client` and `bo_client_full` with `optimizer.backend: "ax"`.
 The [installation profile](ax-installation.md) defines the CPU/Python targets.
 The default legacy controller and direct BoTorch options retain their existing
@@ -34,7 +34,37 @@ adds 200 complete synthetic campaigns across five backends, four workloads
 and ten seeds. It is measured evidence for those workloads and the recorded
 environment, not a guarantee of performance or identical proposals elsewhere.
 
+## Unreleased contract 2
+
+Select `optimizer.ax.contract_version: 2` in ordinary/full Ax controllers.
+[Contract 2](ax-contract2.md) defines the exact subset and migration rules;
+these source capabilities do not change the published v1.0.0 release.
+
+| Source capability | Verification |
+| --- | --- |
+| Known/unknown per-metric SEM coverage, weighted score SEMs, strict replay/import and typed CSV2 | [Measurement suite](../templates/tests/test_ax_measurements.py), lean ordinary/full ingest, service and harness tests |
+| Typed heterogeneous choices, finite conditional trees, exact raw linear/fixed terms, forbidden rejection and finite feasible capacity | [Search-space suite](../templates/tests/test_ax_search_spaces.py), real ordinary/full integer-linear modeled generation and seeded restore |
+| Measured constraints, genuine vector acquisition, mixed directions, no-feasible-yet operation and observed feasible hypervolume | [Outcome suite](../templates/tests/test_ax_outcomes.py), public serialized vector optimization config and MBM inspection, manual 2D/3D volume examples |
+| State `0.5.x` / format 2, unchanged real pre-change v1 fingerprints, explicit upgrade/semantic rebuild, exact backups/new lineage | [Rebuild suite](../templates/tests/test_ax_rebuild.py), real upgrade, baseline-code continuation/rollback proof |
+| Complete-batch rejection, worker timeout/malformed response, process exits, lost snapshots, archive/restore and canonical result delivery | [Expanded recovery suite](../templates/tests/test_ax_recovery.py), reused transaction and fault hooks for both formats |
+| Synthetic paired evidence with fixed calls, explicit failures and restore receipts | [New bounded protocol](../benchmarks/ax_capabilities/README.md); full-matrix results are reported separately from correctness smoke |
+
+The four required Ax OS/Python CI lanes include all three new capability suites
+with missing-dependency skip protection. Local passes do not claim those remote
+lanes passed on an uncommitted revision.
+
+Contract-2 forbidden rules use bounded rejection. The recorded typed-space
+seed-41 case exhausted eight attempts on forbidden arms before allocating its
+next trial; the approved time extension made no additional evaluator calls.
+The [readout](../benchmarks/ax_capabilities/readout.md) retains that incomplete
+case. Supported validation does not guarantee a feasible proposal within the
+attempt limit.
+
 ## Explicit limits
+
+The first two limits below apply to released contract 1. Contract 2 extends only
+the subset documented above; custom acquisition, fully Bayesian, GPU and
+external/distributed storage remain outside both contracts.
 
 - Conditional parameters, heterogeneous categorical types, linear inequalities,
   forbidden combinations and lexicographic objectives are rejected before Ax

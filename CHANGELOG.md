@@ -6,6 +6,20 @@ The format is inspired by Keep a Changelog. Releases from v1.0.0 follow
 Semantic Versioning for the stable surface in `docs/stability-guarantees.md`.
 Earlier entries retain their historical `0.x` compatibility policy.
 
+## [Unreleased]
+
+### Added
+- Unreleased opt-in Ax adapter contract 2: named SEMs, measured constraints,
+  typed heterogeneous choices, exact finite conditional trees and parameter
+  constraints, genuine Pareto acquisition and observed feasible reports.
+- Explicit state0.5/format2 upgrade/rebuild with backups and new lineage,
+  typed CSV2 and preserved measurement fields across portable/lean workflows.
+- Synthetic capability walkthroughs, bounded paired benchmark tooling and
+  required real capability tests in all four existing Ax CI lanes.
+- Shared case-study validation during site builds, including generated routes,
+  proof assets, accessible figure context and internal CTA destinations.
+- Negative site-validation fixtures and a locked Node.js 24 CI lane.
+
 ## [1.0.0] - 2026-10-26
 
 Prepared release; publication is identified by the GitHub tag/release.

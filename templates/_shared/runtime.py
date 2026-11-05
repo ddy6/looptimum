@@ -28,6 +28,8 @@ STATE_SCHEMA_VERSION = "0.3.0"
 STATE_SCHEMA_SERIES = (0, 3)
 AX_STATE_SCHEMA_VERSION = "0.4.0"
 AX_STATE_SCHEMA_SERIES = (0, 4)
+AX_V2_STATE_SCHEMA_VERSION = "0.5.0"
+AX_V2_STATE_SCHEMA_SERIES = (0, 5)
 STATE_COMPATIBILITY_DOC_RELATIVE_PATH = "docs/stability-guarantees.md"
 _STATE_SCHEMA_VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 _STATE_SCHEMA_UPGRADE_FLAG = "_looptimum_schema_upgrade_pending"
@@ -100,13 +102,23 @@ def normalize_state_schema_version(state: dict[str, Any], *, state_path: Path) -
 
     major, minor, patch = _parse_semver(raw_version, field_name="state.schema_version")
     normalized = f"{major}.{minor}.{patch}"
-    if (major, minor) == AX_STATE_SCHEMA_SERIES and ax_state and isinstance(optimizer, dict):
-        if type(optimizer.get("format_version")) is not int or optimizer["format_version"] != 1:
+    if (
+        (major, minor) in (AX_STATE_SCHEMA_SERIES, AX_V2_STATE_SCHEMA_SERIES)
+        and ax_state
+        and isinstance(optimizer, dict)
+    ):
+        expected_format = 2 if (major, minor) == AX_V2_STATE_SCHEMA_SERIES else 1
+        if (
+            type(optimizer.get("format_version")) is not int
+            or optimizer["format_version"] != expected_format
+        ):
             raise ValueError("Unsupported Ax optimizer format_version")
         state["schema_version"] = normalized
         return state
     if ax_state:
-        raise ValueError("Ax campaigns require state.schema_version 0.4.x")
+        raise ValueError(
+            "Ax campaigns require matching state.schema_version 0.4.x/format1 or 0.5.x/format2"
+        )
     if (major, minor) == STATE_SCHEMA_SERIES:
         state["schema_version"] = normalized
         return state
@@ -120,7 +132,7 @@ def normalize_state_schema_version(state: dict[str, Any], *, state_path: Path) -
 
     raise ValueError(
         f"Unsupported state.schema_version '{normalized}'. "
-        "This runtime supports legacy 0.3.x and explicitly marked Ax 0.4.x state versions. "
+        "This runtime supports legacy 0.3.x and explicitly marked Ax 0.4.x/0.5.x state versions. "
         f"See compatibility notes: {STATE_COMPATIBILITY_DOC_RELATIVE_PATH}"
     )
 
@@ -145,6 +157,8 @@ def payload_schema_version(state: dict[str, Any]) -> str:
     """Keep evaluator payload versions independent from Ax's internal state guard."""
     persisted = state_schema_version(state)
     major, minor, _ = _parse_semver(persisted, field_name="state.schema_version")
+    if (major, minor) == AX_V2_STATE_SCHEMA_SERIES:
+        return "0.4.0"
     return STATE_SCHEMA_VERSION if (major, minor) == AX_STATE_SCHEMA_SERIES else persisted
 
 

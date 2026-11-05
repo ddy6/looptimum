@@ -17,6 +17,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  site:
+    name: Site Validation (Node 24)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install locked site dependencies
+        run: npm ci
+      - name: Test case-study data and build boundaries
+        run: npm test
+      - name: Build and validate generated routes and proof assets
+        run: npm run build
+
   quality:
     name: Quality Gates
     runs-on: ubuntu-latest
@@ -160,6 +182,10 @@ jobs:
           templates/tests/test_ax_integration.py
           templates/tests/test_ax_recovery.py
           templates/tests/test_ax_rebuild.py
+          templates/tests/test_ax_measurements.py
+          templates/tests/test_ax_search_spaces.py
+          templates/tests/test_ax_outcomes.py
+          benchmarks/ax_capabilities/test_contracts.py
           templates/tests/test_gp_fit.py
           templates/tests/test_gp_fit_integration.py
           templates/tests/test_optimizer_backend.py
@@ -174,6 +200,14 @@ jobs:
           --output-dir /tmp/looptimum-backend-smoke
           --budget 4 --initialization 2 --seeds 17
           --workloads smooth_quadratic --workers 2
+      - name: Smoke opt-in Ax capabilities
+        run: >-
+          python -m benchmarks.ax_capabilities.run
+          --output /tmp/looptimum-ax-capability-smoke
+          --budget 3 --initialization 2 --seeds 17
+          --workloads measured_scalar --workers 2
+      - name: Independently audit capability smoke metrics
+        run: python -m benchmarks.ax_capabilities.audit --output /tmp/looptimum-ax-capability-smoke
       - name: Retain installation and compatibility evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -183,6 +217,9 @@ jobs:
             ax-installation.json
             ax-compatibility.json
             ax-tests.xml
+            /tmp/looptimum-ax-capability-smoke/manifest.json
+            /tmp/looptimum-ax-capability-smoke/summary.json
+            /tmp/looptimum-ax-capability-smoke/audit.json
             ${{ runner.temp }}/ax-wheelhouse/manifest.json
             ${{ runner.temp }}/ax-wheelhouse/requirements.lock
 

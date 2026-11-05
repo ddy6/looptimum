@@ -37,6 +37,7 @@ ignore = ["E501", "E741"]
 python_version = "3.12"
 files = [
   "benchmarks/backend_comparison/*.py",
+  "benchmarks/ax_capabilities/*.py",
   "examples/ax_pipeline_tuning/*.py",
   "scripts/check_release.py",
   "service/*.py",

@@ -100,6 +100,9 @@ def test_objective_schema_exposes_multi_objective_fields() -> None:
         "primary_objective",
         "secondary_objectives",
         "scalarization",
+        "measurement_metrics",
+        "outcome_constraints",
+        "pareto_reference",
     }
     assert properties["scalarization"]["properties"]["policy"]["enum"] == [
         "weighted_sum",

@@ -314,6 +314,10 @@ def _build_trial_record(
         record["scalarization_policy"] = metadata["scalarization_policy"]
 
     for key in (
+        "objective_sems",
+        "measurements",
+        "measurement_sems",
+        "scalarized_sem",
         "heartbeat_note",
         "heartbeat_meta",
         "source_trial_id",
@@ -323,6 +327,8 @@ def _build_trial_record(
     ):
         if key in manifest:
             record[key] = manifest[key]
+        elif source is not None and key in source:
+            record[key] = source[key]
         elif source is not None and key in source:
             record[key] = source[key]
 
@@ -477,6 +483,16 @@ def build_best_timeseries(root: Path) -> JSONDict:
             "best_trial_id": best_record["trial_id"],
             "best_objective_name": best_record["objective_name"],
             "best_objective_value": best_record["objective_value"],
+            **{
+                field: observation[field]
+                for field in (
+                    "objective_sems",
+                    "measurements",
+                    "measurement_sems",
+                    "scalarized_sem",
+                )
+                if field in observation
+            },
         }
         if "scalarization_policy" in metadata:
             point["scalarization_policy"] = metadata["scalarization_policy"]
@@ -490,6 +506,7 @@ def build_best_timeseries(root: Path) -> JSONDict:
         "scalarization_policy": runtime_any.scalarization_policy(objective_cfg),
         "points": points,
         "ignored_trial_ids": ignored_trial_ids,
+        **runtime_any._OBJECTIVES.outcome_summary(state["observations"], objective_cfg),
     }
 
 

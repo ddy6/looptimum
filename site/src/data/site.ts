@@ -1,3 +1,5 @@
+import { validateCaseStudies } from "./validate-case-studies.mjs";
+
 export const navItems = [
   { href: "/", label: "Home" },
   { href: "/how-it-works/", label: "How it works" },
@@ -154,11 +156,7 @@ export const caseStudies: CaseStudy[] = [
     title: "Simulation-mesh optimization",
     summary:
       "A 21-trial search found a smaller mesh, then a separate solver pass checked flow and pressure against the fine reference.",
-    metrics: [
-      { value: "72.9%", label: "Fewer cells", detail: "Selected coarse candidate" },
-      { value: "91.0%", label: "Lower wall clock", detail: "Validated solver pass" },
-      { value: "11.1x", label: "Speedup", detail: "Against the fine reference" },
-    ],
+    metrics: heroMetrics.slice(0, 3),
     proofAssets: [
       {
         title: "Solver wall-clock comparison",
@@ -232,6 +230,8 @@ export const caseStudies: CaseStudy[] = [
     cta: { href: "/pilot/", label: "Discuss a pilot" },
   },
 ];
+
+validateCaseStudies(caseStudies);
 
 export const validationChecks = [
   "All major outlet flows within 1%",

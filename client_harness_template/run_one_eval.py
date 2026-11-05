@@ -160,7 +160,9 @@ def _normalize_schema_version(raw_schema_version: Any) -> str:
     return normalized
 
 
-def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dict[str, Any]:
+def _normalize_eval_output(
+    value: Any, *, default_failure_penalty: float, objective_name: str | None = None
+) -> dict[str, Any]:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return {"status": "ok", "objective": _require_finite_number(value, field_name="objective")}
 
@@ -171,6 +173,53 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
     objective_raw = value.get("objective", value.get("objective_value", _MISSING))
     penalty_raw = value.get("penalty_objective", _MISSING)
     terminal_reason = _normalize_terminal_reason(value, status=status)
+    forwarded: dict[str, Any] = {}
+    if "objectives" in value:
+        vector = value["objectives"]
+        if not isinstance(vector, dict) or not vector:
+            raise ValueError("objectives must be a nonempty metric map")
+        if any(not isinstance(name, str) or not name.strip() for name in vector):
+            raise ValueError("objectives requires nonempty metric names")
+        if status == "ok":
+            vector = {
+                name: _require_finite_number(item, field_name=f"objectives.{name}")
+                for name, item in vector.items()
+            }
+        elif any(item is not None for item in vector.values()):
+            raise ValueError("non-ok objectives must all be null")
+        if objective_name is not None:
+            if objective_name not in vector:
+                raise ValueError("objectives missing the configured primary objective")
+            if objective_raw is not _MISSING and objective_raw != vector[objective_name]:
+                raise ValueError("objective alias conflicts with objectives")
+            objective_raw = vector[objective_name]
+        forwarded["objectives"] = vector
+    for field in ("objective_sems", "measurements", "measurement_sems"):
+        if field not in value:
+            continue
+        raw = value[field]
+        if not isinstance(raw, dict):
+            raise ValueError(f"{field} must be a metric map")
+        values = {}
+        for name, item in raw.items():
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError(f"{field} requires nonempty metric names")
+            number = _require_finite_number(item, field_name=f"{field}.{name}")
+            if field.endswith("sems") and number < 0:
+                raise ValueError(f"{field}.{name} must be nonnegative")
+            values[name] = number
+        if values:
+            forwarded[field] = values
+    if "scalarized_sem" in value:
+        sem = _require_finite_number(value["scalarized_sem"], field_name="scalarized_sem")
+        if sem < 0:
+            raise ValueError("scalarized_sem must be nonnegative")
+        forwarded["scalarized_sem"] = sem
+    if status != "ok" and any(
+        field in forwarded
+        for field in ("objective_sems", "measurements", "measurement_sems", "scalarized_sem")
+    ):
+        raise ValueError("non-ok outcomes cannot carry measurements or SEMs")
 
     if status == "ok":
         if objective_raw is _MISSING:
@@ -182,6 +231,7 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
         return {
             "status": "ok",
             "objective": _require_finite_number(objective_raw, field_name="objective"),
+            **forwarded,
         }
 
     # Non-ok statuses: output normalized contract shape with primary objective null.
@@ -201,6 +251,7 @@ def _normalize_eval_output(value: Any, *, default_failure_penalty: float) -> dic
         "objective": None,
         "penalty_objective": penalty_objective,
         "terminal_reason": terminal_reason,
+        **forwarded,
     }
 
 
@@ -429,14 +480,19 @@ def main() -> None:
                 os.environ.pop(_TRIAL_ID_ENV, None)
             else:
                 os.environ[_TRIAL_ID_ENV] = previous_trial_id
-        normalized = _normalize_eval_output(eval_output, default_failure_penalty=failure_penalty)
+        normalized = _normalize_eval_output(
+            eval_output, default_failure_penalty=failure_penalty, objective_name=objective_name
+        )
         result = {
             "schema_version": schema_version,
             "trial_id": int(suggestion["trial_id"]),
             "params": suggestion["params"],
-            "objectives": {objective_name: normalized["objective"]},
+            "objectives": normalized.get("objectives", {objective_name: normalized["objective"]}),
             "status": normalized["status"],
         }
+        for field in ("objective_sems", "measurements", "measurement_sems", "scalarized_sem"):
+            if field in normalized:
+                result[field] = normalized[field]
         if normalized.get("penalty_objective") is not None:
             result["penalty_objective"] = normalized["penalty_objective"]
         if normalized.get("terminal_reason") is not None:

@@ -61,6 +61,11 @@ switch the campaign to proxy generation.
 
 ## Supported surface
 
+The following is released **contract 1** support. The current source also adds
+[unreleased contract 2](ax-contract2.md), explicitly selected with
+`optimizer.ax.contract_version: 2`; its new state/payload identities and
+measurement, conditional-space and Pareto rules are documented separately.
+
 - Flat float/int/bool parameters and homogeneous categorical choices.
 - Linear/log numeric scales and fixed bounds, subject to the selected Ax
   release's supported parameter configurations.
@@ -72,11 +77,12 @@ switch the campaign to proxy generation.
 - Existing canonical observation import; first-time conversion of an existing
   campaign requires no outstanding pending work.
 
-Conditional parameters, mixed-type categorical choices, linear inequality
-constraints, forbidden combinations, lexicographic objectives, known
-measurement errors, measured outcome constraints, and true Pareto acquisition
-are not supported yet. Unsupported selections fail before trial allocation.
-Existing observed Pareto reporting does not imply Pareto-directed acquisition.
+Contract 1 rejects conditional parameters, mixed-type categorical choices,
+linear inequalities, forbidden combinations, known measurement errors, measured
+outcome constraints and true Pareto acquisition. Contract 2 supports the exact
+subset described in its guide. Lexicographic Ax acquisition remains unsupported
+in both contracts. Unsupported selections fail before allocation. Existing
+observed Pareto reporting does not imply Pareto-directed acquisition.
 
 Currently pending parameterizations cannot be duplicated. Completed
 parameterizations are also excluded unless `allow_completed_repeats` is true.
@@ -92,7 +98,9 @@ guarantee that Ax's selected method will propose a repeat.
 
 ## State and recovery boundaries
 
-Ax campaigns persist state series `0.4.x`; legacy campaigns remain `0.3.x`.
+Ax contract-1 campaigns persist state series `0.4.x`; legacy campaigns remain
+`0.3.x`. Unreleased contract 2 uses `0.5.x`/format 2 and evaluator `0.4.0`;
+see its [upgrade/rollback rules](ax-contract2.md#state-rebuild-and-rollback).
 Older controllers reject the Ax series rather than accidentally generate a
 proxy suggestion. Evaluator suggestion/result/status payloads retain the
 existing `0.3.x` surface. Status additionally identifies the internal
@@ -159,6 +167,10 @@ campaign. A new campaign warm-started from exported observations is a new
 optimization history, not exact recovery of the previous generator.
 
 ### Rebuild a lost optimizer snapshot
+
+The configuration-preserving recovery below applies to contract 1 and 2.
+Explicit contract-2 upgrades/semantic changes have the additional
+[validated rebuild requirements](ax-contract2.md#state-rebuild-and-rollback).
 
 If the matching snapshot/environment cannot be restored, ordinary/full
 controllers provide an explicit rebuild:

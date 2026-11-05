@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 import math
+from pathlib import Path
 from typing import Any
 
 JSONDict = dict[str, Any]
@@ -9,6 +11,14 @@ _DIRECTIONS = {"minimize", "maximize"}
 _SCALARIZATION_POLICIES = {"weighted_sum", "weighted_tchebycheff", "lexicographic"}
 _WEIGHTED_POLICIES = {"weighted_sum", "weighted_tchebycheff"}
 _PRIMARY_ONLY_POLICY = "primary_only"
+
+_AX_SPEC = importlib.util.spec_from_file_location(
+    "looptimum_ax_objective_contract", Path(__file__).with_name("ax_contract.py")
+)
+if _AX_SPEC is None or _AX_SPEC.loader is None:
+    raise ImportError("Cannot load sibling Ax measurement contract")
+_AX_CONTRACT = importlib.util.module_from_spec(_AX_SPEC)
+_AX_SPEC.loader.exec_module(_AX_CONTRACT)
 
 
 def _require_object(value: Any, *, field_name: str) -> JSONDict:
@@ -159,7 +169,9 @@ def _normalize_scalarization(raw: Any, *, objectives: list[JSONDict]) -> JSONDic
     return out
 
 
-def normalize_objective_schema(raw: Any) -> JSONDict:
+def normalize_objective_schema(
+    raw: Any, *, contract_version: int = 1, acquisition: str = "scalar"
+) -> JSONDict:
     objective_cfg = _require_object(raw, field_name="objective_schema")
     primary = _normalize_objective(
         objective_cfg.get("primary_objective"),
@@ -189,13 +201,29 @@ def normalize_objective_schema(raw: Any) -> JSONDict:
         objective_cfg.get("scalarization"),
         objectives=objectives,
     )
-    return {
+    out: JSONDict = {
         "primary_objective": primary,
         "secondary_objectives": secondary,
         "objectives": objectives,
         "objective_names": names,
         "scalarization": scalarization,
     }
+    extra = _AX_CONTRACT.normalize_outcome_config(objective_cfg, names)
+    if type(contract_version) is not int or contract_version not in (1, 2):
+        raise ValueError("Ax contract version must be 1 or 2")
+    if acquisition not in ("scalar", "pareto"):
+        raise ValueError("Ax acquisition must be scalar or pareto")
+    if contract_version == 1:
+        if extra or acquisition != "scalar":
+            raise ValueError("Measured outcomes/Pareto require optimizer.ax.contract_version=2")
+    else:
+        if acquisition == "pareto" and (len(names) < 2 or "pareto_reference" not in extra):
+            raise ValueError(
+                "Pareto acquisition requires at least two objectives and pareto_reference"
+            )
+        out.update(extra)
+        out.update(ax_contract_version=2, acquisition=acquisition)
+    return out
 
 
 def primary_objective_name(objective_cfg: JSONDict) -> str:
@@ -406,13 +434,19 @@ def objective_config_snapshot(objective_cfg: JSONDict) -> JSONDict:
         objective_cfg.get("scalarization"),
         field_name="objective_cfg.scalarization",
     )
-    return {
+    out: JSONDict = {
         "primary_objective": dict(primary),
         "secondary_objectives": [dict(item) for item in secondary],
         "objectives": [dict(item) for item in objectives],
         "objective_names": objective_names(objective_cfg),
         "scalarization": dict(scalarization),
     }
+    if objective_cfg.get("ax_contract_version") == 2:
+        out.update(ax_contract_version=2, acquisition=objective_cfg["acquisition"])
+        for key in _AX_CONTRACT.OUTCOME_CONFIG_FIELDS:
+            if key in objective_cfg:
+                out[key] = objective_cfg[key]
+    return out
 
 
 def nullable_objective_vector(raw_objectives: Any, objective_cfg: JSONDict) -> JSONDict:
@@ -512,3 +546,147 @@ def pareto_front_records(records: list[JSONDict], objective_cfg: JSONDict) -> li
         )
     )
     return [record for record, _ in frontier]
+
+
+def feasible_hypervolume(records: list[JSONDict], objective_cfg: JSONDict) -> float | None:
+    """Exact union of reference-anchored boxes, in one maximize orientation."""
+    reference = objective_cfg.get("pareto_reference")
+    if reference is None:
+        return None
+    names = objective_names(objective_cfg)
+    points = set()
+    for row in records:
+        vector = canonical_objective_vector(row["objectives"], objective_cfg)
+        widths = tuple(
+            (reference[item["name"]] - vector[item["name"]])
+            if item["direction"] == "minimize"
+            else (vector[item["name"]] - reference[item["name"]])
+            for item in objective_cfg["objectives"]
+        )
+        if any(not math.isfinite(value) for value in widths):
+            raise ValueError("Hypervolume arithmetic overflow; use finite scaled objective units")
+        if all(value > 0 for value in widths):
+            points.add(widths)
+
+    def union(boxes: set[tuple[float, ...]], dimensions: int) -> float:
+        if not boxes:
+            return 0.0
+        if dimensions == 1:
+            return max(box[0] for box in boxes)
+        levels = sorted({0.0, *(box[-1] for box in boxes)})
+        return sum(
+            (upper - lower) * union({box[:-1] for box in boxes if box[-1] >= upper}, dimensions - 1)
+            for lower, upper in zip(levels, levels[1:])
+        )
+
+    volume = union(points, len(names))
+    if not math.isfinite(volume):
+        raise ValueError("Hypervolume arithmetic overflow; use finite scaled objective units")
+    return volume
+
+
+def outcome_summary(records: list[JSONDict], objective_cfg: JSONDict) -> JSONDict:
+    if objective_cfg.get("ax_contract_version") != 2:
+        return {}
+    eligible = []
+    outcomes = []
+    counts = {"feasible": 0, "infeasible": 0, "unknown": 0}
+    for row in records:
+        known = row.get("status", "ok") == "ok"
+        if known:
+            try:
+                _AX_CONTRACT.normalize_measurements(row, objective_cfg)
+                canonical_objective_vector(row.get("objectives"), objective_cfg)
+            except (ValueError, TypeError):
+                known = False
+        checks = []
+        for constraint in objective_cfg.get("outcome_constraints", []):
+            value = row.get("measurements", {}).get(constraint["metric"]) if known else None
+            satisfied = (
+                None
+                if value is None
+                else value <= constraint["bound"]
+                if constraint["op"] == "<="
+                else value >= constraint["bound"]
+            )
+            violation = (
+                None
+                if value is None
+                else max(
+                    0.0,
+                    value - constraint["bound"]
+                    if constraint["op"] == "<="
+                    else constraint["bound"] - value,
+                )
+            )
+            checks.append(
+                {**constraint, "measurement": value, "satisfied": satisfied, "violation": violation}
+            )
+        feasible = all(check["satisfied"] for check in checks) if known else None
+        counts["unknown" if feasible is None else "feasible" if feasible else "infeasible"] += 1
+        outcomes.append(
+            {
+                "trial_id": row["trial_id"],
+                "status": row.get("status", "ok"),
+                "feasible": feasible,
+                "constraints": checks,
+            }
+        )
+        if feasible:
+            eligible.append(row)
+    winner = (
+        min(
+            eligible,
+            key=lambda row: best_rank_key(
+                row["objectives"], objective_cfg, trial_id=int(row["trial_id"])
+            ),
+        )
+        if eligible
+        else None
+    )
+    best = (
+        {
+            **winner,
+            "scalarized_objective": scalarize_objectives(winner["objectives"], objective_cfg),
+        }
+        if winner
+        else None
+    )
+    front = pareto_front_records(eligible, objective_cfg)
+    return {
+        "acquisition_mode": objective_cfg["acquisition"],
+        "scalar_summary_role": "summary_only"
+        if objective_cfg["acquisition"] == "pareto"
+        else "acquisition_objective",
+        "best_feasible": best,
+        "outcome_feasibility_counts": counts,
+        "outcome_constraint_status": outcomes,
+        "feasible_pareto_front": {
+            "count": len(front),
+            "trial_ids": [row["trial_id"] for row in front],
+            "trials": front,
+        },
+        "pareto_reference": reference
+        if (reference := objective_cfg.get("pareto_reference")) is not None
+        else None,
+        "feasible_hypervolume": feasible_hypervolume(front, objective_cfg),
+    }
+
+
+def outcome_markdown(report: JSONDict) -> list[str]:
+    if "outcome_feasibility_counts" not in report:
+        return []
+    counts = report["outcome_feasibility_counts"]
+    best = report["best_feasible"]
+    return [
+        "",
+        "## Observed outcome feasibility",
+        "",
+        f"- Acquisition: {report['acquisition_mode']}; scalar best is {report['scalar_summary_role']}.",
+        f"- Feasible: {counts['feasible']}; infeasible: {counts['infeasible']}; unknown: {counts['unknown']}.",
+        f"- Best feasible trial: {best['trial_id'] if best is not None else 'none'}.",
+        f"- Feasible observed nondominated trials: {report['feasible_pareto_front']['trial_ids']}.",
+        f"- Feasible observed hypervolume: {report['feasible_hypervolume']}; reference: {report['pareto_reference']}.",
+        "",
+        "Feasibility uses inclusive observed bounds. Failed or missing outcomes are unknown; scalar summaries do not establish Pareto acquisition.",
+    ]

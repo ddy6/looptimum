@@ -2,7 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "IngestPayload",
   "type": "object",
-  "required": ["trial_id", "params", "objectives"],
+  "required": [
+    "trial_id",
+    "params",
+    "objectives"
+  ],
   "properties": {
     "schema_version": {
       "type": "string",
@@ -18,12 +22,21 @@
     "objectives": {
       "type": "object",
       "additionalProperties": {
-        "type": ["number", "null"]
+        "type": [
+          "number",
+          "null"
+        ]
       }
     },
     "status": {
       "type": "string",
-      "enum": ["ok", "failed", "killed", "timeout", "success"]
+      "enum": [
+        "ok",
+        "failed",
+        "killed",
+        "timeout",
+        "success"
+      ]
     },
     "penalty_objective": {
       "type": "number"
@@ -39,6 +52,30 @@
     },
     "heartbeat_meta": {
       "type": "object"
+    },
+    "objective_sems": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "measurement_sems": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "scalarized_sem": {
+      "type": "number",
+      "minimum": 0
     }
   }
 }

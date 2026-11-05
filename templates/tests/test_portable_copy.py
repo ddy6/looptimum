@@ -11,6 +11,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FULL_TEMPLATE = REPO_ROOT / "templates" / "bo_client_full"
 PORTABLE_COPY_TOOL = REPO_ROOT / "templates" / "_shared" / "vendor_copy.py"
 RUNTIME_MODULES = {
+    "ax_contract.py",
+    "ax_space.py",
     "contract.py",
     "constraints.py",
     "objectives.py",

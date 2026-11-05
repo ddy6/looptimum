@@ -28,7 +28,7 @@ for row in request["records"]:
     signatures[str(row["trial_id"])] = row["signature"]
 for offset in range(request["count"]):
     trial_id = request["next_trial_id"] + offset
-    params = {p["name"]: trial_id / 100 for p in request["parameters"]}
+    params = {p["name"]: trial_id / 100 for p in (request["codec"]["parameters"] if request["protocol"] == 2 else request["parameters"])}
     mapping[str(trial_id)] = trial_id - 1
     signatures[str(trial_id)] = canonical_digest(
         {"params": params, "status": "pending", "objectives": None}
@@ -37,7 +37,7 @@ for offset in range(request["count"]):
 print(json.dumps({"ok": True, "result": {
     "snapshot": {"test_generation": request["generation"]},
     "mapping": mapping, "signatures": signatures, "candidates": candidates,
-    "versions": {name: None for name in dependency_versions()}, "attempts": 1,
+    "versions": {name: None for name in dependency_versions()}, "attempts": request["count"], "reject_counts": {},
 }}))
 """
 
@@ -56,7 +56,7 @@ def invoke(project, *args, success=True, env=None):
     return result
 
 
-def campaign(tmp_path, variant="bo_client"):
+def campaign(tmp_path, variant="bo_client", *, contract_version=1):
     project = tmp_path / "controller"
     subprocess.run(
         [
@@ -71,6 +71,8 @@ def campaign(tmp_path, variant="bo_client"):
     config_path = project / "bo_config.json"
     config = json.loads(config_path.read_text())
     config["optimizer"] = {"backend": "ax", "ax": {}}
+    if contract_version == 2:
+        config["optimizer"]["ax"]["contract_version"] = 2
     config["worker_leases"] = {"enabled": True}
     config["max_pending_age_seconds"] = None
     config_path.write_text(json.dumps(config))
@@ -107,8 +109,9 @@ def rows(project, path):
 
 @pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
 @pytest.mark.parametrize("stage", ["prepared", "committed", "manifests", "decisions", "events"])
-def test_process_exit_repairs_exactly_once_without_ax(tmp_path, variant, stage):
-    project = campaign(tmp_path, variant)
+@pytest.mark.parametrize("contract_version", [1, 2])
+def test_process_exit_repairs_exactly_once_without_ax(tmp_path, variant, stage, contract_version):
+    project = campaign(tmp_path, variant, contract_version=contract_version)
     stopped = invoke(
         project,
         "suggest",
@@ -190,8 +193,11 @@ def test_recovery_itself_can_exit_and_next_suggest_finishes_publication(tmp_path
 
 
 @pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
-def test_recovery_preserves_ingested_result_and_later_heartbeat(tmp_path, variant):
-    project = campaign(tmp_path, variant)
+@pytest.mark.parametrize("contract_version", [1, 2])
+def test_recovery_preserves_ingested_result_and_later_heartbeat(
+    tmp_path, variant, contract_version
+):
+    project = campaign(tmp_path, variant, contract_version=contract_version)
     invoke(
         project,
         "suggest",
@@ -265,8 +271,11 @@ def test_write_failures_have_an_unambiguous_commit_boundary(tmp_path, basename, 
 
 
 @pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
-def test_auto_retirement_is_committed_when_generation_times_out(tmp_path, variant):
-    project = campaign(tmp_path, variant)
+@pytest.mark.parametrize("contract_version", [1, 2])
+def test_auto_retirement_is_committed_when_generation_times_out(
+    tmp_path, variant, contract_version
+):
+    project = campaign(tmp_path, variant, contract_version=contract_version)
     first = json.loads(invoke(project, "suggest", "--json-only").stdout)
     config_path = project / "bo_config.json"
     config = json.loads(config_path.read_text())
@@ -423,8 +432,11 @@ def test_semantic_and_environment_changes_block_before_worker_runs(tmp_path, cha
         ('print(\'{"ok":false,"error":"fit failed","error_type":"RuntimeError"}\')', "fit failed"),
     ],
 )
-def test_worker_failures_leave_no_public_allocation(tmp_path, worker_source, expected):
-    project = campaign(tmp_path)
+@pytest.mark.parametrize("contract_version", [1, 2])
+def test_worker_failures_leave_no_public_allocation(
+    tmp_path, worker_source, expected, contract_version
+):
+    project = campaign(tmp_path, contract_version=contract_version)
     (project / "vendor/looptimum_shared/optimizer_ax_worker.py").write_text(worker_source)
     failed = invoke(project, "suggest", "--json-only", success=False)
     assert failed.returncode != 0 and expected in failed.stderr
@@ -458,8 +470,11 @@ def test_recovery_obeys_campaign_lock_and_rejects_a_different_history(tmp_path):
 
 
 @pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
-def test_reset_restore_keeps_unfinished_allocation_and_snapshot_together(tmp_path, variant):
-    project = campaign(tmp_path, variant)
+@pytest.mark.parametrize("contract_version", [1, 2])
+def test_reset_restore_keeps_unfinished_allocation_and_snapshot_together(
+    tmp_path, variant, contract_version
+):
+    project = campaign(tmp_path, variant, contract_version=contract_version)
     invoke(
         project,
         "suggest",
@@ -542,3 +557,58 @@ def test_malformed_checksummed_journal_does_not_break_status(tmp_path):
     )
     invoke(project, "cancel", "--trial-id", "1")
     assert state(project)["observations"][0]["status"] == "killed"
+
+
+@pytest.mark.parametrize("damage", ["incomplete", "invalid", "duplicate", "mapping", "accounting"])
+def test_v2_bad_worker_batch_cannot_publish_any_candidate(tmp_path, damage):
+    project = campaign(tmp_path, contract_version=2)
+    changes = {
+        "incomplete": "candidates.pop()",
+        "invalid": 'candidates[-1]["params"]["p0"] = 2.0',
+        "duplicate": 'candidates[-1]["params"] = dict(candidates[0]["params"])',
+        "mapping": 'mapping[str(request["next_trial_id"])] = True',
+        "accounting": 'request["count"] = 0',
+    }
+    worker = FAKE_WORKER.replace(
+        'print(json.dumps({"ok": True', changes[damage] + '\nprint(json.dumps({"ok": True'
+    )
+    (project / "vendor/looptimum_shared/optimizer_ax_worker.py").write_text(worker)
+    rejected = invoke(project, "suggest", "--count", "2", "--json-only", success=False)
+    assert rejected.returncode and rejected.stdout == ""
+    assert not (project / "state/bo_state.json").exists()
+    assert not (project / JOURNAL).exists()
+    assert not (project / "state/trials").exists()
+
+
+def test_v2_snapshot_damage_blocks_generation_but_terminal_results_remain_deliverable(tmp_path):
+    project = campaign(tmp_path, contract_version=2)
+    suggestion = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    before = state(project)
+    path = project / before["optimizer"]["snapshot"]["path"]
+    path.write_text("{}")
+    failed = invoke(project, "suggest", "--json-only", success=False)
+    assert failed.returncode and "digest mismatch" in failed.stderr
+    assert state(project) == before
+    (project / "result.json").write_text(
+        json.dumps(
+            {
+                "trial_id": 1,
+                "params": suggestion["params"],
+                "objectives": {"loss": 0.2},
+                "objective_sems": {"loss": 0},
+                "status": "ok",
+            }
+        )
+    )
+    invoke(
+        project,
+        "ingest",
+        "--results-file",
+        "result.json",
+        "--lease-token",
+        suggestion["lease_token"],
+    )
+    assert state(project)["observations"][0]["objective_sems"] == {"loss": 0}
+    invoke(project, "report")
+    invoke(project, "rebuild-optimizer", "--reason", "lost cache")
+    assert json.loads(invoke(project, "suggest", "--json-only").stdout)["trial_id"] == 2

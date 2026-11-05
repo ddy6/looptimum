@@ -77,6 +77,7 @@ def _load_shared_module(module_name: str, filename: str):
 _CONTRACT = _load_shared_module("looptimum_shared_contract", "contract.py")
 _CONSTRAINTS = _load_shared_module("looptimum_shared_constraints", "constraints.py")
 _OBJECTIVES = _load_shared_module("looptimum_shared_objectives", "objectives.py")
+_MEASUREMENTS = _load_shared_module("looptimum_ax_measurement_contract", "ax_contract.py")
 _ARCHIVES = _load_shared_module("looptimum_shared_archives", "archives.py")
 _GOVERNANCE = _load_shared_module("looptimum_shared_governance", "governance.py")
 _RUNTIME = _load_shared_module("looptimum_shared_runtime", "runtime.py")
@@ -277,7 +278,13 @@ def _load_objective_config(root: Path, cfg: dict) -> dict:
         default_rel="../_shared/schemas/objective_schema.schema.json",
     )
     validate_against_schema(obj_cfg, objective_schema, source_path=obj_path)
-    return normalize_objective_schema(obj_cfg)
+    optimizer = _OPTIMIZER.normalize_optimizer_config(cfg, template="bo_client_full")
+    options = optimizer.get("ax", {})
+    return normalize_objective_schema(
+        obj_cfg,
+        contract_version=options.get("contract_version", 1),
+        acquisition=options.get("acquisition", "scalar"),
+    )
 
 
 def _load_constraints(root: Path, cfg: dict, params: list[dict]) -> dict | None:
@@ -877,6 +884,7 @@ def _ensure_terminal_manifest(
     manifest["artifact_path"] = artifact_path
     manifest["artifacts"] = artifacts
     manifest["updated_at"] = now
+    manifest.update(_MEASUREMENTS.normalize_measurements(observation, objective_cfg))
     save_trial_manifest(paths["trials_dir"], trial_id, manifest)
 
 
@@ -1019,6 +1027,10 @@ def _observation_rows(state: dict) -> list[dict]:
             row["artifact_path"] = obs["artifact_path"]
         if "lease_token" in obs:
             row["lease_token"] = obs["lease_token"]
+        row.update(_OBSERVATIONS_IO.measurement_csv_fields(obs))
+        if (state.get("optimizer") or {}).get("format_version") == 2:
+            row = {key: value for key, value in row.items() if not key.startswith("param_")}
+            row.update(_OBSERVATIONS_IO.typed_parameter_csv_fields(obs["params"]))
         rows.append(row)
     return rows
 
@@ -1122,8 +1134,17 @@ def _status_payload(
         if isinstance(pending.get("lease_token"), str) and bool(pending.get("lease_token"))
     )
 
+    outcome_fields = {}
+    if (state.get("optimizer") or {}).get("format_version") == 2:
+        try:
+            config_document, _ = load_contract_document(root, "bo_config")
+            objective_cfg = _load_objective_config(root, config_document)
+            outcome_fields = _OBJECTIVES.outcome_summary(state["observations"], objective_cfg)
+        except (ValueError, OSError, TypeError, KeyError) as exc:
+            outcome_fields = {"outcome_config_error": str(exc)}
     payload = {
         "schema_version": state_schema_version(state),
+        **outcome_fields,
         **(
             {"state_schema_version": state["schema_version"], "optimizer": state["optimizer"]}
             if state.get("optimizer")
@@ -1210,6 +1231,7 @@ def _build_observation_report_row(
         row["scalarization_policy"] = objective_meta["scalarization_policy"]
     if include_params:
         row["params"] = observation.get("params")
+    row.update(_MEASUREMENTS.normalize_measurements(observation, objective_cfg))
     return row
 
 
@@ -1285,6 +1307,7 @@ def _build_report_payload(
             ],
         },
         "runtime_summary": _runtime_summary(observations),
+        **_OBJECTIVES.outcome_summary(observations, objective_cfg),
     }
 
 
@@ -1365,6 +1388,7 @@ def _render_report_markdown(report: dict) -> str:
         lines.append(f"- mean_seconds: `{runtime_summary['mean_seconds']}`")
         lines.append(f"- total_seconds: `{runtime_summary['total_seconds']}`")
 
+    lines.extend(_OBJECTIVES.outcome_markdown(report))
     return "\n".join(lines) + "\n"
 
 
@@ -2373,6 +2397,10 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     params = normalize_search_space(space_cfg)
 
     obj_cfg = _load_objective_config(root, cfg)
+    constraints = (
+        _load_constraints(root, cfg, params) if obj_cfg.get("ax_contract_version") == 2 else None
+    )
+    optimizer = _OPTIMIZER.normalize_optimizer_config(cfg, template="bo_client_full")
     ingest_schema, _ = load_schema_from_paths(
         root,
         cfg["paths"],
@@ -2388,15 +2416,27 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
     ) as lock:
-        _append_event(
-            paths,
-            "lock_acquired",
-            command="ingest",
-            pid=os.getpid(),
-            wait_seconds=lock.wait_seconds,
-        )
+        audit_started = False
+
+        def start_audit() -> None:
+            nonlocal audit_started
+            if not audit_started:
+                _append_event(
+                    paths,
+                    "lock_acquired",
+                    command="ingest",
+                    pid=os.getpid(),
+                    wait_seconds=lock.wait_seconds,
+                )
+                audit_started = True
+
+        if obj_cfg.get("ax_contract_version") != 2:
+            start_audit()
         try:
             state = load_state(paths["state_file"])
+            codec, configuration_fingerprint = _AX.validate_v2_context(
+                root, paths, state, params, obj_cfg, constraints, optimizer
+            )
 
             payload_path = Path(args.results_file)
             payload = load_data_file(payload_path)
@@ -2409,6 +2449,8 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 source_path=payload_path,
             )
             payload["params"] = canonicalize_conditional_params(payload["params"], params)
+            if codec is not None:
+                payload["params"] = _AX.canonical_parameters(codec, payload["params"])
             heartbeat_fields = _load_heartbeat_fields(payload, trial_id)
 
             pending = {int(row["trial_id"]): row for row in state["pending"]}
@@ -2430,12 +2472,14 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                     "objectives": payload["objectives"],
                     "status": payload["status"],
                 }
+                received.update(_MEASUREMENTS.normalize_measurements(payload, obj_cfg))
                 if "penalty_objective" in payload:
                     received["penalty_objective"] = payload["penalty_objective"]
                 if "terminal_reason" in payload:
                     received["terminal_reason"] = payload["terminal_reason"]
-                diffs = diff_contract_records(expected, received)
+                diffs = diff_contract_records(expected, received, typed_params=codec is not None)
                 if not diffs:
+                    start_audit()
                     _append_event(paths, "ingest_duplicate_noop", trial_id=trial_id)
                     print(f"No-op: trial_id={trial_id} already ingested with identical payload.")
                     return
@@ -2450,7 +2494,14 @@ def cmd_ingest(args: argparse.Namespace) -> None:
             pending_params = canonicalize_conditional_params(
                 pending[trial_id].get("params", {}), params
             )
-            if payload.get("params") != pending_params:
+            if (
+                (
+                    _AX.parameter_identity(payload["params"])
+                    != _AX.parameter_identity(pending_params)
+                )
+                if codec is not None
+                else payload.get("params") != pending_params
+            ):
                 param_diffs = diff_contract_records(
                     {"params": pending_params},
                     {"params": payload.get("params", {})},
@@ -2460,6 +2511,8 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                     f"ingest payload params mismatch for pending trial_id {trial_id}:\n{details}"
                 )
 
+            _MEASUREMENTS.validate_measurement_coverage([*state["observations"], payload], obj_cfg)
+            start_audit()
             pending_entry = _pop_pending(state, trial_id)
             if pending_entry is None:
                 raise ValueError(f"trial_id {trial_id} is not pending")
@@ -2474,6 +2527,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
                 "suggested_at": pending_entry.get("suggested_at"),
                 "completed_at": now,
             }
+            observation.update(_MEASUREMENTS.normalize_measurements(payload, obj_cfg))
             if payload["status"] != "ok":
                 observation["terminal_reason"] = payload.get("terminal_reason")
                 observation["penalty_objective"] = payload.get("penalty_objective")
@@ -2510,7 +2564,8 @@ def cmd_ingest(args: argparse.Namespace) -> None:
             _append_governance_violation_event(root, paths, state, cfg, command="ingest")
             print(f"Ingested trial_id={trial_id}. Observations={len(state['observations'])}")
         finally:
-            _append_event(paths, "lock_released", command="ingest", pid=os.getpid())
+            if audit_started:
+                _append_event(paths, "lock_released", command="ingest", pid=os.getpid())
 
 
 def cmd_import_observations(args: argparse.Namespace) -> None:
@@ -2526,6 +2581,10 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
         raise ValueError(f"parameter_space must be an object: {space_path}")
     params = normalize_search_space(space_cfg)
     obj_cfg = _load_objective_config(root, cfg)
+    constraints = (
+        _load_constraints(root, cfg, params) if obj_cfg.get("ax_contract_version") == 2 else None
+    )
+    optimizer = _OPTIMIZER.normalize_optimizer_config(cfg, template="bo_client_full")
 
     input_path = Path(args.input_file).resolve()
     row_format = args.format or infer_observation_format(input_path)
@@ -2542,15 +2601,27 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
     with hold_exclusive_lock(
         paths["lock_file"], timeout_seconds=lock_timeout, fail_fast=args.fail_fast
     ) as lock:
-        _append_event(
-            paths,
-            "lock_acquired",
-            command="import-observations",
-            pid=os.getpid(),
-            wait_seconds=lock.wait_seconds,
-        )
+        audit_started = False
+
+        def start_audit() -> None:
+            nonlocal audit_started
+            if not audit_started:
+                _append_event(
+                    paths,
+                    "lock_acquired",
+                    command="import-observations",
+                    pid=os.getpid(),
+                    wait_seconds=lock.wait_seconds,
+                )
+                audit_started = True
+
+        if obj_cfg.get("ax_contract_version") != 2:
+            start_audit()
         try:
             state = load_state(paths["state_file"])
+            codec, configuration_fingerprint = _AX.validate_v2_context(
+                root, paths, state, params, obj_cfg, constraints, optimizer
+            )
             imported_at = time.time()
             import_source = _relative_path(root, input_path)
             import_report_rel: str | None = None
@@ -2570,6 +2641,13 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                     )
                     for index, raw_row in enumerate(raw_rows)
                 ]
+                _MEASUREMENTS.validate_measurement_coverage(
+                    [
+                        *state["observations"],
+                        *[record["observation"] for record in normalized_rows],
+                    ],
+                    obj_cfg,
+                )
                 next_trial_id_after_import = planned_trial_ids[-1] + 1
             else:
                 start_trial_id = next_import_trial_id(state)
@@ -2582,6 +2660,13 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                     imported_at=imported_at,
                 )
                 normalized_rows = permissive_result["accepted"]
+                _MEASUREMENTS.validate_measurement_coverage(
+                    [
+                        *state["observations"],
+                        *[record["observation"] for record in normalized_rows],
+                    ],
+                    obj_cfg,
+                )
                 rejected_rows = permissive_result["rejected"]
                 next_trial_id_after_import = int(permissive_result["next_trial_id"])
                 report_path = _import_report_path(paths, imported_at=imported_at)
@@ -2598,6 +2683,7 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                     ],
                     "rejected_rows": rejected_rows,
                 }
+                start_audit()
                 atomic_write_json(report_path, report_payload, indent=2)
                 import_report_rel = _relative_path(root, report_path)
                 if rejected_rows:
@@ -2624,6 +2710,10 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                     f"No observations imported from {import_source}; all {len(raw_rows)} row(s) were rejected.{detail}"
                 )
 
+            start_audit()
+            _MEASUREMENTS.initialize_measurement_state(
+                state, obj_cfg, fingerprint=configuration_fingerprint
+            )
             for observation, record in zip(imported_observations, normalized_rows, strict=True):
                 source_trial_id = record.get("source_trial_id")
                 if source_trial_id is not None:
@@ -2684,7 +2774,10 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                 if import_report_rel is not None:
                     print(f"Import report: {import_report_rel}")
         finally:
-            _append_event(paths, "lock_released", command="import-observations", pid=os.getpid())
+            if audit_started:
+                _append_event(
+                    paths, "lock_released", command="import-observations", pid=os.getpid()
+                )
 
 
 def cmd_export_observations(args: argparse.Namespace) -> None:
@@ -2721,7 +2814,10 @@ def cmd_export_observations(args: argparse.Namespace) -> None:
             if row_format == "jsonl":
                 payload = render_observations_jsonl(observations)
             else:
-                payload = render_observations_csv(observations)
+                payload = render_observations_csv(
+                    observations,
+                    typed_params=(state.get("optimizer") or {}).get("format_version") == 2,
+                )
             atomic_write_text(output_path, payload)
             _append_event(
                 paths,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import math
 import re
@@ -13,6 +14,14 @@ _MISSING = object()
 _RESULT_SCHEMA_ALIAS = "result_payload.schema.json"
 _INGEST_SCHEMA_CANONICAL = "ingest_payload.schema.json"
 JSONDict = dict[str, Any]
+
+_AX_SPEC = importlib.util.spec_from_file_location(
+    "looptimum_ax_payload_contract", Path(__file__).with_name("ax_contract.py")
+)
+if _AX_SPEC is None or _AX_SPEC.loader is None:
+    raise ImportError("Cannot load sibling Ax measurement contract")
+_AX_CONTRACT = importlib.util.module_from_spec(_AX_SPEC)
+_AX_SPEC.loader.exec_module(_AX_CONTRACT)
 
 
 def _render_value(value: Any) -> str:
@@ -501,6 +510,10 @@ def _normalize_objectives(
 def normalize_ingest_payload(
     payload: JSONDict, *, objective_cfg: JSONDict, source_path: Path
 ) -> tuple[JSONDict, int]:
+    if objective_cfg.get("ax_contract_version") == 2 and "schema_version" in payload:
+        version = payload["schema_version"]
+        if not isinstance(version, str) or not re.fullmatch(r"0\.(?:3|4)\.\d+", version):
+            raise ValueError("Ax contract2 accepts evaluator payload schema 0.3.x or 0.4.x")
     trial_id = _require_int(
         payload.get("trial_id"), source_path=source_path, field_path="$.trial_id"
     )
@@ -547,6 +560,10 @@ def normalize_ingest_payload(
         normalized.pop("terminal_reason", None)
     else:
         normalized["terminal_reason"] = terminal_reason
+    extensions = _AX_CONTRACT.normalize_measurements(normalized, objective_cfg)
+    for key in _AX_CONTRACT.MEASUREMENT_FIELDS:
+        normalized.pop(key, None)
+    normalized.update(extensions)
     return normalized, trial_id
 
 
@@ -596,6 +613,19 @@ def build_observation_contract(observation: JSONDict, *, objective_cfg: JSONDict
         out["penalty_objective"] = penalty
     if terminal_reason is not None:
         out["terminal_reason"] = terminal_reason
+    out.update(
+        _AX_CONTRACT.normalize_measurements(
+            {
+                **payload_like,
+                **{
+                    key: observation[key]
+                    for key in _AX_CONTRACT.MEASUREMENT_FIELDS
+                    if key in observation
+                },
+            },
+            objective_cfg,
+        )
+    )
     return out
 
 
@@ -627,9 +657,16 @@ def _diff_records(path: str, left: Any, right: Any, out: list[str]) -> None:
         )
 
 
-def diff_contract_records(expected: JSONDict, received: JSONDict) -> list[str]:
+def diff_contract_records(
+    expected: JSONDict, received: JSONDict, *, typed_params: bool = False
+) -> list[str]:
     out: list[str] = []
     _diff_records("$", expected, received, out)
+    if typed_params and "params" in expected and "params" in received:
+        left = json.dumps(expected["params"], sort_keys=True, separators=(",", ":"))
+        right = json.dumps(received["params"], sort_keys=True, separators=(",", ":"))
+        if left != right and not any(line.startswith("$.params") for line in out):
+            out.append("$.params typed identity differs")
     return out
 
 

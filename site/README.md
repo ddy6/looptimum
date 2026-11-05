@@ -15,14 +15,21 @@ live deployment health.
 
 ## Local static build
 
-With Node.js/npm installed, use the locked dependencies from this directory:
+With Node.js 24 or later and npm installed, use the locked dependencies from this directory:
 
 ```bash
 npm ci
+npm test
 npm run build
 ```
 
 The output is `dist/`. The checked-in Astro configuration selects static output.
+The shared case-study records validate when imported. The build also checks
+generated case-study routes, index copy, proof files and figure context, and
+internal CTA destinations. `npm test` exercises malformed data and missing or
+incorrect build artifacts; the Node 24 CI lane runs both commands. These checks
+complement the separate GPT provenance/privacy/arithmetic tests.
+
 `wrangler.jsonc` describes a Workers static-assets deployment, including its 404
 handling; it is not an SSR Worker or a Pages Function application. Publishing
 follows the repository's Git workflow. The presence of a local deploy script

@@ -18,8 +18,8 @@ if (!campaign) {
   currentPath="/evidence/gpt-training/"
 >
   <PageHero
-    title="GPT training-parameter search"
-    dek="An anonymized campaign tested four training controls, starting with four deterministic evaluations and following with six guided trials. All ten ran in the existing training environment."
+    title={campaign.title}
+    dek={campaign.summary}
   />
 
   <div class="stack-lg">
@@ -35,8 +35,8 @@ if (!campaign) {
       <p>
         The selected model's held-out loss index was 98.98 against a fixed
         baseline of 100.00. Its parameter-count index was 75.4 against 100.0.
-        This single-seed, small-budget campaign does not establish statistical
-        significance or global optimality.
+        This single-seed, small-budget campaign does not establish statistical significance
+        or global optimality.
       </p>
     </section>
 
@@ -84,8 +84,7 @@ if (!campaign) {
     <section class="proof-banner reveal" aria-labelledby="limitations-heading">
       <h2 id="limitations-heading">Limits of this result</h2>
       <ul>
-        <li>One seed and ten evaluations do not establish statistical significance.</li>
-        <li>The selected model was the best observed; global optimality was not established.</li>
+        {campaign.limitations.map((limitation) => <li>{limitation}</li>)}
         <li>The search does not isolate the causal effect of any one control.</li>
         <li>Transfer to another workflow, broader model quality, and production readiness were not assessed.</li>
         <li>About 25% fewer parameters does not imply a matching reduction in runtime or cost.</li>

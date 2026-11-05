@@ -63,6 +63,17 @@ def _load_shared_module(module_name: str, filename: str) -> ModuleType:
 
 _OBJECTIVES = _load_shared_module("looptimum_shared_objectives_import", "objectives.py")
 _SEARCH_SPACE = _load_shared_module("looptimum_shared_search_space_import", "search_space.py")
+_AX_CONTRACT = _load_shared_module("looptimum_shared_ax_contract_import", "ax_contract.py")
+_AX_SPACE = _load_shared_module("looptimum_shared_ax_space_import", "ax_space.py")
+_MEASUREMENT_CSV_FIELDS = {
+    "objective_sems": "ax_objective_sems_json",
+    "measurements": "ax_measurements_json",
+    "measurement_sems": "ax_measurement_sems_json",
+    "scalarized_sem": "ax_scalarized_sem",
+}
+_KNOWN_ROW_FIELDS.update(_MEASUREMENT_CSV_FIELDS.values())
+_KNOWN_ROW_FIELDS.update({"ax_csv_version", "ax_params_json"})
+_EXPORT_FIELD_ORDER[4:4] = list(_AX_CONTRACT.MEASUREMENT_FIELDS)
 
 active_parameters = _SEARCH_SPACE.active_parameters
 canonicalize_conditional_params = _SEARCH_SPACE.canonicalize_conditional_params
@@ -242,8 +253,14 @@ def _normalize_param_value(value: Any, param: JSONDict, *, field_name: str) -> A
     raise ValueError(f"Unsupported parameter type '{param_type}'")
 
 
-def _normalize_param_payload(raw: Any, params: list[JSONDict], *, field_name: str) -> JSONDict:
+def _normalize_param_payload(
+    raw: Any, params: list[JSONDict], *, field_name: str, typed: bool = False
+) -> JSONDict:
     payload = _require_object(raw, field_name=field_name)
+    if typed:
+        codec = _AX_SPACE.build_codec(params, None)
+        canonical = canonicalize_conditional_params(payload, params)
+        return cast(JSONDict, _AX_SPACE.decode(codec, _AX_SPACE.encode(codec, canonical)))
     known_names = {str(param["name"]) for param in params}
     extras = sorted(set(payload) - known_names)
     if extras:
@@ -269,7 +286,9 @@ def _normalize_param_payload(raw: Any, params: list[JSONDict], *, field_name: st
     return canonical
 
 
-def _normalize_csv_param_payload(row: JSONDict, params: list[JSONDict]) -> JSONDict:
+def _normalize_csv_param_payload(
+    row: JSONDict, params: list[JSONDict], *, typed: bool = False
+) -> JSONDict:
     known_columns = {f"param_{param['name']}" for param in params}
     for key, value in row.items():
         if key in _KNOWN_ROW_FIELDS or key in known_columns or key.startswith("objective_"):
@@ -277,6 +296,25 @@ def _normalize_csv_param_payload(row: JSONDict, params: list[JSONDict]) -> JSOND
         if value is None or (isinstance(value, str) and not value.strip()):
             continue
         raise ValueError(f"csv row contains unknown column '{key}'")
+
+    if row.get("ax_csv_version") not in (None, ""):
+        if not typed or type(row["ax_csv_version"]) is bool or str(row["ax_csv_version"]) != "2":
+            raise ValueError("Typed CSV version2 requires optimizer.ax.contract_version=2")
+        if any(str(k).startswith("param_") and v not in (None, "") for k, v in row.items()):
+            raise ValueError("Typed CSV must not mix ax_params_json with legacy param columns")
+        try:
+            values = json.loads(row.get("ax_params_json", ""))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("ax_params_json must contain a typed parameter object") from exc
+        return _normalize_param_payload(values, params, field_name="ax_params_json", typed=True)
+    if row.get("ax_params_json") not in (None, ""):
+        raise ValueError("ax_params_json requires ax_csv_version=2")
+    if typed and any(
+        p["type"] == "categorical"
+        and (len({type(v) for v in p["choices"]}) > 1 or "" in p["choices"])
+        for p in params
+    ):
+        raise ValueError("Mixed/empty categorical choices require typed CSV with ax_csv_version=2")
 
     payload: JSONDict = {}
     for param in params:
@@ -299,7 +337,11 @@ def _normalize_csv_param_payload(row: JSONDict, params: list[JSONDict]) -> JSOND
     ]
     if missing:
         raise ValueError(f"csv row missing required active params {missing}")
-    return canonical
+    return (
+        _normalize_param_payload(canonical, params, field_name="csv params", typed=True)
+        if typed
+        else canonical
+    )
 
 
 def _normalize_objective_payload(
@@ -448,7 +490,7 @@ def export_observation_json_record(observation: JSONDict) -> JSONDict:
     return out
 
 
-def flatten_observation_for_csv(observation: JSONDict) -> JSONDict:
+def flatten_observation_for_csv(observation: JSONDict, *, typed_params: bool = False) -> JSONDict:
     record = export_observation_json_record(observation)
     params = _require_object(record.pop("params"), field_name="observation.params")
     objectives = _require_object(record.pop("objectives"), field_name="observation.objectives")
@@ -467,15 +509,48 @@ def flatten_observation_for_csv(observation: JSONDict) -> JSONDict:
         else:
             raise ValueError("observation.heartbeat_meta must be an object or null")
 
-    for key, value in params.items():
-        out[f"param_{key}"] = value
+    if typed_params:
+        out.update(typed_parameter_csv_fields(params))
+    else:
+        for key, value in params.items():
+            out[f"param_{key}"] = value
     for key, value in objectives.items():
         out[f"objective_{key}"] = value
+    for field in _MEASUREMENT_CSV_FIELDS:
+        out.pop(field, None)
+    out.update(measurement_csv_fields(record))
     return out
 
 
-def flatten_observations_for_csv(observations: list[JSONDict]) -> list[JSONDict]:
-    return [flatten_observation_for_csv(observation) for observation in observations]
+def measurement_csv_fields(record: JSONDict) -> JSONDict:
+    out = {}
+    for field, column in _MEASUREMENT_CSV_FIELDS.items():
+        if field in record:
+            value = record[field]
+            out[column] = (
+                json.dumps(value, sort_keys=True, separators=(",", ":"))
+                if field != "scalarized_sem"
+                else value
+            )
+    return out
+
+
+def typed_parameter_csv_fields(params: JSONDict) -> JSONDict:
+    return {
+        "ax_csv_version": 2,
+        "ax_params_json": json.dumps(
+            params, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ),
+    }
+
+
+def flatten_observations_for_csv(
+    observations: list[JSONDict], *, typed_params: bool = False
+) -> list[JSONDict]:
+    return [
+        flatten_observation_for_csv(observation, typed_params=typed_params)
+        for observation in observations
+    ]
 
 
 def render_observations_jsonl(observations: list[JSONDict]) -> str:
@@ -485,8 +560,8 @@ def render_observations_jsonl(observations: list[JSONDict]) -> str:
     )
 
 
-def render_observations_csv(observations: list[JSONDict]) -> str:
-    rows = flatten_observations_for_csv(observations)
+def render_observations_csv(observations: list[JSONDict], *, typed_params: bool = False) -> str:
+    rows = flatten_observations_for_csv(observations, typed_params=typed_params)
     if not rows:
         return ""
     keys = sorted({key for row in rows for key in row.keys()})
@@ -655,6 +730,7 @@ def normalize_import_record(
             "heartbeat_meta",
             "lease_token",
         }
+        known_fields.update(_AX_CONTRACT.MEASUREMENT_FIELDS)
         extras = sorted(set(row) - known_fields)
         if extras:
             raise ValueError(f"jsonl observation row includes unknown fields {extras}")
@@ -679,12 +755,22 @@ def normalize_import_record(
             row.get("params"),
             params,
             field_name="params",
+            typed=objective_cfg.get("ax_contract_version") == 2,
         )
         observation["objectives"] = _normalize_objective_payload(
             row.get("objectives"),
             objective_cfg=objective_cfg,
             status=str(observation["status"]),
             field_name="objectives",
+        )
+        observation.update(
+            _AX_CONTRACT.normalize_measurements(
+                {
+                    **observation,
+                    **{key: row[key] for key in _AX_CONTRACT.MEASUREMENT_FIELDS if key in row},
+                },
+                objective_cfg,
+            )
         )
         return {
             "row_format": normalized_format,
@@ -710,11 +796,28 @@ def normalize_import_record(
         local_trial_id=local_trial_id,
         imported_at=float(imported_at),
     )
-    observation["params"] = _normalize_csv_param_payload(row, params)
+    observation["params"] = _normalize_csv_param_payload(
+        row, params, typed=objective_cfg.get("ax_contract_version") == 2
+    )
     observation["objectives"] = _normalize_csv_objective_payload(
         row,
         objective_cfg=objective_cfg,
         status=str(observation["status"]),
+    )
+    extensions: JSONDict = {}
+    for field, column in _MEASUREMENT_CSV_FIELDS.items():
+        value = row.get(column)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        if field == "scalarized_sem":
+            extensions[field] = _normalize_optional_float(value, field_name=column)
+        else:
+            try:
+                extensions[field] = json.loads(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"{column} must contain a JSON metric map") from exc
+    observation.update(
+        _AX_CONTRACT.normalize_measurements({**observation, **extensions}, objective_cfg)
     )
     return {
         "row_format": normalized_format,

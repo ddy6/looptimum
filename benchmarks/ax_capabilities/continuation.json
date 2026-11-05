@@ -1,0 +1,36 @@
+{
+  "original_run": {
+    "campaigns": 40,
+    "complete": 39,
+    "evaluator_slots_consumed": 958,
+    "maximum_slots": 960,
+    "strict600_second_completion_gate_passed": false
+  },
+  "time_amendment": {
+    "maximum_additional_seconds": 300,
+    "maximum_additional_evaluator_calls": 2,
+    "workers": 1,
+    "numerical_worker_timeout_seconds": 120,
+    "source_environment_seed_reference_unchanged": true
+  },
+  "result": {
+    "status": "FAILED_RETAINED_NO_AUTOMATIC_RETRY",
+    "reason": "generation_attempt_limit_exhausted",
+    "generation_attempt_limit": 8,
+    "rejected_internal_proposals": {
+      "forbidden_combinations[0]": 8
+    },
+    "additional_wall_seconds": 107.15442037489265,
+    "additional_evaluator_calls": 0,
+    "matrix_total_evaluator_calls": 958,
+    "controller_command_timed_out": false,
+    "public_trials_allocated": 0,
+    "original_and_copied_canonical_states_unchanged": true,
+    "canonical_observations": 22,
+    "next_trial_id": 23,
+    "pending_trials": 0,
+    "allocation_journal_pending": false
+  },
+  "original_manifest_sha256": "21657db4fa96b2d243c3e0efd1ce5c7b2d54249090b4f6ea78544c3532a1e986",
+  "interpretation": "Additional time exposed the configured rejection-attempt limit. All eight proposed arms violated the forbidden combination. The original strict matrix and the amended completion gate remain unmet. No further retry or source/seed/reference change was performed."
+}

@@ -52,7 +52,7 @@ without the optional numerical stack. CI uses Python 3.12 for Mypy and Python
 
 Current enforced scope is configured in `pyproject.toml`:
 
-- `benchmarks/backend_comparison/*.py`
+- `benchmarks/backend_comparison/*.py`, `benchmarks/ax_capabilities/*.py`
 - `examples/ax_pipeline_tuning/*.py`
 - `scripts/check_release.py`
 - `service/*.py`

@@ -11,7 +11,17 @@ installs hashed local wheels into a fresh venv without an index, runs the
 public API probe and real controller/recovery tests, and retains installation,
 compatibility and test receipts. The [support matrix](ax-support-matrix.md)
 defines the tested surface. Lean unit and Mypy jobs still omit the optimizer
-stack so accidental dependency requirements remain visible.
+stack so accidental dependency requirements remain visible. The four Ax lanes
+also run the measurement, typed-space and outcome capability suites with
+`LOOPTIMUM_REQUIRE_AX_TESTS=1`, plus a six-call contract-2 correctness smoke.
+The full [40-campaign bounded matrix](../benchmarks/ax_capabilities/README.md)
+is separate from CI and retains every attempted slot and failed case.
+
+The static-site CI lane uses Node.js 24 and `site/package-lock.json`. From
+`site/`, run `npm ci`, `npm test` and `npm run build`. Data validation reads the
+actual typed case-study records; build completion also checks generated routes,
+proof assets, figure context and CTA destinations. These checks complement the
+GPT evidence suite and do not verify live deployment or assistive technology.
 
 ## Scope
 

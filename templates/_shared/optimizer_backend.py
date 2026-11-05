@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import math
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any
 
 JSONDict = dict[str, Any]
 AX_STATE_SCHEMA_VERSION = "0.4.0"
 AX_FORMAT_VERSION = 1
+AX_V2_STATE_SCHEMA_VERSION = "0.5.0"
+AX_V2_FORMAT_VERSION = 2
 AX_TESTED_VERSION = "1.3.1"
 AX_DEFAULTS: JSONDict = {
     "method": "fast",
@@ -50,10 +54,23 @@ def normalize_optimizer_config(
     settings = raw.get("ax", {})
     if not isinstance(settings, dict):
         raise ValueError("optimizer.ax must be an object")
-    unknown = set(settings) - set(AX_DEFAULTS)
+    unknown = set(settings) - set(AX_DEFAULTS) - {"contract_version", "acquisition"}
     if unknown:
         raise ValueError(f"Unknown optimizer.ax settings: {sorted(unknown)}")
-    options = {**AX_DEFAULTS, **settings}
+    contract_version = settings.get("contract_version", 1)
+    acquisition = settings.get("acquisition", "scalar")
+    if type(contract_version) is not int or contract_version not in (1, 2):
+        raise ValueError("optimizer.ax.contract_version must be 1 or 2")
+    if acquisition not in ("scalar", "pareto") or (
+        contract_version == 1 and acquisition != "scalar"
+    ):
+        raise ValueError("optimizer.ax.acquisition must be scalar or contract2 pareto")
+    options = {
+        **AX_DEFAULTS,
+        **{k: v for k, v in settings.items() if k not in ("contract_version", "acquisition")},
+    }
+    if contract_version == 2:
+        options.update(contract_version=2, acquisition=acquisition)
     if "min_observed_initialization_trials" not in settings:
         options["min_observed_initialization_trials"] = options["initialization_budget"]
     if options["method"] != "fast":
@@ -87,6 +104,16 @@ def validate_ax_capabilities(
 ) -> None:
     if objective_cfg["scalarization"]["policy"] == "lexicographic":
         raise ValueError("Ax does not yet support lexicographic objectives")
+    if objective_cfg.get("ax_contract_version") == 2:
+        spec = importlib.util.spec_from_file_location(
+            "looptimum_ax_capability_space", Path(__file__).with_name("ax_space.py")
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError("Missing Ax space codec")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.build_codec(params, constraints)
+        return
     for param in params:
         name = param["name"]
         if param.get("when"):

@@ -45,6 +45,133 @@ def unchanged_campaign_records(before, after):
     assert {key: value for key, value in after.items() if key != "optimizer"} == expected
 
 
+def opt_in_v2(project, **options):
+    path = project / "bo_config.json"
+    cfg = json.loads(path.read_text())
+    cfg["optimizer"]["ax"].update(contract_version=2, **options)
+    path.write_text(json.dumps(cfg))
+
+
+@pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
+def test_explicit_v1_upgrade_backs_up_old_state_and_snapshot_and_starts_new_lineage(
+    tmp_path, variant
+):
+    project = seeded_campaign(tmp_path, variant)
+    pending = state(project)["pending"][0]
+    invoke(
+        project,
+        "cancel",
+        "--trial-id",
+        str(pending["trial_id"]),
+        "--lease-token",
+        pending["lease_token"],
+        "--reason",
+        "finish old work",
+    )
+    before = state(project)
+    original = (project / "state/bo_state.json").read_bytes()
+    source = (project / before["optimizer"]["snapshot"]["path"]).read_bytes()
+    opt_in_v2(project)
+    refused = invoke(project, "suggest", "--json-only", success=False)
+    assert refused.returncode and "rebuild" in refused.stderr
+    assert (project / "state/bo_state.json").read_bytes() == original
+    result = json.loads(
+        invoke(project, "rebuild-optimizer", "--reason", "explicit contract upgrade").stdout
+    )
+    after = state(project)
+    assert after["schema_version"] == "0.5.0" and after["optimizer"]["format_version"] == 2
+    assert (
+        after["observations"] == before["observations"]
+        and after["next_trial_id"] == before["next_trial_id"]
+    )
+    assert after["optimizer"]["lineage"] != before["optimizer"]["lineage"]
+    receipt = result["rebuild"]
+    assert receipt["source_format"] == 1 and receipt["target_format"] == 2
+    backup = project / receipt["backup_directory"]
+    assert (backup / "state-before.json").read_bytes() == original
+    assert (backup / "snapshot-before.bin").read_bytes() == source
+    assert json.loads(invoke(project, "suggest", "--json-only").stdout)["trial_id"] == 3
+
+
+def test_contract_upgrade_requires_no_pending_and_complete_real_source_measurements(tmp_path):
+    project = seeded_campaign(tmp_path)
+    original = (project / "state/bo_state.json").read_bytes()
+    opt_in_v2(project)
+    failed = invoke(project, "rebuild-optimizer", "--reason", "upgrade", success=False)
+    assert failed.returncode and "outstanding" in failed.stderr
+    assert (project / "state/bo_state.json").read_bytes() == original
+    pending = state(project)["pending"][0]
+    invoke(
+        project,
+        "cancel",
+        "--trial-id",
+        str(pending["trial_id"]),
+        "--lease-token",
+        pending["lease_token"],
+        "--reason",
+        "finish old work",
+    )
+    original = (project / "state/bo_state.json").read_bytes()
+    schema = project / "objective_schema.json"
+    cfg = json.loads(schema.read_text())
+    cfg.update(
+        measurement_metrics=["resource"],
+        outcome_constraints=[{"metric": "resource", "op": "<=", "bound": 1}],
+    )
+    schema.write_text(json.dumps(cfg))
+    failed = invoke(
+        project, "rebuild-optimizer", "--reason", "missing historical measurement", success=False
+    )
+    assert failed.returncode and "measurement" in failed.stderr.lower()
+    assert (project / "state/bo_state.json").read_bytes() == original
+
+
+@pytest.mark.parametrize("stage", ["rebuild_prepared", "rebuild_committed", "rebuild_event"])
+def test_v2_rebuild_transaction_replays_once_at_existing_commit_boundaries(tmp_path, stage):
+    project = seeded_campaign(tmp_path)
+    pending = state(project)["pending"][0]
+    invoke(
+        project,
+        "cancel",
+        "--trial-id",
+        str(pending["trial_id"]),
+        "--lease-token",
+        pending["lease_token"],
+        "--reason",
+        "finish old work",
+    )
+    opt_in_v2(project)
+    invoke(project, "rebuild-optimizer", "--reason", "upgrade")
+    before = state(project)
+    stopped = invoke(
+        project,
+        "rebuild-optimizer",
+        "--reason",
+        "v2 restore",
+        success=False,
+        env={"LOOPTIMUM_TEST_ALLOCATION_EXIT": stage},
+    )
+    assert stopped.returncode == 86
+    result = json.loads(invoke(project, "rebuild-optimizer", "--reason", "finish").stdout)
+    if stage == "rebuild_prepared":
+        assert result["status"] == "rebuilt"
+    else:
+        assert result["status"] == "recovered_rebuild"
+    after = state(project)
+    unchanged_campaign_records(before, after)
+    identifier = after["optimizer"]["last_rebuild"]["rebuild_id"]
+    assert (
+        len(
+            [
+                row
+                for row in rows(project, "state/event_log.jsonl")
+                if row.get("rebuild_id") == identifier
+            ]
+        )
+        == 1
+    )
+
+
 @pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
 @pytest.mark.parametrize("damage", ["missing", "corrupt", "healthy"])
 def test_rebuild_starts_new_lineage_without_allocating_or_editing_canonical_records(
@@ -340,3 +467,57 @@ def test_invalid_pending_rebuild_event_does_not_block_canonical_operations(tmp_p
     )
     invoke(project, "cancel", "--trial-id", "2")
     assert state(project)["pending"] == []
+
+
+def test_v2_semantic_rebuild_preserves_complete_source_configuration(tmp_path):
+    project = campaign(tmp_path, contract_version=2)
+    trial = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    invoke(
+        project,
+        "cancel",
+        "--trial-id",
+        str(trial["trial_id"]),
+        "--lease-token",
+        trial["lease_token"],
+        "--reason",
+        "configuration boundary",
+    )
+    before = state(project)
+    (project / "parameter_space.json").write_text(
+        json.dumps({"parameters": [{"name": "x", "type": "float", "bounds": [0, 0.5]}]})
+    )
+    result = json.loads(
+        invoke(project, "rebuild-optimizer", "--reason", "explicit bound change").stdout
+    )
+    backup = project / result["rebuild"]["backup_directory"]
+    source = json.loads((backup / "rebuild.json").read_text())["source_configuration"]
+    assert source["codec"]["definitions"][0]["bounds"] == [0, 1]
+    assert source["options"]["contract_version"] == 2 and source["seed"] == 17
+    assert state(project)["observations"] == before["observations"]
+    assert state(project)["optimizer"]["fingerprint"] != before["optimizer"]["fingerprint"]
+    assert json.loads(invoke(project, "suggest", "--json-only").stdout)["trial_id"] == 2
+
+
+def test_v2_corrupt_snapshot_and_missing_fingerprint_cannot_authorize_a_rebuild(tmp_path):
+    project = campaign(tmp_path, contract_version=2)
+    trial = json.loads(invoke(project, "suggest", "--json-only").stdout)
+    invoke(
+        project,
+        "cancel",
+        "--trial-id",
+        str(trial["trial_id"]),
+        "--lease-token",
+        trial["lease_token"],
+        "--reason",
+        "complete pending",
+    )
+    path = project / "state/bo_state.json"
+    before = state(project)
+    (project / before["optimizer"]["snapshot"]["path"]).write_text("{}")
+    before["optimizer"].pop("fingerprint")
+    path.write_text(json.dumps(before))
+    original = path.read_bytes()
+    failed = invoke(project, "rebuild-optimizer", "--reason", "unverified source", success=False)
+    assert failed.returncode and "Cannot validate contract2 source configuration" in failed.stderr
+    assert path.read_bytes() == original
+    assert not (project / "state/optimizer/ax/rebuilds").exists()

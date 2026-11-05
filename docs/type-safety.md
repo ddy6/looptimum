@@ -9,7 +9,7 @@ Type-checking tool: `mypy`.
 
 Current blocking CI gate scope, configured in `pyproject.toml`:
 
-- `benchmarks/backend_comparison/*.py`
+- `benchmarks/backend_comparison/*.py`, `benchmarks/ax_capabilities/*.py`
 - `examples/ax_pipeline_tuning/*.py`
 - `scripts/check_release.py`
 - `service/*.py`

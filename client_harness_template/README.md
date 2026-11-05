@@ -26,3 +26,13 @@ shared path helper. When copying the harness alone to read an artifact-only
 campaign, also copy `templates/_shared/runtime_paths.py` beside
 `starterkit_tracking.py`. A zero event limit returns no events; malformed event
 history still raises an error.
+
+## Unreleased extended Ax results
+
+`run_one_eval.py` accepts a callback dictionary containing a complete `objectives`
+map and named `objective_sems`, `measurements`, `measurement_sems` and optional
+`scalarized_sem`. It forwards these fields and the suggestion's payload version;
+an `objective` alias must agree with the primary map entry. The controller
+validates configured names, score-SEM rules and per-modeled-metric campaign
+coverage. See [Ax contract 2](../docs/ax-contract2.md). Scalar callbacks and existing
+non-ok/null-objective behavior retain their established shape.

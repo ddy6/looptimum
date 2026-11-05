@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -82,6 +83,73 @@ def _ok_result_payload(
         "status": "ok",
         "objectives": {objective_name: value},
     }
+
+
+@pytest.mark.parametrize("variant", ["bo_client", "bo_client_full"])
+def test_ax2_imported_measurements_survive_service_json_and_tracker_export_without_ax(
+    tmp_path: Path, variant: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = _prepare_variant_copy(tmp_path, variant, target_name="extended")
+    cfg_path = project / "bo_config.json"
+    cfg = json.loads(cfg_path.read_text())
+    cfg["optimizer"] = {"backend": "ax", "ax": {"contract_version": 2}}
+    cfg_path.write_text(json.dumps(cfg))
+    (project / "parameter_space.json").write_text(
+        json.dumps({"parameters": [{"name": "x", "type": "float", "bounds": [0, 1]}]})
+    )
+    (project / "objective_schema.json").write_text(
+        json.dumps(
+            {
+                "primary_objective": {"name": "loss", "direction": "minimize"},
+                "measurement_metrics": ["resource"],
+                "outcome_constraints": [{"metric": "resource", "op": "<=", "bound": 1}],
+            }
+        )
+    )
+    extensions = {
+        "objective_sems": {"loss": 0},
+        "measurements": {"resource": 1},
+        "measurement_sems": {"resource": 0.1},
+    }
+    source = project / "rows.jsonl"
+    source.write_text(
+        json.dumps(
+            {"params": {"x": 0.5}, "objectives": {"loss": 0.25}, "status": "ok", **extensions}
+        )
+        + "\n"
+    )
+    _run_cli(project, "import-observations", "--input-file", str(source))
+    _run_cli(project, "report")
+    app = create_app(build_service_config(tmp_path / "service_state/registry.json"))
+    with TestClient(app) as client:
+        created = client.post("/campaigns", json={"root_path": str(project)}).json()
+        campaign_id = created["campaign_id"]
+        detail = client.get(f"/campaigns/{campaign_id}/trials/1")
+        trace = client.get(f"/campaigns/{campaign_id}/timeseries/best")
+        assert detail.status_code == trace.status_code == 200
+        for field, value in extensions.items():
+            assert detail.json()["trial"][field] == value
+            assert trace.json()["points"][0][field] == value
+        assert trace.json()["best_feasible"]["trial_id"] == 1
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "client_harness_template"))
+    spec = importlib.util.spec_from_file_location(
+        "extended_tracking_test", REPO_ROOT / "client_harness_template/starterkit_tracking.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    snapshot = module.load_tracking_snapshot(project)
+    for field, value in extensions.items():
+        assert snapshot["top_trials"][0][field] == value
+    assert snapshot["best_feasible"]["trial_id"] == 1
+    before_archive = (project / "state/bo_state.json").read_bytes()
+    _run_cli(project, "reset", "--yes")
+    archive = next((project / "state/reset_archives").iterdir())
+    _run_cli(project, "restore", "--archive-id", archive.name, "--yes")
+    assert (project / "state/bo_state.json").read_bytes() == before_archive
+    _run_cli(project, "report")
+    restored_report = json.loads((project / "state/report.json").read_text())
+    for field, value in extensions.items():
+        assert restored_report["objective_trace"][0][field] == value
 
 
 @pytest.mark.parametrize("variant", VARIANTS)

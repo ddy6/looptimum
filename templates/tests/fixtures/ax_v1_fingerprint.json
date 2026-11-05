@@ -1,0 +1,33 @@
+{
+  "baseline_commit": "27d0c6ac35a32585b192a767cbaf0277a1ad5eea",
+  "baseline_sources_sha256": {
+    "runtime.py": "d66cbf5bf8e35d2f21be09e933c29ed72d97ba7fa72c11d507fbd3ed2d9b5f5f",
+    "objectives.py": "5a2a3cf5bcf791ed7550ac6765bdd9a553ae31d45c9abcdf6212f9a301f02680",
+    "optimizer_backend.py": "cd77a22fb8ed5de74cde73c6e66b59f5050c6756849e674e22610932d4324a66",
+    "optimizer_ax.py": "528f2332f6d223500a022955bc14085b44e704ead0bea0e8f8272b7cf7d50aad"
+  },
+  "raw_parameter_space": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": "float",
+        "bounds": [
+          0,
+          1
+        ]
+      }
+    ]
+  },
+  "raw_objective_schema": {
+    "primary_objective": {
+      "name": "loss",
+      "direction": "minimize"
+    }
+  },
+  "raw_optimizer": {
+    "backend": "ax",
+    "ax": {}
+  },
+  "seed": 17,
+  "expected_fingerprint": "3c7ecf57aae1bf73672bf8b10f71ee4910c7628dd55bd69caf464f4306d82576"
+}

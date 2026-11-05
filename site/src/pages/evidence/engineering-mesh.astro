@@ -18,8 +18,8 @@ if (!campaign) {
   currentPath="/evidence/engineering-mesh/"
 >
   <PageHero
-    title="Simulation-mesh optimization"
-    dek="Looptimum tested 21 configurations in a 216-point search space. The selected coarse mesh was then checked against a trusted fine reference in a separate solver pass."
+    title={campaign.title}
+    dek={campaign.summary}
   />
 
   <div class="stack-lg">
@@ -83,7 +83,7 @@ if (!campaign) {
         <li>The selected mesh passed this campaign's checks; global optimality was not established.</li>
         <li>Savings are measured against the archived fine reference, geometry, and workflow.</li>
         <li>Searching fewer than 10% of this space does not guarantee similar efficiency elsewhere.</li>
-        <li>The objective score alone was insufficient for acceptance; a separate solver pass was required.</li>
+        {campaign.limitations.map((limitation) => <li>{limitation}</li>)}
         <li>Other geometries, solver settings, or acceptance thresholds need their own validation.</li>
       </ul>
     </section>
