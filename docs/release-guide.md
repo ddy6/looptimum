@@ -6,14 +6,19 @@ The owner commits and pushes engineering slices; do not create a tag while
 required checks are pending. There is no PyPI publication or website server
 step in this procedure.
 
-## v1.0.0 inputs
+The existing published `v1.0.0` tag/release is immutable. v1.1.0 is a new
+minor release; source preparation does not authorize moving the earlier tag.
 
-- Package metadata: `pyproject.toml`, version `1.0.0`, no default dependencies.
+## v1.1.0 inputs
+
+- Package metadata: `pyproject.toml`, version `1.1.0`, no default dependencies.
 - Stable scope: [stability guarantees](stability-guarantees.md).
 - Upgrade/rollback: [migration guide](migration-v1.md).
-- Prepared notes: [v1.0.0](releases/v1.0.0.md) and [changelog](../CHANGELOG.md).
+- Prepared notes: [v1.1.0](releases/v1.1.0.md) and [changelog](../CHANGELOG.md).
 - Ax dependency/CPU profile and supported surface:
   [installation](ax-installation.md), [matrix](ax-support-matrix.md).
+- Ax contract-2 evidence: [audited C5 matrix](../benchmarks/ax_capabilities/repaired/readout.md),
+  40 campaigns / 960 evaluations on the recorded repaired-source commit.
 - Numerical evidence: [GP-fix comparison](../benchmarks/backend_comparison/gp_fix/readout.md).
   The original failed reference and older golden benchmark assets remain intact.
 
@@ -25,7 +30,7 @@ Run the following on the final source tree using a lean dev environment:
 python -m ruff format --check .
 python -m ruff check .
 python -m mypy
-python scripts/check_release.py --expected-version 1.0.0
+python scripts/check_release.py --expected-version 1.1.0
 python scripts/check_internal_links.py --paths README.md docs quickstart client_harness_template
 python scripts/check_docs_consistency.py
 python scripts/check_ci_playbook_sync.py
@@ -61,7 +66,7 @@ Commit the prepared release slice and push it through the normal repository
 workflow. Then, from that exact commit and a clean tree:
 
 ```bash
-python scripts/check_release.py --expected-version 1.0.0 --require-clean
+python scripts/check_release.py --expected-version 1.1.0 --require-clean
 git rev-parse HEAD
 gh run list --workflow ci.yml --branch main --limit 5 \
   --json databaseId,headSha,status,conclusion
@@ -69,8 +74,8 @@ gh run list --workflow ci.yml --branch main --limit 5 \
 
 Choose the CI run whose `headSha` exactly matches `git rev-parse HEAD`. It must
 be completed with conclusion `success`, including all four Ax lanes and the
-quality, lean unit, Mypy and release-smoke jobs. Inspect its jobs and download
-its evidence before tagging. Do not treat a running/skipped lane as proof of
+quality, lean unit, Mypy, release-smoke and Node 24 site-validation jobs. Inspect
+its jobs and download its evidence before tagging. Do not treat a running/skipped lane as proof of
 support. The final changelog date should match the intended publication date.
 
 ## Publish the tag
@@ -78,9 +83,9 @@ support. The final changelog date should match the intended publication date.
 Only after the previous checks pass, the owner can create an annotated tag:
 
 ```bash
-git tag -a v1.0.0 -m "Looptimum v1.0.0"
-python scripts/check_release.py --expected-version 1.0.0 --tag v1.0.0 --require-clean
-git push origin refs/tags/v1.0.0
+git tag -a v1.1.0 -m "Looptimum v1.1.0"
+python scripts/check_release.py --expected-version 1.1.0 --tag v1.1.0 --require-clean
+git push origin refs/tags/v1.1.0
 ```
 
 The tag check rejects a mismatched version or a tag pointing at a different
@@ -91,8 +96,8 @@ prepare a reviewed patch release with its own notes and evidence.
 If publishing a GitHub Release entry, use the prepared notes after tag CI:
 
 ```bash
-gh release create v1.0.0 --verify-tag --title "Looptimum v1.0.0" \
-  --notes-file docs/releases/v1.0.0.md
+gh release create v1.1.0 --verify-tag --title "Looptimum v1.1.0" \
+  --notes-file docs/releases/v1.1.0.md
 ```
 
 Tag push and GitHub Release creation are publication actions. This guide

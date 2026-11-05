@@ -35,9 +35,12 @@ State schema versioning rule:
 - `state.schema_version` is required for `v0.3.0` state artifacts and follows
   semver string format.
 - legacy campaigns retain state series `0.3.x`; new legacy state uses `0.3.0`.
-- Ax campaigns persist explicitly marked state series `0.4.x` and optimizer
+- Ax contract-1 campaigns persist explicitly marked state series `0.4.x` and optimizer
   format `1`. Evaluator/status payloads remain `0.3.0`; status additionally
-  reports `state_schema_version`. Package version `1.0.0` is independent.
+  reports `state_schema_version`. Package version `1.1.0` is independent.
+- Explicit [Ax contract 2](ax-contract2.md) uses state `0.5.x` / optimizer format
+  `2` and evaluator/status payloads `0.4.x`. It requires a fresh campaign or a
+  validated explicit upgrade; installing package v1.1.0 does not opt campaigns in.
 - legacy `v0.2.x` (or missing-version) state is upgraded in-memory and persisted
   on the next mutating command, with a loud warning and migration pointer.
 - earlier `0.3.x` state versions load transparently in v1.x. Released v0.4.0

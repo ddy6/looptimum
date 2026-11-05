@@ -24,7 +24,7 @@ integration and recovery references as your evaluator becomes more demanding.
 - [Search space](./search-space.md): parameter selection, types, bounds and conditional settings.
 - [Constraints](./constraints.md) and [objective design](./integration-guide.md#choose-parameters-and-define-the-measurement).
 - [How it works](./how-it-works.md): backends and effective versus ignored configuration.
-- Unreleased [Ax contract 2](./ax-contract2.md): measurement errors, exact typed conditional spaces, measured constraints and true Pareto acquisition.
+- [Ax contract 2](./ax-contract2.md) in v1.1.0: measurement errors, exact typed conditional spaces, measured constraints and true Pareto acquisition.
 - Native Ax: [backend semantics](./ax-backend.md), [CPU/offline installation](./ax-installation.md), [support matrix](./ax-support-matrix.md).
 - Preview surfaces: [service API](./service-api-preview.md), [dashboard](./dashboard-preview.md), [auth](./auth-preview.md), [coordination](./coordination-preview.md).
 - [CI knob tuning](./ci-knob-tuning.md): persistence, safe concurrency and repeat policy.
@@ -51,7 +51,7 @@ examples demonstrate wiring; they do not establish performance on your workload.
 ## Maintain
 
 - [Contributing](../CONTRIBUTING.md) and [type safety](./type-safety.md).
-- [Release procedure](./release-guide.md) and [v1 source release notes](./releases/v1.0.0.md).
+- [Release procedure](./release-guide.md) and [v1.1.0 release notes](./releases/v1.1.0.md).
 - [Feedback loop](./feedback-loop.md).
 - [Site maintenance](../site/README.md): email intake and Git-based publishing.
 - [Pilot overview](../PILOT.md), [intake](../intake.md), and [working with Looptimum](./packages.md).

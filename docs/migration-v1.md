@@ -1,8 +1,10 @@
-# Upgrade to v1.0.0
+# Upgrade within v1.x (current package v1.1.0)
 
-v1.0.0 keeps the existing proxy/direct-BoTorch defaults and evaluator contract,
-and adds opt-in native Ax in `bo_client` and `bo_client_full`. Package version
-`1.0.0` does not imply state or payload version `1.0.0`. Read the
+v1.1.0 retains proxy/direct-BoTorch defaults and the contract-1 native Ax
+workflow introduced in v1.0.0. It adds explicit opt-in Ax contract 2 for known
+measurement errors, exact typed conditional spaces, measured constraints and
+Pareto acquisition. Package `1.1.0` does not renumber campaign state or evaluator
+payloads. Read the
 [stability policy](stability-guarantees.md) before changing a live campaign.
 
 ## Before replacing a controller
@@ -38,16 +40,17 @@ options continue to require their optional numerical stack.
   conflicting replay remains an error.
 
 The deprecated `failure_reason` input remains accepted throughout v1.x;
-prefer `terminal_reason`. Its earlier removal warning was stale and is corrected
-in this release. The `success` status alias also remains accepted.
+prefer `terminal_reason`. Its earlier removal warning was corrected in v1.0.0.
+The `success` status alias also remains accepted.
 
 ## Selecting Ax for an existing legacy campaign
 
 1. Finish or explicitly cancel/retire all pending work. Initial conversion to
    Ax rejects a campaign with outstanding pending trials.
-2. Review the [supported matrix](ax-support-matrix.md). Conditional parameters,
-   heterogeneous choices, forbidden/linear constraints and lexicographic
-   objectives cannot be carried into this Ax surface. Do not silently remove
+2. Review the [supported matrix](ax-support-matrix.md). The default contract-1
+   surface rejects conditional parameters, heterogeneous choices and
+   forbidden/linear constraints; contract 2 supports the documented exact subset.
+   Ax lexicographic acquisition remains unsupported. Do not silently remove
    a constraint or change scoring on an existing history to make it fit.
 3. Install the [tested CPU profile](ax-installation.md), preferably from a
    verified matching-target wheelhouse. Run the public model/restart probe.
@@ -87,6 +90,7 @@ It does not recover the lost generator's exact next proposal.
 | --- | --- |
 | Legacy state `0.3.x` | Restore the reviewed older controller/environment with the unchanged legacy configuration. The retained v0.4.0 state reader is tested against this series. Full behavior across arbitrary older releases is not promised. |
 | State upgraded from missing/`0.2.x` | Restore the complete pre-upgrade backup when the older controller needs the original representation. |
+| Ax contract-2 state `0.5.x` | Released v1.0.0 readers reject this series. Restore the matched pre-upgrade controller/state/configuration/environment backup; never relabel state to force a downgrade. |
 | Ax state `0.4.x` | Keep a compatible native Ax controller and matching environment, or restore the complete pre-Ax backup. Released v0.4.0 rejects this state. |
 | Lost Ax snapshot/environment | Restore a matching backup or explicitly rebuild on the supported native Ax controller; never relabel the state or delete optimizer metadata. |
 
@@ -96,14 +100,15 @@ switching. Observation export/import into a fresh legacy campaign is a separate
 warm start, not rollback with preserved trial IDs, leases or generation state.
 
 Preview service/dashboard/auth/coordination deployments retain preview scope.
-Their metadata changes to `1.0.0-preview`; this release does not change their
+Their metadata is `1.1.0-preview`; this release does not change their
 registry schema or make their APIs part of the stable template contract.
 
-## Unreleased opt-in Ax contract 2
+## Opt-in Ax contract 2 in v1.1.0
 
-The current source adds state `0.5.x`/optimizer format2 and evaluator `0.4.0`
-only for explicit `optimizer.ax.contract_version: 2`. It does not change package
-`1.0.0`, the published release, legacy `0.3.x` or existing Ax `0.4.x` campaigns.
+v1.1.0 adds state `0.5.x`/optimizer format 2 and evaluator `0.4.0` only for
+explicit `optimizer.ax.contract_version: 2`. Existing legacy `0.3.x` and Ax
+contract-1 `0.4.x` campaigns retain their formats; a package upgrade alone does
+not opt them into contract 2.
 Reading old state preserves its fingerprint. Upgrade requires no outstanding
 work, validated source history, an explicit rebuild, exact backups and a new
 lineage. Missing historical outcomes/SEMs cannot be manufactured. Restore the

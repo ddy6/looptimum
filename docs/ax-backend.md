@@ -1,6 +1,6 @@
 # Ax backend
 
-The native Ax backend is optional in Looptimum `v1.0.0`.
+The native Ax backend is optional in Looptimum `v1.1.0`.
 It uses Ax 1.3.1 and its compatible BoTorch stack to generate trials
 through the existing `suggest -> evaluate -> ingest` workflow. Default proxy
 behavior and the existing direct BoTorch options remain available.
@@ -62,7 +62,7 @@ switch the campaign to proxy generation.
 ## Supported surface
 
 The following is released **contract 1** support. The current source also adds
-[unreleased contract 2](ax-contract2.md), explicitly selected with
+[contract 2 (v1.1.0)](ax-contract2.md), explicitly selected with
 `optimizer.ax.contract_version: 2`; its new state/payload identities and
 measurement, conditional-space and Pareto rules are documented separately.
 
@@ -99,13 +99,13 @@ guarantee that Ax's selected method will propose a repeat.
 ## State and recovery boundaries
 
 Ax contract-1 campaigns persist state series `0.4.x`; legacy campaigns remain
-`0.3.x`. Unreleased contract 2 uses `0.5.x`/format 2 and evaluator `0.4.0`;
+`0.3.x`. Opt-in contract 2 uses `0.5.x`/format 2 and evaluator `0.4.0`;
 see its [upgrade/rollback rules](ax-contract2.md#state-rebuild-and-rollback).
 Older controllers reject the Ax series rather than accidentally generate a
 proxy suggestion. Evaluator suggestion/result/status payloads retain the
 existing `0.3.x` surface. Status additionally identifies the internal
 `state_schema_version` and optimizer snapshot pointer for an Ax campaign.
-These state versions are independent of package version `1.0.0`.
+These state versions are independent of package version `1.1.0`.
 See the [v1 stability policy](stability-guarantees.md) and
 [migration guide](migration-v1.md) for upgrade and rollback boundaries.
 

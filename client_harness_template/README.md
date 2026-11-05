@@ -27,7 +27,7 @@ campaign, also copy `templates/_shared/runtime_paths.py` beside
 `starterkit_tracking.py`. A zero event limit returns no events; malformed event
 history still raises an error.
 
-## Unreleased extended Ax results
+## Extended Ax results (v1.1.0)
 
 `run_one_eval.py` accepts a callback dictionary containing a complete `objectives`
 map and named `objective_sems`, `measurements`, `measurement_sems` and optional

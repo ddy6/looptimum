@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+RELEASE_VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
 SPEC = importlib.util.spec_from_file_location("release_checks", ROOT / "scripts/check_release.py")
 assert SPEC and SPEC.loader
 checks = importlib.util.module_from_spec(SPEC)
@@ -25,13 +26,15 @@ def checkout(tmp_path):
         "CHANGELOG.md",
         "service/app.py",
         "templates/_shared/runtime.py",
+        "templates/_shared/runtime_paths.py",
         "templates/_shared/optimizer_backend.py",
         "templates/_shared/ax-constraints.txt",
         "docs/stability-guarantees.md",
         "docs/quick-reference.md",
         "docs/migration-v1.md",
         "docs/release-guide.md",
-        "docs/releases/v1.0.0.md",
+        "client_harness_template/run_one_eval.py",
+        f"docs/releases/v{RELEASE_VERSION}.md",
     ):
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -39,28 +42,60 @@ def checkout(tmp_path):
     return tmp_path
 
 
-@pytest.mark.parametrize("damage", ["package", "state", "defaults", "preview"])
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "package",
+        "state",
+        "ax2_state",
+        "ax2_format",
+        "payload",
+        "harness_payload",
+        "defaults",
+        "preview",
+    ],
+)
 def test_release_gate_rejects_conflicting_version_boundaries(tmp_path, damage):
     root = checkout(tmp_path)
-    assert checks.source_errors(root, "1.0.0") == []
-    if damage == "state":
+    assert checks.source_errors(root, RELEASE_VERSION) == []
+    if damage in ("state", "ax2_state"):
         path = root / "templates/_shared/runtime.py"
+        name, version = (
+            ("STATE_SCHEMA_VERSION", "0.3.0")
+            if damage == "state"
+            else ("AX_V2_STATE_SCHEMA_VERSION", "0.5.0")
+        )
+        path.write_text(path.read_text().replace(f'{name} = "{version}"', f'{name} = "1.1.0"'))
+    elif damage == "ax2_format":
+        path = root / "templates/_shared/optimizer_backend.py"
         path.write_text(
-            path.read_text().replace(
-                'STATE_SCHEMA_VERSION = "0.3.0"', 'STATE_SCHEMA_VERSION = "1.0.0"'
-            )
+            path.read_text().replace("AX_V2_FORMAT_VERSION = 2", "AX_V2_FORMAT_VERSION = 3")
         )
     elif damage == "preview":
         path = root / "service/app.py"
-        path.write_text(path.read_text().replace('version="1.0.0-preview"', 'version="1.0.0"'))
+        path.write_text(
+            path.read_text().replace(
+                f'version="{RELEASE_VERSION}-preview"', f'version="{RELEASE_VERSION}"'
+            )
+        )
+    elif damage == "payload":
+        path = root / "templates/_shared/runtime.py"
+        path.write_text(path.read_text().replace('return "0.4.0"', 'return "1.1.0"'))
+    elif damage == "harness_payload":
+        path = root / "client_harness_template/run_one_eval.py"
+        path.write_text(
+            path.read_text().replace(
+                'DEFAULT_SCHEMA_VERSION = "0.3.0"', 'DEFAULT_SCHEMA_VERSION = "1.1.0"'
+            )
+        )
     else:
         path = root / "pyproject.toml"
         path.write_text(
-            path.read_text().replace('version = "1.0.0"', 'version = "0.4.0"')
+            path.read_text().replace(f'version = "{RELEASE_VERSION}"', 'version = "0.4.0"')
             if damage == "package"
             else path.read_text().replace("dependencies = []", 'dependencies = ["torch"]')
         )
-    assert checks.source_errors(root, "1.0.0")
+    assert checks.source_errors(root, RELEASE_VERSION)
 
 
 def test_release_wheel_rejects_default_optimizer_dependency_and_missing_assets(tmp_path):
@@ -70,7 +105,7 @@ def test_release_wheel_rejects_default_optimizer_dependency_and_missing_assets(t
     def write_wheel(extra_dependency="", include_assets=True):
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr(
-                "looptimum-1.0.0.dist-info/METADATA",
+                f"looptimum-{project['version']}.dist-info/METADATA",
                 f'Name: looptimum\nVersion: {project["version"]}\nRequires-Python: {project["requires-python"]}\nRequires-Dist: ax-platform==1.3.1; extra == "ax"\n{extra_dependency}',
             )
             if include_assets:

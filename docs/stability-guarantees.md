@@ -1,7 +1,7 @@
 # Stability Guarantees
 
 The stable `v1.x` contract covers the repository templates and their file-backed
-workflow. Version in this checkout: `v1.0.0`. Publication is identified by the
+workflow. Version in this checkout: `v1.1.0`. Publication is identified by the
 [GitHub release/tag](https://github.com/ddy6/looptimum/releases), not by this text.
 See the [upgrade guide](migration-v1.md) and [release procedure](release-guide.md).
 
@@ -39,23 +39,25 @@ Unsupported Ax features are rejected explicitly, not silently approximated.
 Package, canonical state, evaluator payload and optimizer snapshot versions
 serve different purposes and are not renumbered together:
 
-| Surface | Version in v1.0.0 | Compatibility |
+| Surface | Version in v1.1.0 | Compatibility |
 | --- | --- | --- |
-| Package / repository tag | `1.0.0` / `v1.0.0` | Semantic Versioning for the stable surface |
+| Package / repository tag | `1.1.0` / `v1.1.0` | Semantic Versioning for the stable surface |
 | Legacy canonical state | `0.3.x` (new state `0.3.0`) | Existing `0.3.x` remains readable without a forced rewrite |
-| Ax canonical state | `0.4.x` (new state `0.4.0`) | Requires explicit Ax backend metadata and optimizer format `1` |
-| Suggestion/result/status payloads | Existing `0.3.x`; Ax emits `0.3.0` | Existing evaluator contract remains usable |
-| Ax optimizer envelope | Format `1` | Guarded snapshot digest, semantic fingerprint, lineage and dependency versions |
+| Ax contract-1 canonical state | `0.4.x` (new state `0.4.0`) | Requires explicit Ax backend metadata and optimizer format `1` |
+| Ax contract-2 canonical state | `0.5.x` (new state `0.5.0`) | Explicit opt-in, validated rebuild or fresh campaign; optimizer format `2` |
+| Suggestion/result/status payloads | Legacy/contract 1: `0.3.x`; contract 2 emits `0.4.0` | Compatible `0.3.x` evaluator results remain usable when required measurements exist |
+| Ax optimizer envelope | Contract 1: format `1`; contract 2: format `2` | Guarded snapshot digest, semantic fingerprint, lineage and dependency versions |
 
 Missing-version or `0.2.x` legacy state is upgraded in memory to `0.3.0`, with
 a warning, and persisted on the next mutating command. Read-only commands do
 not silently rewrite it. Fixtures live in
 [`tests/fixtures/state_versions/`](../tests/fixtures/state_versions/README.md).
 
-Older released controllers must not continue Ax campaigns. The retained state
-reader from tag `v0.4.0` is tested to reject Ax `0.4.x`; legacy `0.3.x` remains
-readable by that reader. Do not edit a state version or remove optimizer
-metadata to force a downgrade.
+Controllers released before native Ax must not continue Ax campaigns. The retained
+reader from tag `v0.4.0` rejects Ax `0.4.x`, while legacy `0.3.x` remains readable.
+Compatible v1.0.0 controllers retain contract-1 `0.4.x` support but reject
+contract-2 `0.5.x`. Do not edit a state version or remove optimizer metadata to
+force a downgrade; restore the matching code, state and environment backup.
 
 Canonical state compatibility does not promise that upstream Ax JSON snapshots
 can be loaded under arbitrary dependency versions. Generation requires the
@@ -71,7 +73,7 @@ lifecycle operations continue to work without importing the optimizer stack.
 The optional [service API](service-api-preview.md),
 [dashboard](dashboard-preview.md), [authentication](auth-preview.md) and
 [controller coordination](coordination-preview.md) remain preview-only, outside
-the stable `v1.x` compatibility promise. Their `1.0.0-preview` service metadata
+the stable `v1.x` compatibility promise. Their `1.1.0-preview` service metadata
 does not promote them to a stable hosted or distributed control plane.
 The supported topology remains one controller/writer per campaign with local
 file locking. External evaluator behavior is owned by the integration.

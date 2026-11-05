@@ -1,4 +1,4 @@
-# Ax contract-2 walkthroughs (unreleased)
+# Ax contract-2 walkthroughs (v1.1.0)
 
 These synthetic walkthroughs create fresh portable campaigns and require the
 [pinned CPU controller environment](../../docs/ax-installation.md). They use no

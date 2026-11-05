@@ -8,8 +8,10 @@ Earlier entries retain their historical `0.x` compatibility policy.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-05
+
 ### Added
-- Unreleased opt-in Ax adapter contract 2: named SEMs, measured constraints,
+- Opt-in Ax adapter contract 2: named SEMs, measured constraints,
   typed heterogeneous choices, exact finite conditional trees and parameter
   constraints, genuine Pareto acquisition and observed feasible reports.
 - Explicit state0.5/format2 upgrade/rebuild with backups and new lineage,
@@ -21,6 +23,12 @@ Earlier entries retain their historical `0.x` compatibility policy.
 - Negative site-validation fixtures and a locked Node.js 24 CI lane.
 
 ### Fixed
+- Preserve fresh-import seed fingerprints, reject infeasible imported points
+  before persistence, and retain objectives named `sems` in CSV exports.
+- Harden campaign-scoped service operations, finite runtime-limit validation,
+  terminal replay and recovery boundaries.
+- Reject generated-site copy/links hidden in script/style/template text while
+  preserving inline text and escaped figure context.
 - Prune exactly provable forbidden finite choices before Ax generation while
   preserving typed public parameter identities and bounded remaining rejection.
   Affected existing campaigns require explicit rebuild or a new campaign.

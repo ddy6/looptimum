@@ -62,6 +62,6 @@ compatibility copies. Keep the full generated bundle with each campaign.
 Variant references: [ordinary](./bo_client/README.md),
 [full](./bo_client_full/README.md), [demo](./bo_client_demo/README.md).
 
-Unreleased [Ax contract 2](../docs/ax-contract2.md) is an explicit ordinary/full
+[Ax contract 2](../docs/ax-contract2.md) is an explicit ordinary/full
 opt-in. Existing/default campaigns keep contract 1; the new state/payload
 identities require matched configuration and explicit validated upgrade.

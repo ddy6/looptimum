@@ -248,9 +248,11 @@ Constraint pointers:
 - `v0.2.x` state without `schema_version` (or with `0.2.x`) is upgraded
   in-memory and persisted on the next mutating command.
 - legacy campaigns retain `0.3.x` state; new legacy state uses `0.3.0`.
-- Ax campaigns use explicitly marked `0.4.x` state and optimizer format `1`.
+- Ax contract-1 campaigns use explicitly marked `0.4.x` state and optimizer format `1`.
   Their evaluator/status payloads remain `0.3.0`, with an additional internal
-  `state_schema_version` in status. Package version is independently `1.0.0`.
+  `state_schema_version` in status. Package version is independently `1.1.0`.
+- Opt-in [Ax contract 2](ax-contract2.md) uses state `0.5.x`, optimizer format `2`
+  and evaluator/status `0.4.x`; existing campaigns are not implicitly upgraded.
 - earlier `0.3.x` state loads transparently. Released v0.4.0 controllers reject
   Ax state. See [upgrade and rollback](migration-v1.md).
 - deprecation and compatibility policy:

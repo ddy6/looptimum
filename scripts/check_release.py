@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import re
 import subprocess
+import sys
 import tomllib
 import zipfile
 from email.parser import BytesParser
@@ -51,12 +53,45 @@ def source_errors(root: Path, expected: str | None = None) -> list[str]:
         if not path.is_file() or text not in path.read_text():
             errors.append(f"Missing release metadata in {relative}: {text}")
     # A package bump must never relabel persisted state or evaluator payloads.
-    for name, value in (("STATE_SCHEMA_VERSION", "0.3.0"), ("AX_STATE_SCHEMA_VERSION", "0.4.0")):
+    for name, value in (
+        ("STATE_SCHEMA_VERSION", "0.3.0"),
+        ("AX_STATE_SCHEMA_VERSION", "0.4.0"),
+        ("AX_V2_STATE_SCHEMA_VERSION", "0.5.0"),
+    ):
         if constant(root / "templates/_shared/runtime.py", name) != value:
             errors.append(f"State version boundary changed: {name}")
+    if (
+        constant(root / "client_harness_template/run_one_eval.py", "DEFAULT_SCHEMA_VERSION")
+        != "0.3.0"
+    ):
+        errors.append("Default evaluator payload version boundary changed")
+    # Exercise the real dependency-free dispatch in an isolated, bytecode-free
+    # interpreter; literal state constants alone cannot guard payload versions.
+    payload_versions = json.loads(
+        subprocess.check_output(
+            [
+                sys.executable,
+                "-I",
+                "-B",
+                "-c",
+                "import importlib.util,json,sys; "
+                "spec=importlib.util.spec_from_file_location('release_runtime',sys.argv[1]); "
+                "module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module); "
+                "print(json.dumps([module.payload_schema_version({'schema_version':v}) "
+                "for v in ('0.3.0','0.3.9','0.4.0','0.4.9','0.5.0','0.5.9')]))",
+                str(root / "templates/_shared/runtime.py"),
+            ],
+            text=True,
+            timeout=30,
+        )
+    )
+    if payload_versions != ["0.3.0", "0.3.9", "0.3.0", "0.3.0", "0.4.0", "0.4.0"]:
+        errors.append("Legacy/contract-1/contract-2 evaluator payload version boundary changed")
     backend = root / "templates/_shared/optimizer_backend.py"
     if constant(backend, "AX_FORMAT_VERSION") != 1:
         errors.append("Ax optimizer format boundary changed")
+    if constant(backend, "AX_V2_FORMAT_VERSION") != 2:
+        errors.append("Ax contract-2 optimizer format boundary changed")
     pin = f"ax-platform=={constant(backend, 'AX_TESTED_VERSION')}"
     if project["optional-dependencies"]["ax"] != [pin]:
         errors.append("Ax extra differs from supported adapter version")
@@ -111,8 +146,6 @@ def git_output(root: Path, *arguments: str) -> str:
 
 
 def installation_errors(root: Path, executable: str) -> list[str]:
-    import json
-
     project = tomllib.loads((root / "pyproject.toml").read_text())["project"]
     installed = json.loads(
         subprocess.check_output(

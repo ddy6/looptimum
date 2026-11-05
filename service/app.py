@@ -158,7 +158,7 @@ def create_app(config: ServiceConfig | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Looptimum Service API Preview",
-        version="1.0.0-preview",
+        version="1.1.0-preview",
         docs_url="/docs",
         redoc_url=None,
     )

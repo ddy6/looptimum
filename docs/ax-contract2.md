@@ -1,8 +1,9 @@
-# Ax adapter contract 2 (unreleased)
+# Ax adapter contract 2 (v1.1.0)
 
-The source tree adds an explicit opt-in for ordinary/full Ax controllers. These
-capabilities are unreleased; package `1.0.0`, the published release, dependency
-pins, legacy defaults and Ax contract 1 retain their existing identities.
+Looptimum v1.1.0 adds an explicit opt-in for ordinary/full Ax controllers.
+Dependency pins, legacy defaults and Ax contract 1 retain their existing
+identities. Package, campaign state, evaluator payload and optimizer versions
+remain separate; publication is identified by the GitHub release/tag.
 Install the same [pinned CPU profile](ax-installation.md).
 
 ```json

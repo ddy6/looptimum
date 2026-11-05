@@ -1,6 +1,6 @@
 # Ax support and verification
 
-The first table describes the released contract-1 Ax surface in v1.0.0. It
+The first table describes contract 1, introduced in v1.0.0 and retained in v1.1.0. It
 applies to `bo_client` and `bo_client_full` with `optimizer.backend: "ax"`.
 The [installation profile](ax-installation.md) defines the CPU/Python targets.
 The default legacy controller and direct BoTorch options retain their existing
@@ -34,11 +34,12 @@ adds 200 complete synthetic campaigns across five backends, four workloads
 and ten seeds. It is measured evidence for those workloads and the recorded
 environment, not a guarantee of performance or identical proposals elsewhere.
 
-## Unreleased contract 2
+## Opt-in contract 2 (v1.1.0)
 
 Select `optimizer.ax.contract_version: 2` in ordinary/full Ax controllers.
 [Contract 2](ax-contract2.md) defines the exact subset and migration rules;
-these source capabilities do not change the published v1.0.0 release.
+these v1.1.0 capabilities preserve contract-1 defaults and the original v1.0.0
+release identity.
 
 | Source capability | Verification |
 | --- | --- |
