@@ -1,0 +1,22 @@
+{
+  "audit_sha256": "47cce654b73af7c9c7ff528c25a89b445de506478aabd068e847fb6cc9d500bf",
+  "benchmarked_commit": "be806882df5286e983db51672f15949b790760ec",
+  "c5_benchmark_gates": "passed",
+  "campaigns": 40,
+  "ci": {
+    "conclusion": "success",
+    "head_sha": "be806882df5286e983db51672f15949b790760ec",
+    "status": "completed",
+    "url": "https://github.com/ddy6/looptimum/actions/runs/42077708325"
+  },
+  "cumulative_evaluator_calls": 1918,
+  "historical_evaluator_calls": 958,
+  "manifest_sha256": "cb68f42ca0510b7253cb74ff877830a5151004e512863cf098023cb16e77c300",
+  "new_evaluator_calls": 960,
+  "original_summary_sha256": "53347e2e710d5c4bfb344de132af7539e1ef0d88836627edfe6f8343489b6393",
+  "protocol_digest": "17ce57dd33da11e92a2c76291aa148e02a69425ba18f11d7299bd0d7762fad3f",
+  "scope": "Separate repaired-source evidence; original failed matrix and continuation preserved. Evidence-document commit/push remains owner-managed.",
+  "source_environment_protocol_match": true,
+  "summary_sha256": "b461b35fdfd3490d7d60fa61db1fd1200ed324eef39dafa353ac3efe5814f6bc",
+  "verification_sha256": "3bd6229f38d1f388b819177c143825e9bd5514affd18b4d30bb84faf74e1ff25"
+}

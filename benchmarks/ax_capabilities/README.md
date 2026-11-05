@@ -85,3 +85,13 @@ gates remain unmet. A subsequent explicitly bounded follow-up used 107.15 additi
 zero evaluator calls, then stopped at eight forbidden proposals. Original
 evidence remains intact; no automatic retry was performed. See the
 [follow-up receipt](continuation.json).
+
+## Repaired-source validation
+
+The separately approved [fresh validation protocol](repaired-validation.md)
+completed **40/40 campaigns and 960/960 additional evaluations** on commit
+`be806882df5286e983db51672f15949b790760ec`. Every hard gate and independent
+metric/count/restore audit passed, closing C5's benchmark evidence gate.
+See the [separate readout](repaired/readout.md), [summary](repaired/summary.json)
+and [verification](repaired/verification.json). Historical use remains 958 calls;
+the cumulative total is 1,918. The original failed matrix is preserved.

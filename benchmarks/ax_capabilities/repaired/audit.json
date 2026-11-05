@@ -1,0 +1,8 @@
+{
+  "cases": 40,
+  "errors": [],
+  "evaluator_invocations": 0,
+  "method": "raw receipt count, observed inclusive bounds, scalar latent regret, independent loss-sweep 2D hypervolume",
+  "passed": true,
+  "slots_consumed": 960
+}

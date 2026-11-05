@@ -1,6 +1,8 @@
-# Proposed repaired-source validation
+# Repaired-source validation protocol
 
-Status: prepared for a separate execution authorization; no campaign has started.
+Status: separately authorized, completed and independently audited on commit
+`be806882df5286e983db51672f15949b790760ec`. All 40 campaigns completed 960 calls
+and every hard gate passed; see the [separate results](repaired/readout.md).
 The original 39/40 result and failed one-shot continuation remain historical
 evidence. Their two unused evaluator slots do not authorize another attempt.
 
@@ -9,10 +11,10 @@ measurement streams, objective definitions and Pareto reference. Run all 40
 campaigns from fresh portable controllers under one frozen repaired-source
 manifest in a fresh output directory. Do not resume or splice the earlier matrix.
 
-The requested new cap is **960 additional evaluator invocations**: 24 per
+The approved new cap is **960 additional evaluator invocations**: 24 per
 campaign, including six initialization slots. Failures consume slots; there are
 no replacement evaluations or automatic retries. The historical total stays
-958, so the cumulative benchmark cap would be 1,918. At most two workers may run;
+958, so the cumulative benchmark cap is 1,918. At most two workers may run;
 each campaign has 600 seconds, with the unchanged 120-second numerical worker
 timeout and eight generation attempts per requested public candidate.
 

@@ -54,5 +54,8 @@ Repaired source prunes eligible forbidden finite choices from the Ax generation
 space by proving their activation context. Exhaustive small-space equivalence
 tests and real modeled generation/restore for both controllers at seeds 17 and 41
 pass. This is separate correctness evidence, not a completed benchmark rerun.
-The [proposed repaired-source protocol](repaired-validation.md) requires a new
-explicit execution budget; no repaired matrix has started.
+The [repaired-source protocol](repaired-validation.md) subsequently received a
+separate execution budget. Its [fresh audited matrix](repaired/readout.md)
+completed 40/40 campaigns and 960/960 new calls with all hard gates passed.
+Those results close C5 on repaired source; the original strict failure above
+remains preserved.

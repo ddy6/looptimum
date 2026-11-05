@@ -26,6 +26,9 @@ Earlier entries retain their historical `0.x` compatibility policy.
   Affected existing campaigns require explicit rebuild or a new campaign.
 - Retain saved benchmark restore checkpoints when a later campaign command fails;
   reconcile the original receipts separately from its unchanged failed matrix.
+- Complete the separately budgeted repaired-source C5 matrix: 40 campaigns,
+  960 evaluations and all independent count/metric/restore gates passed, with
+  original failed evidence retained.
 
 ## [1.0.0] - 2026-10-26
 

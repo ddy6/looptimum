@@ -47,7 +47,7 @@ these source capabilities do not change the published v1.0.0 release.
 | Measured constraints, genuine vector acquisition, mixed directions, no-feasible-yet operation and observed feasible hypervolume | [Outcome suite](../templates/tests/test_ax_outcomes.py), public serialized vector optimization config and MBM inspection, manual 2D/3D volume examples |
 | State `0.5.x` / format 2, unchanged real pre-change v1 fingerprints, explicit upgrade/semantic rebuild, exact backups/new lineage | [Rebuild suite](../templates/tests/test_ax_rebuild.py), real upgrade, baseline-code continuation/rollback proof |
 | Complete-batch rejection, worker timeout/malformed response, process exits, lost snapshots, archive/restore and canonical result delivery | [Expanded recovery suite](../templates/tests/test_ax_recovery.py), reused transaction and fault hooks for both formats |
-| Synthetic paired evidence with fixed calls, explicit failures and restore receipts | [New bounded protocol](../benchmarks/ax_capabilities/README.md); full-matrix results are reported separately from correctness smoke |
+| Synthetic paired evidence with fixed calls, explicit failures and restore receipts | [Repaired-source full matrix](../benchmarks/ax_capabilities/repaired/readout.md): 40/40 campaigns, 960/960 new calls, independent metric/count and 25-checkpoint restore audits; original failed evidence retained separately |
 
 The four required Ax OS/Python CI lanes include all three new capability suites
 with missing-dependency skip protection. Local passes do not claim those remote
