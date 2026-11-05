@@ -2477,6 +2477,8 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
             start_audit()
         try:
             state = load_state(paths["state_file"])
+            if obj_cfg.get("ax_contract_version") == 2 and state["meta"]["seed"] is None:
+                state["meta"]["seed"] = int(cfg["seed"])
             codec, configuration_fingerprint = _AX.validate_v2_context(
                 root, paths, state, params, obj_cfg, constraints, optimizer
             )
@@ -2498,6 +2500,7 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                             objective_cfg=obj_cfg,
                             local_trial_id=planned_trial_ids[index],
                             imported_at=imported_at,
+                            parameter_codec=codec,
                         ),
                     )
                     for index, raw_row in enumerate(raw_rows)
@@ -2521,6 +2524,7 @@ def cmd_import_observations(args: argparse.Namespace) -> None:
                         objective_cfg=obj_cfg,
                         next_trial_id=start_trial_id,
                         imported_at=imported_at,
+                        parameter_codec=codec,
                     ),
                 )
                 normalized_rows = cast(list[JSONDict], permissive_result["accepted"])

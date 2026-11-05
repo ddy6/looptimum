@@ -86,6 +86,16 @@ function fixture(t) {
   return { root, record, publicDir, outputDir, put, validate: () => validateBuiltCaseStudies([record], { publicDir, outputDir }) };
 }
 test("built records resolve assets, routes, escaped figure text and CTA fragments", (t) => fixture(t).validate());
+test("inline markup preserves copy, CTA words and caption punctuation", (t) => {
+  const f = fixture(t);
+  const path = "dist/evidence/sample/index.html";
+  f.put(path, readFileSync(join(f.root, path), "utf8")
+    .replace("A bounded experiment.", "A bounded experi<em>ment</em>.")
+    .replace("Discuss a pilot", "Discuss a pi<span>lot</span>")
+    .replace("Loss &amp; cost", "Loss <em>&amp;</em> cost")
+    .replace("Observed loss only.", "Observed loss <strong>only</strong>."));
+  f.validate();
+});
 
 test("a slashless CTA resolves an Astro directory route", (t) => {
   const f = fixture(t);
@@ -100,6 +110,31 @@ test("a commented-out index link is not a rendered route", (t) => {
   f.put(path, readFileSync(join(f.root, path), "utf8").replace('<a href="/evidence/sample/">Read the case study</a>', '<!-- <a href="/evidence/sample/">Read the case study</a> -->'));
   assert.throws(f.validate, /index route/u);
 });
+test("head metadata cannot replace missing page copy", (t) => {
+  const f = fixture(t);
+  const path = "dist/evidence/index.html";
+  const content = readFileSync(join(f.root, path), "utf8").replace("<p>A bounded experiment.</p>", "");
+  f.put(path, `<html><head><title>A bounded experiment.</title></head><body>${content}</body></html>`);
+  assert.throws(f.validate, /index copy/u);
+});
+for (const tag of ["script", "style", "template", "noscript"]) {
+  for (const [name, path, markup, error] of [
+    ["index copy", "dist/evidence/index.html", "<p>A bounded experiment.</p>", /index copy/u],
+    ["detail copy", "dist/evidence/sample/index.html", "<p>A bounded experiment.</p>", /detail copy/u],
+    ["index route", "dist/evidence/index.html", '<a href="/evidence/sample/">Read the case study</a>', /index route/u],
+    ["CTA", "dist/evidence/sample/index.html", '<a href="/pilot/#contact">Discuss a pilot</a>', /rendered CTA/u],
+    ["fragment", "dist/pilot/index.html", '<main id="contact">Contact</main>', /fragment/u],
+    ["proof", "dist/evidence/sample/index.html", '<img src="/proof/chart.svg" alt="A chart with &quot;loss&quot; &amp; cost">', /figure context/u],
+  ]) {
+    test(`${tag} contents cannot supply ${name}`, (t) => {
+      const f = fixture(t);
+      const content = readFileSync(join(f.root, path), "utf8");
+      assert.ok(content.includes(markup));
+      f.put(path, content.replace(markup, `<${tag}>${markup}</${tag}>`));
+      assert.throws(f.validate, error);
+    });
+  }
+}
 for (const [href, destination] of [["/guide.v1#contact", "dist/guide.v1/index.html"], ["/manual.html#contact", "dist/manual.html"]]) {
   test(`a CTA resolves the actual generated destination for ${href}`, (t) => {
     const f = fixture(t);

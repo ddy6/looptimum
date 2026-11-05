@@ -495,7 +495,9 @@ def flatten_observation_for_csv(observation: JSONDict, *, typed_params: bool = F
     params = _require_object(record.pop("params"), field_name="observation.params")
     objectives = _require_object(record.pop("objectives"), field_name="observation.objectives")
 
-    out: JSONDict = dict(record)
+    out: JSONDict = {
+        field: value for field, value in record.items() if field not in _MEASUREMENT_CSV_FIELDS
+    }
     if "heartbeat_meta" in out:
         heartbeat_meta = out.pop("heartbeat_meta")
         if heartbeat_meta is None:
@@ -516,8 +518,6 @@ def flatten_observation_for_csv(observation: JSONDict, *, typed_params: bool = F
             out[f"param_{key}"] = value
     for key, value in objectives.items():
         out[f"objective_{key}"] = value
-    for field in _MEASUREMENT_CSV_FIELDS:
-        out.pop(field, None)
     out.update(measurement_csv_fields(record))
     return out
 
@@ -695,6 +695,19 @@ def _normalize_common_observation_fields(
     return observation
 
 
+def _validate_import_parameters(observation: JSONDict, codec: JSONDict | None) -> None:
+    if codec is None:
+        return
+    # The campaign codec includes tightened bounds and the exact typed space.
+    _AX_SPACE.encode(codec, observation["params"])
+    feasibility = _AX_SPACE.feasible(codec, observation["params"])
+    if not feasibility["feasible"]:
+        raise ValueError(
+            "import params violate current parameter constraints: "
+            + ", ".join(sorted(feasibility["reject_counts"]))
+        )
+
+
 def normalize_import_record(
     raw: Any,
     *,
@@ -703,6 +716,7 @@ def normalize_import_record(
     objective_cfg: JSONDict,
     local_trial_id: int,
     imported_at: float,
+    parameter_codec: JSONDict | None = None,
 ) -> JSONDict:
     normalized_format = _require_supported_format(row_format)
     _require_trial_id(local_trial_id, field_name="local_trial_id")
@@ -757,6 +771,7 @@ def normalize_import_record(
             field_name="params",
             typed=objective_cfg.get("ax_contract_version") == 2,
         )
+        _validate_import_parameters(observation, parameter_codec)
         observation["objectives"] = _normalize_objective_payload(
             row.get("objectives"),
             objective_cfg=objective_cfg,
@@ -799,6 +814,7 @@ def normalize_import_record(
     observation["params"] = _normalize_csv_param_payload(
         row, params, typed=objective_cfg.get("ax_contract_version") == 2
     )
+    _validate_import_parameters(observation, parameter_codec)
     observation["objectives"] = _normalize_csv_objective_payload(
         row,
         objective_cfg=objective_cfg,
@@ -834,6 +850,7 @@ def normalize_import_records_permissive(
     objective_cfg: JSONDict,
     next_trial_id: int,
     imported_at: float,
+    parameter_codec: JSONDict | None = None,
 ) -> JSONDict:
     current_trial_id = _require_trial_id(next_trial_id, field_name="next_trial_id")
     accepted: list[JSONDict] = []
@@ -850,6 +867,7 @@ def normalize_import_records_permissive(
                     objective_cfg=objective_cfg,
                     local_trial_id=current_trial_id,
                     imported_at=imported_at,
+                    parameter_codec=parameter_codec,
                 )
             )
         except ValueError as exc:

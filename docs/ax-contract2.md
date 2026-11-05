@@ -80,6 +80,11 @@ legacy `param_*` columns is rejected. Unambiguous legacy CSV and compatible
 JSONL, manifests, reports, tracker exports, service JSON and archives preserve
 the same fields. These operations do not require importing Ax/Torch.
 
+Imported points must satisfy the campaign's tightened bounds, linear inequalities
+and forbidden combinations. Strict import rejects the entire batch before writing
+campaign history; permissive import reports infeasible rows and allocates local
+trial IDs only to accepted rows.
+
 ## Exact parameter subset
 
 Contract 2 preserves arbitrary evaluator-facing parameter names behind safe

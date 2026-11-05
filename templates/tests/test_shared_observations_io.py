@@ -43,6 +43,37 @@ def test_infer_observation_format_from_suffix() -> None:
         OBS_IO.infer_observation_format(Path("seed.json"))
 
 
+@pytest.mark.parametrize("version", [1, 2])
+def test_csv_round_trip_preserves_objective_named_sems(tmp_path, version) -> None:
+    cfg = OBJECTIVES.normalize_objective_schema(
+        {"primary_objective": {"name": "sems", "direction": "minimize"}},
+        contract_version=version,
+    )
+    observation = {
+        "trial_id": 1,
+        "params": {"x": 0.5},
+        "objectives": {"sems": 1.25},
+        "status": "ok",
+    }
+    if version == 2:
+        observation["objective_sems"] = {"sems": 0.0}
+    path = tmp_path / "observations.csv"
+    path.write_text(OBS_IO.render_observations_csv([observation], typed_params=version == 2))
+    raw = OBS_IO.load_observation_rows(path, "csv")[0]
+    imported = OBS_IO.normalize_import_record(
+        raw,
+        row_format="csv",
+        params=SEARCH_SPACE.normalize_search_space(
+            {"parameters": [{"name": "x", "type": "float", "bounds": [0, 1]}]}
+        ),
+        objective_cfg=cfg,
+        local_trial_id=2,
+        imported_at=1.0,
+    )["observation"]
+    assert imported["objectives"] == observation["objectives"]
+    assert imported.get("objective_sems") == observation.get("objective_sems")
+
+
 def test_plan_import_trial_ids_allocates_sequential_ids_and_rejects_pending() -> None:
     assert OBS_IO.plan_import_trial_ids({"pending": [], "next_trial_id": 7}, 3) == [7, 8, 9]
 
