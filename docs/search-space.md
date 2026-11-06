@@ -15,16 +15,20 @@ All public templates currently support:
 
 The canonical contract file is `parameter_space.json`.
 
-These are the general template capabilities. Native Ax accepts flat mixed-type
-spaces but rejects conditional `when` parameters and some constraint/objective
-policies; check the [Ax support matrix](./ax-support-matrix.md) before choosing it.
+These are the general template capabilities. Native Ax contract 1 accepts flat
+mixed-type spaces and rejects conditional `when` parameters. Explicit
+[Ax contract 2](./ax-contract2.md#exact-parameter-subset) adds typed heterogeneous
+choices and a finite single-parent conditional-tree subset. Check the
+[Ax support matrix](./ax-support-matrix.md) for backend-specific limits.
 
 ## Choose a useful parameter space
 
-Start with a small set of settings your evaluator can actually control. Keep
-measured outputs in the objective, and record the units and meaning of each
-setting. Bounds should describe safe, meaningful experiments rather than the
-widest range the software accepts.
+Start with a small set of settings your evaluator can actually control, and
+record the units and meaning of each setting. Put optimization targets in
+`objective_schema.json`; contract-2 constraint-only observations belong in
+[`measurement_metrics`](./ax-contract2.md#measurements-and-standard-errors),
+separately from objectives. Bounds should describe safe, meaningful experiments
+rather than the widest range the software accepts.
 
 Use linear scale for additive changes and log scale for positive values spanning
 orders of magnitude. Use bool for a switch and categorical choices for distinct
@@ -145,7 +149,7 @@ contract:
 - `linear_inequalities`
 - `forbidden_combinations`
 
-Hard-constraint behavior:
+Legacy proxy/direct-GP hard-constraint behavior:
 
 - enforced during warmup and surrogate candidate-pool generation
 - can reduce the feasible pool with a warning
@@ -159,7 +163,9 @@ For soft preferences or tradeoff pressure:
 - use explicit penalties in evaluator output
 - reserve `constraints.json` for true feasibility rules
 
-See `docs/constraints.md` for rule details and troubleshooting guidance.
+Native Ax uses its own generation strategy and supported constraint translation;
+legacy candidate-pool controls do not affect it. See the
+[constraints guide](./constraints.md) for rule details and backend boundaries.
 
 ## Multi-Objective Handling
 
@@ -170,12 +176,18 @@ Details:
 
 - `objective_schema.json` can declare a primary objective, optional secondary
   objectives, and optional scalarization policy
-- optimizer-facing ranking stays scalar or ordered internally
+- legacy optimizer-facing ranking stays scalar or ordered internally; Ax
+  contract 1 supports its documented scalar modes and rejects lexicographic ordering
 - status, manifests, and reports preserve raw `objective_vector` values and
   report a Pareto summary when multiple objectives are present
 
-See `docs/examples/multi_objective/README.md` for the current public example
-pack.
+Explicit [Ax contract-2 Pareto acquisition](./ax-contract2.md#measured-feasibility-and-pareto-acquisition)
+uses a genuine vector objective with configured directions and reference thresholds.
+Its scalar `best` remains a reporting summary. Observed Pareto reporting alone
+does not select this acquisition mode.
+
+See the [scalar/ordered example pack](./examples/multi_objective/README.md) and
+[contract-2 walkthroughs](../examples/ax_capabilities/README.md).
 
 ## Reproducibility Guidance
 

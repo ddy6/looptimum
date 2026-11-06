@@ -8,9 +8,10 @@ Your evaluator runs the simulation, training job, pipeline or lab workflow in
 its own environment. Saved history supports inspection and restart between
 expensive evaluations.
 
-Version in this checkout: `v1.1.0`. See
-[published releases](https://github.com/ddy6/looptimum/releases) for publication
-status and the [migration guide](docs/migration-v1.md) for existing campaigns.
+Version in this checkout: `v1.1.0`. See the
+[published release](https://github.com/ddy6/looptimum/releases/tag/v1.1.0),
+[release notes](docs/releases/v1.1.0.md) and
+[migration guide](docs/migration-v1.md) for existing campaigns.
 
 ## Run a first campaign
 

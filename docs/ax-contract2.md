@@ -128,8 +128,12 @@ continued under the changed generation space.
 Remaining forbidden rules use bounded post-filtering. Rejected arms supply no
 objective measurements, so Ax can keep proposing a forbidden branch even when
 feasible points remain. In that case generation stops at the configured attempt
-limit and publishes no partial batch. The [recorded capability run](../benchmarks/ax_capabilities/readout.md)
-includes this observed limit; extra campaign time alone did not resolve it.
+limit and publishes no partial batch. The [original capability run](../benchmarks/ax_capabilities/readout.md)
+records this limit before eligible finite-choice pruning was implemented;
+extra campaign time alone did not resolve it. After that repair, the
+[separate full matrix](../benchmarks/ax_capabilities/repaired/readout.md) completed
+all 40 campaigns and 960 evaluations, including the originally blocked typed-space
+case. Remaining post-filtered rules still have the bounded-generation limit.
 
 ## Measured feasibility and Pareto acquisition
 

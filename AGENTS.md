@@ -1,12 +1,13 @@
 # Engineering workflow
 
-## Ax/BoTorch implementation and v1.1.0
+## Released baseline and Ax/BoTorch development
 
 - Follow the native Ax/BoTorch development plan in the workspace's private
   documentation. Keep private planning material outside this public repository.
-- The intended release at the end of this work is GitHub tag `v1.1.0`.
-  Complete compatibility, migration, documentation, and release checks before
-  preparing that release; do not claim it is published during development.
+- The published baseline is GitHub tag `v1.1.0`; see its release notes and
+  `docs/release-guide.md`. Preserve published tags and release identities.
+  A future release needs its own version decision, compatibility, migration,
+  documentation and exact-source release checks before publication.
 - Work in substantial, coherent engineering slices. Complete as much useful
   implementation and verification as one sweep reasonably permits without
   sacrificing quality. Avoid unnecessary approval pauses for routine work.

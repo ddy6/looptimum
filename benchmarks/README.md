@@ -5,7 +5,13 @@ declares fixed-budget comparisons of random/proxy/direct-GP/Ax policies,
 including mixed and noisy workloads and measured controller overhead.
 Its artifacts are separate from the golden evidence below.
 
-Phase 8 evidence anchors live in this directory.
+The [Ax contract-2 capability protocol](ax_capabilities/README.md) records paired
+noise, typed-conditional, measured-constraint and Pareto workloads. Its
+[repaired-source matrix](ax_capabilities/repaired/readout.md) completed 40 campaigns
+and 960 evaluations; the original incomplete matrix is retained separately.
+These bounded synthetic results retain their stated conditions and limitations.
+
+The retained Phase 8 golden evidence and its regeneration protocol follow.
 
 Canonical benchmark script:
 

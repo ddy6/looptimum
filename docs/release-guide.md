@@ -6,15 +6,22 @@ The owner commits and pushes engineering slices; do not create a tag while
 required checks are pending. There is no PyPI publication or website server
 step in this procedure.
 
-The existing published `v1.0.0` tag/release is immutable. v1.1.0 is a new
-minor release; source preparation does not authorize moving the earlier tag.
+Published tags and releases are immutable. Both `v1.0.0` and `v1.1.0` are already
+published; preserve their identities and prepare a new version for later changes.
 
-## v1.1.0 inputs
+## Released v1.1.0 reference
+
+[Looptimum v1.1.0](https://github.com/ddy6/looptimum/releases/tag/v1.1.0) was published
+on 2026-11-05 from commit `ffe6f6b95e495e3befdb9e7fdf18af053073c701`.
+Its [source CI](https://github.com/ddy6/looptimum/actions/runs/42098079847) and
+[tag CI](https://github.com/ddy6/looptimum/actions/runs/42101654431) each passed all ten
+required jobs. All four Ax artifacts per run were downloaded and verified, with
+270 passing integration tests per lane, zero skips and matching pinned targets.
 
 - Package metadata: `pyproject.toml`, version `1.1.0`, no default dependencies.
 - Stable scope: [stability guarantees](stability-guarantees.md).
 - Upgrade/rollback: [migration guide](migration-v1.md).
-- Prepared notes: [v1.1.0](releases/v1.1.0.md) and [changelog](../CHANGELOG.md).
+- Published notes: [v1.1.0](releases/v1.1.0.md) and [changelog](../CHANGELOG.md).
 - Ax dependency/CPU profile and supported surface:
   [installation](ax-installation.md), [matrix](ax-support-matrix.md).
 - Ax contract-2 evidence: [audited C5 matrix](../benchmarks/ax_capabilities/repaired/readout.md),
@@ -24,13 +31,18 @@ minor release; source preparation does not authorize moving the earlier tag.
 
 ## Required evidence
 
+For a future release, first select a new version and update package/preview
+metadata, release notes, changelog and current version references together.
+The commands below use `X.Y.Z` as a placeholder: replace every occurrence with
+that new version. Do not rerun publication commands for an existing release.
+
 Run the following on the final source tree using a lean dev environment:
 
 ```bash
 python -m ruff format --check .
 python -m ruff check .
 python -m mypy
-python scripts/check_release.py --expected-version 1.1.0
+python scripts/check_release.py --expected-version X.Y.Z
 python scripts/check_internal_links.py --paths README.md docs quickstart client_harness_template
 python scripts/check_docs_consistency.py
 python scripts/check_ci_playbook_sync.py
@@ -66,7 +78,7 @@ Commit the prepared release slice and push it through the normal repository
 workflow. Then, from that exact commit and a clean tree:
 
 ```bash
-python scripts/check_release.py --expected-version 1.1.0 --require-clean
+python scripts/check_release.py --expected-version X.Y.Z --require-clean
 git rev-parse HEAD
 gh run list --workflow ci.yml --branch main --limit 5 \
   --json databaseId,headSha,status,conclusion
@@ -83,9 +95,9 @@ support. The final changelog date should match the intended publication date.
 Only after the previous checks pass, the owner can create an annotated tag:
 
 ```bash
-git tag -a v1.1.0 -m "Looptimum v1.1.0"
-python scripts/check_release.py --expected-version 1.1.0 --tag v1.1.0 --require-clean
-git push origin refs/tags/v1.1.0
+git tag -a vX.Y.Z -m "Looptimum vX.Y.Z"
+python scripts/check_release.py --expected-version X.Y.Z --tag vX.Y.Z --require-clean
+git push origin refs/tags/vX.Y.Z
 ```
 
 The tag check rejects a mismatched version or a tag pointing at a different
@@ -96,8 +108,8 @@ prepare a reviewed patch release with its own notes and evidence.
 If publishing a GitHub Release entry, use the prepared notes after tag CI:
 
 ```bash
-gh release create v1.1.0 --verify-tag --title "Looptimum v1.1.0" \
-  --notes-file docs/releases/v1.1.0.md
+gh release create vX.Y.Z --verify-tag --title "Looptimum vX.Y.Z" \
+  --notes-file docs/releases/vX.Y.Z.md
 ```
 
 Tag push and GitHub Release creation are publication actions. This guide

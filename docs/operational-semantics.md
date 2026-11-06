@@ -78,6 +78,12 @@ Service preview note:
 
 ## Command Semantics
 
+The step-by-step mutation order below describes the legacy controller path.
+Native Ax uses immutable optimizer snapshots and an allocation journal, with
+canonical state replacement as the commit point. Follow the
+[Ax recovery boundaries](./ax-backend.md#state-and-recovery-boundaries)
+for interrupted allocation, snapshot recovery and rebuilds.
+
 ### `suggest`
 
 `suggest` performs these steps:
@@ -140,9 +146,12 @@ Objective handling:
 - optional `penalty_objective` is accepted for non-`ok` statuses.
 - `best` is computed only from `status == "ok"` observations.
 - Single-objective campaigns rank by the primary objective.
-- Multi-objective campaigns rank by the configured scalarization or
-  lexicographic policy; manifests and reports preserve raw `objective_vector`
-  data alongside scalarized metadata.
+- Multi-objective `best` ranks by the configured scalarization, or a supported
+  legacy lexicographic policy; manifests and reports preserve raw
+  `objective_vector` data alongside scalarized metadata.
+- Ax contract-2 Pareto acquisition uses a vector objective; scalar `best` remains
+  a reporting summary. Its feasible summaries and measured constraints follow
+  the [contract-2 outcome rules](./ax-contract2.md#measured-feasibility-and-pareto-acquisition).
 - `penalty_objective` is not used for ranking.
 
 Terminal-reason handling:
@@ -371,11 +380,16 @@ Operator runbook pointer:
 
 ## Reproducibility and Determinism Boundaries
 
-Deterministic anchors:
+Legacy generation anchors:
 
 - Initial seed persisted in `state.meta.seed`.
 - Candidate generation based on deterministic seed + trial id progression.
 - Stable config/state/backend path yields stable suggestion order.
+
+Native Ax continuation also depends on the matching immutable optimizer snapshot,
+canonical history, configuration and pinned numerical environment. A seed and
+trial ID alone do not reconstruct its generator. An explicit rebuild starts a
+new lineage and can change subsequent suggestions.
 
 Known nondeterminism boundaries:
 

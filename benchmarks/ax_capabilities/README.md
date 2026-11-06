@@ -1,6 +1,6 @@
-# Bounded Ax capability evidence (unreleased)
+# Bounded Ax capability evidence (v1.1.0)
 
-This new synthetic family exercises [Ax contract 2](../../docs/ax-contract2.md).
+This synthetic family exercises [Ax contract 2](../../docs/ax-contract2.md).
 It preserves the earlier backend comparison and its original failed/reference
 outputs. The runner uses fresh portable ordinary controllers for Ax and a
 stdlib uniform feasible sampler for the random arm. Random selection ignores

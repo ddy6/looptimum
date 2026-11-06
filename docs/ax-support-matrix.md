@@ -54,12 +54,15 @@ The four required Ax OS/Python CI lanes include all three new capability suites
 with missing-dependency skip protection. Local passes do not claim those remote
 lanes passed on an uncommitted revision.
 
-Contract-2 forbidden rules use bounded rejection. The recorded typed-space
-seed-41 case exhausted eight attempts on forbidden arms before allocating its
-next trial; the approved time extension made no additional evaluator calls.
-The [readout](../benchmarks/ax_capabilities/readout.md) retains that incomplete
-case. Supported validation does not guarantee a feasible proposal within the
-attempt limit.
+Eligible contract-2 forbidden finite choices are pruned exactly from the Ax
+generation space; remaining rules use bounded rejection. Before that repair,
+typed-space seed 41 exhausted eight attempts on forbidden arms without allocating
+its next trial; the approved time extension made no additional evaluator calls.
+The [original readout](../benchmarks/ax_capabilities/readout.md) retains that
+incomplete case. The [repaired-source matrix](../benchmarks/ax_capabilities/repaired/readout.md)
+completed all 40 campaigns, including seed 41, with zero compiled forbidden-branch
+rejections. Remaining post-filtered rules can still reach the attempt limit
+without a feasible proposal.
 
 ## Explicit limits
 

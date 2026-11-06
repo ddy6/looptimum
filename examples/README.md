@@ -1,6 +1,6 @@
 # Examples
 
-Public examples directory for integration-pattern references and later case studies.
+Runnable integration examples and pointers to retained case studies.
 
 Purpose:
 
@@ -8,23 +8,32 @@ Purpose:
 - demonstrate common integration patterns (Python function, CLI/subprocess, etc.)
 - provide small runnable references before moving to domain-specific examples
 
-Included:
+## Lightweight evaluator wiring
 
-- `toy-objectives/`: two toy examples covering different integration patterns
-- `toy_objectives/03_tiny_quadratic_loop/`: dedicated tiny end-to-end loop
+- [Python and subprocess adapters](toy-objectives/README.md): two toy examples
+  covering different integration patterns
+- [Tiny quadratic loop](toy_objectives/03_tiny_quadratic_loop/README.md): end-to-end
   example (`suggest -> evaluate -> ingest -> status` in under one minute)
 
-Planned later:
+## Optional native Ax
 
-- sample result payloads and run artifacts
-- advanced domain-specific case studies
+Use the [pinned CPU environment](../docs/ax-installation.md) for these examples:
 
-Included domain-specific case study:
+- [Quadratic loop](ax_quadratic/README.md): initialization, model-guided
+  generation and optimizer snapshots
+- [Mixed pipeline tuning](ax_pipeline_tuning/README.md): an external evaluator,
+  mixed parameters, leases and dependency-light result delivery
+- [Contract-2 walkthroughs](ax_capabilities/README.md): measurement errors,
+  typed conditional trees, measured constraints and vector Pareto acquisition
 
-- `snappyhexmesh_campaign/`: sanitized mesh-control example paired with
-  archived validation evidence in `../docs/examples/snappyhexmesh_campaign/`
+## Case studies and reference artifacts
 
-Positioning note:
+- [Mesh-control example](snappyhexmesh_campaign/README.md) and its
+  [retained validation evidence](../docs/examples/snappyhexmesh_campaign/README.md)
+- [GPT training case study](../docs/examples/gpt_training_campaign/README.md)
+- [Documentation examples](../docs/examples/README.md): sample payloads,
+  state snapshots, batch/async, warm-start and preview artifacts
 
-- The toy examples are not benchmark tasks and are not intended to demonstrate optimization performance claims.
-- They are reference implementations for wiring `suggest -> evaluate -> ingest` end to end.
+Wiring examples demonstrate interface use. Case studies and
+[benchmarks](../benchmarks/README.md) retain their own conditions, measurements
+and limitations; none establishes performance on another workload.

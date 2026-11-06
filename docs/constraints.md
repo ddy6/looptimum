@@ -19,6 +19,18 @@ Current rule collections:
 Constraints are enforced during `suggest`. They are not authoritative state and
 they do not replace the base parameter bounds in `parameter_space.json`.
 
+The sampling and candidate-pool behavior below describes legacy proxy/direct-GP
+generation. Native Ax contract 1 supports bound tightening; explicit
+[contract 2](./ax-contract2.md#exact-parameter-subset) adds an exact raw-linear
+subset and forbidden combinations, using eligible finite-choice pruning and
+bounded rejection for remaining rules. Legacy `candidate_pool_size` does not
+control Ax generation. Check the [Ax support matrix](./ax-support-matrix.md).
+
+Constraints on measured outcomes belong in `objective_schema.json` under
+[contract-2 measured feasibility](./ax-contract2.md#measured-feasibility-and-pareto-acquisition).
+An evaluator-successful result that exceeds a measured bound remains completed
+model data; it is not an evaluation failure or a parameter-space rejection.
+
 ## Hard vs Soft Constraints
 
 `constraints.json` is a hard filter only.
@@ -36,8 +48,9 @@ What it does not do:
 - express preference tradeoffs
 - relax constraints automatically when the feasible region is sparse
 
-For soft preferences, keep using scalar objective shaping or explicit
-`status: "failed"` / `status: "timeout"` policies in your evaluator flow.
+For soft preferences, shape the successful objective value. Use
+`status: "failed"` / `status: "timeout"` for actual evaluator failures; reporting
+penalties on failed trials do not become training data.
 
 ## Rule Semantics
 

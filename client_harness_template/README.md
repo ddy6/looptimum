@@ -15,8 +15,9 @@ until you supply an implementation.
 | Deliver event webhooks | `starterkit_config.py`, `starterkit_events.py` |
 | Export observations to optional trackers | `starterkit_tracking.py`, `starterkit_mlflow.py`, `starterkit_wandb.py` |
 
-The local adapter is a single-objective starter. Optional executors and sidecars
-have their own dependencies and operating requirements; see
+Scalar callbacks populate the primary objective; dictionary callbacks can supply
+a complete objective vector and the extended fields below. Optional executors
+and sidecars have their own dependencies and operating requirements; see
 [AWS Batch](../docs/aws-batch-integration.md) and the
 [integration starter kit](../docs/integration-starter-kit.md).
 

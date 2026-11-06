@@ -49,11 +49,13 @@ options. The harness [file map](../client_harness_template/README.md) identifies
 optional scheduler, AWS and tracker helpers.
 
 The supplied `objective.py` is an unimplemented stub. Provide your own module
-before expecting successful evaluation. `run_one_eval.py` is a **single-objective**
-starter; `--objective-schema` reads the JSON `objective_schema.json` contract.
-For multiple objectives, construct a result containing the complete configured
-`objectives` map before ingesting. The
-[Python-function example](../examples/toy-objectives/01_python_function/README.md)
+before expecting successful evaluation. Scalar callbacks populate the primary
+objective; dictionary callbacks can return a complete configured `objectives`
+map. Ax contract 2 also accepts measurements and SEMs. `--objective-schema`
+selects the primary name/direction; the controller validates the complete result
+at ingest. See
+[extended callback results](../client_harness_template/README.md#extended-ax-results-v110).
+The [Python-function example](../examples/toy-objectives/01_python_function/README.md)
 and [subprocess example](../examples/toy-objectives/02_subprocess_cli/README.md)
 show alternative evaluator boundaries.
 
@@ -65,9 +67,10 @@ needs only Python's standard library. Keep result files until ingest succeeds.
 
 Choose a small set of controllable settings that can plausibly change the
 measurement. Record units, safe bounds, categorical choices and conditional
-relationships in the [search-space contract](./search-space.md). Measured outputs
-belong in the objective, not among the proposed settings. General templates
-support `float`, `int`, `bool` and `categorical`; consult the
+relationships in the [search-space contract](./search-space.md). Put optimization
+targets in `objective_schema.json`; use separate `measurement_metrics` for
+[contract-2 constraint-only observations](./ax-contract2.md#measurements-and-standard-errors).
+General templates support `float`, `int`, `bool` and `categorical`; consult the
 [Ax support matrix](./ax-support-matrix.md) before selecting that backend.
 
 For the objective, define before running a campaign:
@@ -76,8 +79,10 @@ For the objective, define before running a campaign:
   trial. A successful process exit alone need not mean the measurement is valid.
 - **Direction:** `minimize` or `maximize` in `objective_schema.json`. Return the
   raw score in that convention; do not silently negate it in the adapter.
-- **Tradeoffs:** one primary objective, or explicit secondary objectives and a
-  scalarization/ordering policy. Keep the policy fixed during a comparison.
+- **Tradeoffs:** one primary objective, or explicit secondary objectives with a
+  supported scalarization/ordering policy or opt-in
+  [Ax contract-2 Pareto acquisition](./ax-contract2.md#measured-feasibility-and-pareto-acquisition).
+  Keep the policy fixed during a comparison.
   See the [multi-objective example](./examples/multi_objective/README.md) and
   backend-specific limits; Ax does not provide all legacy scalarization modes.
 - **Feasibility:** distinguish forbidden parameter combinations from measured

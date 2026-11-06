@@ -23,9 +23,17 @@ mapping such as `{"status": "failed", "objective": None,
 "terminal_reason": "evaluation incomplete"}`. Use Python `None` in code and
 JSON `null` in serialized payloads.
 
-The adapter is single-objective. For a multi-objective campaign, build the full
-configured `objectives` map yourself; see the
-[multi-objective example](../docs/examples/multi_objective/README.md).
+Scalar callbacks populate only the primary objective. For a multi-objective
+campaign, return a dictionary with the complete configured `objectives` map;
+the adapter preserves it in the result. Any `objective` alias must match the
+primary map entry. Non-`ok` results must set every objective to null.
+
+`--objective-schema` reads the primary name/direction; the controller validates
+the complete configured metric set at ingest. Contract-2 callbacks can also
+provide measurements and SEMs; see [extended results](./README.md#extended-ax-results-v110)
+and [Ax contract 2](../docs/ax-contract2.md). The
+[multi-objective example](../docs/examples/multi_objective/README.md) covers
+objective authoring and scalarization.
 
 ## Run one evaluation
 

@@ -95,7 +95,7 @@ This runs `suggest -> evaluate -> ingest -> status` on an isolated temp copy of
 References:
 
 - `examples/toy_objectives/03_tiny_quadratic_loop/README.md`
-- `quickstart/README.md` ("Tiny End-to-End Objective" section)
+- [Portable quickstart](../quickstart/README.md) for a fresh ordinary campaign
 
 ## Where can I find a golden acquisition log sample?
 
@@ -207,6 +207,11 @@ Common causes:
 - missing configured objective keys
 - non-numeric or NaN/Inf objective
 - schema mismatch
+
+For [Ax contract 2](./ax-contract2.md#measurements-and-standard-errors), also
+check declared measurement names/values, finite nonnegative SEMs and consistent
+known-versus-unknown SEM coverage for each modeled metric across successful
+history. Do not invent missing measurements or errors to make ingest pass.
 
 Fix the payload and re-run `ingest`. Do not mutate the original suggested params.
 
